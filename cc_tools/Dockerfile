@@ -4,7 +4,7 @@ ARG BUILD_VERSION=1.0.17
 ARG BUILD_ARCH
 
 LABEL \
-  io.hass.name="CC Tools" \
+  io.hass.name="CC Tools Dev" \
   io.hass.description="Automatiza tareas de Creality Cloud desde Home Assistant" \
   io.hass.type="app" \
   io.hass.version="${BUILD_VERSION}" \

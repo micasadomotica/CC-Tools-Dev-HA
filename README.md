@@ -1,4 +1,10 @@
-# CC Tools para Home Assistant
+# CC Tools Dev para Home Assistant
+
+Versión **1.0.17**, basada en CC Tools 1.0.16 de TitoTB. Recupera «Añadir a la colección» de Dev 1.0.13 y resuelve el recordatorio de reposición durante el check-in diario.
+
+Este fork se compila localmente en Home Assistant. Para actualizar la instalación local Dev, sustituye la carpeta `/addons/cc_tools` por la carpeta `cc_tools` del ZIP, recarga la tienda de aplicaciones y pulsa **Actualizar** en CC Tools Dev. Mantén la instalación existente para conservar su configuración y sesión en `/data`.
+
+La implementación propuesta al proyecto original está en la [PR #1](https://github.com/TitoTB/CC-Tools-HA/pull/1).
 
 CC Tools es una herramienta diseñada, en conjunto con [esta integración](https://github.com/TitoTB/Creality-Cloud-HA), para interactuar con Creality Cloud desde Home Assistant, permitiendo:
 
@@ -19,10 +25,10 @@ CC Tools es una herramienta diseñada, en conjunto con [esta integración](https
 3. Añade esta URL:
 
    ```text
-   https://github.com/TitoTB/CC-Tools-HA
+   https://github.com/micasadomotica/CC-Tools-HA
    ```
 
-4. Cierra el diálogo de repositorios y busca **CC Tools** en la tienda.
+4. Cierra el diálogo de repositorios y busca **CC Tools Dev** en la tienda.
 5. Abre su ficha y pulsa **Instalar**. La primera compilación puede tardar varios minutos.
 6. En la pestaña **Configuración**, revisa la zona horaria.
 7. Inicia el complemento y pulsa **Abrir interfaz web**.
