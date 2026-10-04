@@ -29,7 +29,7 @@ catálogos de diseños y la configuración no se comparten entre las dos aplicac
 ## Instalar y actualizar Dev
 
 Descarga `cc-tools-dev-X.Y.Z.zip` de los Assets de una
-[release Dev](https://github.com/micasadomotica/CC-Tools-HA/releases?q=dev-v&expanded=true),
+[release Dev](https://github.com/micasadomotica/CC-Tools-HA/releases),
 descomprímelo y copia `cc_tools` dentro de `/addons`. El archivo de configuración
 debe quedar en `/addons/cc_tools/config.yaml`. Busca actualizaciones en la tienda
 e instala **CC Tools Dev** desde las aplicaciones locales.

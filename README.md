@@ -4,7 +4,7 @@ CC Tools Dev es la edición de desarrollo de este fork de [CC Tools de TitoTB](h
 
 Se instala como aplicación local y utiliza el puerto **8088**. Puede convivir con la aplicación de TitoTB instalada desde su repositorio, que utiliza el puerto **8080** por defecto.
 
-[Descargar CC Tools Dev](https://github.com/micasadomotica/CC-Tools-HA/releases?q=dev-v&expanded=true) · [Código de Dev](https://github.com/micasadomotica/CC-Tools-HA/tree/dev)
+[Descargar CC Tools Dev](https://github.com/micasadomotica/CC-Tools-HA/releases) · [Código de Dev](https://github.com/micasadomotica/CC-Tools-HA/tree/dev)
 
 Las novedades y correcciones de cada versión se describen en su release. Las publicaciones marcadas como **Pre-release** están pendientes de validación completa en Home Assistant.
 
@@ -12,7 +12,7 @@ Las novedades y correcciones de cada versión se describen en su release. Las pu
 
 Necesitas Home Assistant con Supervisor y acceso a la carpeta `addons`, por ejemplo mediante Samba o SSH.
 
-1. Abre las [Releases de Dev](https://github.com/micasadomotica/CC-Tools-HA/releases?q=dev-v&expanded=true) y selecciona la versión que quieras instalar.
+1. Abre las [Releases de Dev](https://github.com/micasadomotica/CC-Tools-HA/releases) y selecciona la versión que quieras instalar.
 2. En **Assets**, descarga el archivo adjunto **`cc-tools-dev-X.Y.Z.zip`**. El archivo **Source code (zip)** es la descarga automática del repositorio y no es el paquete preparado para esta instalación.
 3. Descomprime el ZIP. Dentro encontrarás la carpeta **`cc_tools`**.
 4. Copia esa carpeta dentro de **`/addons`** de Home Assistant. Si usas Samba, corresponde al recurso compartido **`addons`**. La estructura debe quedar así:
