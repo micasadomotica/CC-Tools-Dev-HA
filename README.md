@@ -1,6 +1,8 @@
 # CC Tools Dev para Home Assistant
 
-Versión **1.0.17**, basada en CC Tools 1.0.16 de TitoTB. Recupera «Añadir a la colección» de Dev 1.0.13 y resuelve el recordatorio de reposición durante el check-in diario.
+Versión **1.0.18**, basada en CC Tools 1.0.17 de TitoTB. Conserva «Añadir a la colección» y la recuperación del check-in ante el recordatorio de reposición. Incorpora la comprobación de sesión, el límite de ocho minutos por tarea y la liberación del navegador para iniciar sesión.
+
+Corrige el reinicio del asistente al probar Telegram. Las instalaciones nuevas empiezan con 30 descargas diarias en una ventana de 08:00 a 14:00; las actualizaciones conservan los ajustes guardados.
 
 Este fork se compila localmente en Home Assistant. Para actualizar la instalación local Dev, sustituye la carpeta `/addons/cc_tools` por la carpeta `cc_tools` del ZIP, recarga la tienda de aplicaciones y pulsa **Actualizar** en CC Tools Dev. Mantén la instalación existente para conservar su configuración y sesión en `/data`.
 
