@@ -3,4 +3,4 @@ configuration:
     name: Time zone
     description: Time zone used to schedule automations.
 network:
-  8080/tcp: CC Tools web interface
+  8080/tcp: CC Tools Dev web interface (default 8088)

@@ -21,6 +21,8 @@ export async function runModelComment(taskConfig = {}, options = {}) {
 
   const runs = await readRuns();
   const counts = countTodayComments(runs, taskConfig.timezone);
+  counts.image = Math.max(counts.image, Number(taskConfig.synchronizedCounts?.image) || 0);
+  counts.text = Math.max(counts.text, Number(taskConfig.synchronizedCounts?.text) || 0);
   const kind = selectCommentKind(taskConfig, entries, counts, options.commentKind);
   if (!kind) return skipped('Los comentarios configurados para hoy ya están completados.');
 

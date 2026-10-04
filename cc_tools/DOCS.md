@@ -1,4 +1,4 @@
-# CC Tools
+# CC Tools Dev
 
 CC Tools ejecuta automatizaciones de Creality Cloud desde Home Assistant.
 
@@ -7,6 +7,36 @@ CC Tools ejecuta automatizaciones de Creality Cloud desde Home Assistant.
 Antes de iniciar el complemento puedes configurar:
 
 - `timezone`: zona horaria utilizada para planificar las automatizaciones. El valor predeterminado es `Europe/Madrid`.
+
+## Puerto web y convivencia
+
+Dev utiliza el puerto externo **8088**: `http://IP_DE_HOME_ASSISTANT:8088`.
+En **Configuración > Red** puedes revisar o cambiar el puerto. Si vienes de una
+versión anterior que utilizaba 8080, cambia el puerto externo guardado a **8088**
+y reinicia Dev. El puerto interno del contenedor sigue siendo 8080; Home Assistant
+resuelve **Abrir interfaz web** con el puerto externo configurado.
+
+Puedes mantener CC Tools de TitoTB instalado desde su repositorio en el puerto
+8080 y CC Tools Dev como aplicación local en `/addons/cc_tools` en el puerto 8088.
+Cada aplicación conserva sus propios datos y su sesión. Inicia sesión en ambas y
+reparte los módulos: por ejemplo, MakeNow en Dev y las descargas en la principal.
+Activa cada tarea en una sola instalación para evitar ejecuciones simultáneas
+sobre la misma cuenta. Los límites de recompensa son comunes a la cuenta.
+
+Likes y colecciones requieren Descubrir diseños en la misma instalación. Los
+catálogos de diseños y la configuración no se comparten entre las dos aplicaciones.
+
+## Instalar y actualizar Dev
+
+Descarga `cc-tools-dev-X.Y.Z.zip` de los Assets de una
+[release Dev](https://github.com/micasadomotica/CC-Tools-HA/releases?q=dev-v&expanded=true),
+descomprímelo y copia `cc_tools` dentro de `/addons`. El archivo de configuración
+debe quedar en `/addons/cc_tools/config.yaml`. Busca actualizaciones en la tienda
+e instala **CC Tools Dev** desde las aplicaciones locales.
+
+Para actualizar, detén Dev, sustituye los archivos de la misma carpeta y pulsa
+**Actualizar** en la instalación existente. Revisa el puerto 8088 antes de
+iniciarla. Conserva la instalación y su carpeta para mantener los datos.
 
 ## Primer acceso
 
@@ -44,3 +74,13 @@ Puedes comunicar dudas, fallos y sugerencias en la [comunidad de Aguacatec en Te
 ## Aviso
 
 CC Tools no es una aplicación oficial ni está afiliada con Creality o Creality Cloud. Utiliza la herramienta bajo tu responsabilidad y respeta siempre las normas establecidas por la plataforma.
+
+## MakeNow (1.0.19, prueba local)
+
+Activa MakeNow en Herramientas y configura su franja diaria. También puedes usar Ejecutar ahora. Utiliza la sesión de Creality Cloud existente y funciona sin activar Descubrir diseños.
+
+El flujo consulta Use MakeNow, abre Lampshade Generator y pulsa New Project. Después verifica la recompensa y cierra el navegador. Nunca usa AI Create Lab ni genera, guarda o finaliza el proyecto.
+
+Log muestra los pasos y si Creality Cloud confirmó la recompensa. Si ya estaba completada, no abre otro proyecto. Tras intentar el clic no se repite ese día, incluso si la confirmación tarda o se reinicia la app. Ejecutar ahora permite volver a consultar la recompensa sin repetir el clic. El día se determina según la zona horaria configurada. No se eliminan proyectos existentes.
+
+Instalación local: sustituye la carpeta cc_tools de la app local por la de este ZIP y actualiza/reconstruye CC Tools Dev desde Home Assistant. Conserva el slug y los datos de la versión 1.0.18. Esta entrega no publica cambios en GitHub.

@@ -4,6 +4,7 @@ const state = {
   nextExecutions: {},
   runtimePaths: {},
   dailyCounters: {},
+  dailyLimits: {},
   healthMetrics: {},
   latestRuns: [],
   activeView: 'home',
@@ -137,6 +138,15 @@ const fields = {
   likesWindowStart: $('#likes-window-start'),
   likesWindowEnd: $('#likes-window-end'),
   likesPrioritizeFavorites: $('#likes-prioritize-favorites'),
+  makeNowLastRun: $('#makenow-last-run'),
+  makeNowNextRun: $('#makenow-next-run'),
+  makeNowEnabled: $('#makenow-enabled'),
+  makeNowDailyBadge: $('#makenow-daily-badge'),
+  makeNowWindowStart: $('#makenow-window-start'),
+  makeNowWindowEnd: $('#makenow-window-end'),
+  makeNowConfigModal: $('#makenow-config-modal'),
+  notifyMakeNow: $('#notify-makenow'),
+  notifyMakeNowError: $('#notify-makenow-error'),
   collectionsLastRun: $('#collections-last-run'),
   collectionsNextRun: $('#collections-next-run'),
   collectionsEnabled: $('#collections-enabled'),
@@ -237,6 +247,17 @@ document.addEventListener('keydown', (event) => {
 });
 
 await refresh();
+let progressSyncInFlight = false;
+async function syncRemoteProgress() {
+  if (progressSyncInFlight || !state.config?.setup?.assistantCompleted || state.scheduler?.running) return;
+  progressSyncInFlight = true;
+  try {
+    await api('/api/progress/refresh', { method: 'POST' });
+    await refreshLiveCounters();
+  } finally { progressSyncInFlight = false; }
+}
+syncRemoteProgress().catch(() => {});
+setInterval(() => { syncRemoteProgress().catch(() => {}); }, 60 * 1000);
 setInterval(() => {
   refreshLiveCounters().catch(() => {});
 }, 60 * 1000);
@@ -498,7 +519,8 @@ async function refreshPointsHistory(showToast = false, fullHistory = false) {
     renderPointsCounter(result.points);
     renderPointsHistory(result.points);
   }
-  if (showToast) toast(result.ok ? 'Historial de puntos actualizado.' : `No se pudo actualizar el historial: ${errorMessage(result.error, result)}`);
+  await refreshLiveCounters();
+  if (showToast) toast(result.ok ? (result.progressSynced ? 'Historial y progreso diario actualizados.' : 'Historial actualizado; progreso diario pendiente de sincronizar.') : `No se pudo actualizar el historial: ${errorMessage(result.error, result)}`);
 }
 
 fields.healthSummary.addEventListener('click', async (event) => {
@@ -707,6 +729,28 @@ $('#close-likes-config').addEventListener('click', () => {
 
 fields.likesConfigModal.addEventListener('click', (event) => {
   if (event.target === fields.likesConfigModal) fields.likesConfigModal.hidden = true;
+});
+
+fields.makeNowEnabled.addEventListener('change', async () => {
+  if (await saveConfig({ includeMakeNow: true })) toast(fields.makeNowEnabled.checked ? 'MakeNow activado.' : 'MakeNow desactivado.');
+});
+$('#open-makenow-config').addEventListener('click', () => { fields.makeNowConfigModal.hidden = false; });
+$('#close-makenow-config').addEventListener('click', () => { fields.makeNowConfigModal.hidden = true; });
+fields.makeNowConfigModal.addEventListener('click', (event) => {
+  if (event.target === fields.makeNowConfigModal) fields.makeNowConfigModal.hidden = true;
+});
+$('#save-makenow-config').addEventListener('click', async () => {
+  if (await saveConfig({ includeMakeNow: true })) toast('Configuración guardada.');
+});
+$('#run-makenow-now').addEventListener('click', async () => {
+  if (!(await saveConfig({ includeMakeNow: true }))) return;
+  fields.makeNowConfigModal.hidden = true;
+  await runWithProgress({
+    title: 'MakeNow',
+    steps: ['Consultando recompensa...', 'Abriendo New Project', 'Verificando recompensa'],
+    activeMessage: 'Abriendo Lampshade Generator y comprobando Use MakeNow...',
+    endpoint: '/api/tasks/makenow/run'
+  });
 });
 
 $('#open-collections-config').addEventListener('click', () => {
@@ -1079,6 +1123,14 @@ async function saveConfig(options = {}) {
     };
   }
 
+  if (options.includeMakeNow) {
+    body.makeNow = {
+      enabled: fields.makeNowEnabled.checked,
+      windowStart: fields.makeNowWindowStart.value,
+      windowEnd: fields.makeNowWindowEnd.value
+    };
+  }
+
   if (options.includeModelBoosts) {
     body.modelBoosts = {
       enabled: fields.boostsEnabled.checked,
@@ -1132,6 +1184,8 @@ async function saveConfig(options = {}) {
       notifyOnFinishPrintError: fields.notifyFinishPrintError.checked,
       notifyOnComment: fields.notifyComment.checked,
       notifyOnCommentError: fields.notifyCommentError.checked,
+      notifyOnMakeNow: fields.notifyMakeNow.checked,
+      notifyOnMakeNowError: fields.notifyMakeNowError.checked,
       notifyOnModelBoost: fields.notifyModelBoost.checked,
       notifyOnModelBoostError: fields.notifyModelBoostError.checked,
       notifyOnShopRedemption: fields.notifyShopRedemption.checked,
@@ -1163,6 +1217,7 @@ async function refresh() {
   state.favoriteProfilesRefreshRunning = result.favoriteProfilesRefreshRunning === true;
   state.commentDrafts = structuredClone(result.config.tasks.comments?.comments || []);
   state.dailyCounters = result.dailyCounters || {};
+  state.dailyLimits = result.dailyLimits || {};
   state.healthMetrics = result.healthMetrics || {};
   state.latestRuns = result.latestRuns || [];
   render();
@@ -1211,6 +1266,7 @@ async function refreshLiveCounters() {
   if (!result.ok) return;
 
   state.dailyCounters = result.dailyCounters || {};
+  state.dailyLimits = result.dailyLimits || {};
   state.scheduler = result.scheduler || { running: false, runningTask: '' };
   state.nextExecutions = result.nextExecutions || {};
   state.healthMetrics = result.healthMetrics || {};
@@ -1221,6 +1277,13 @@ async function refreshLiveCounters() {
   renderFavoriteProfiles(state.config.crealityFavorites);
   renderRuns();
   renderHealthSummary();
+  state.config.dailyProgress = result.config?.dailyProgress || state.config.dailyProgress;
+  if (result.config?.points) {
+    state.config.points = result.config.points;
+    renderPointsCounter(state.config.points);
+    if (!fields.pointsHistoryModal.hidden) renderPointsHistory(state.config.points);
+  }
+  if (state.activeView === 'schedule') await showSchedulePreview();
 }
 
 async function addCommentDraft() {
@@ -2329,6 +2392,8 @@ function scheduleTaskTypeText(taskId, fallback = 'Tarea') {
     comments: 'Comentarios',
     modelBoosts: 'Impulsar diseños',
     modelLikes: 'Dar me gusta',
+    rewardSync: 'Sincronización de recompensas',
+    makeNow: 'MakeNow',
     modelCollections: 'Añadir a la colección'
   })[taskId] || fallback || 'Tarea';
 }
@@ -2538,6 +2603,7 @@ function render() {
   const comments = state.config.tasks.comments;
   const boosts = state.config.tasks.modelBoosts;
   const likes = state.config.tasks.modelLikes;
+  const makeNow = state.config.tasks.makeNow;
   const collections = state.config.tasks.modelCollections;
   renderPointsCounter(state.config.points || {});
   renderShopGoal(state.config.shopGoal || {});
@@ -2591,6 +2657,10 @@ function render() {
   fields.likesWindowEnd.value = likes.windowEnd;
   fields.likesPrioritizeFavorites.checked = likes.prioritizeFavorites !== false;
   $('#run-likes-now').disabled = state.scheduler?.running === true;
+  renderLastExecution(fields.makeNowLastRun, makeNow);
+  fields.makeNowEnabled.checked = makeNow.enabled;
+  fields.makeNowWindowStart.value = makeNow.windowStart;
+  fields.makeNowWindowEnd.value = makeNow.windowEnd;
   renderLastExecution(fields.collectionsLastRun, collections);
   fields.collectionsEnabled.checked = collections.enabled;
   fields.collectionsWindowStart.value = collections.windowStart;
@@ -2611,6 +2681,8 @@ function render() {
   fields.notifyFinishPrintError.checked = state.config.telegram.notifyOnFinishPrintError !== false;
   fields.notifyComment.checked = state.config.telegram.notifyOnComment !== false;
   fields.notifyCommentError.checked = state.config.telegram.notifyOnCommentError !== false;
+  fields.notifyMakeNow.checked = state.config.telegram.notifyOnMakeNow !== false;
+  fields.notifyMakeNowError.checked = state.config.telegram.notifyOnMakeNowError !== false;
   fields.notifyModelBoost.checked = state.config.telegram.notifyOnModelBoost !== false;
   fields.notifyModelBoostError.checked = state.config.telegram.notifyOnModelBoostError !== false;
   fields.notifyShopRedemption.checked = state.config.telegram.notifyOnShopRedemption !== false;
@@ -2633,6 +2705,7 @@ function renderNextExecutions() {
   fields.commentsNextRun.textContent = formatDate(next.comments);
   fields.boostsNextRun.textContent = formatDate(next.modelBoosts);
   fields.likesNextRun.textContent = formatDate(next.modelLikes);
+  fields.makeNowNextRun.textContent = formatDate(next.makeNow);
   fields.collectionsNextRun.textContent = formatDate(next.modelCollections);
 }
 
@@ -2677,6 +2750,7 @@ function notificationSuccessFields() {
     fields.notifyModelLike,
     fields.notifyFinishPrint,
     fields.notifyComment,
+    fields.notifyMakeNow,
     fields.notifyModelBoost,
     fields.notifyShopRedemption,
     fields.notifyShopOrderShipped
@@ -2690,6 +2764,7 @@ function notificationErrorFields() {
     fields.notifyModelLikeError,
     fields.notifyFinishPrintError,
     fields.notifyCommentError,
+    fields.notifyMakeNowError,
     fields.notifyModelBoostError,
     fields.notifyShopRedemptionError
   ];
@@ -3261,12 +3336,16 @@ function renderDailyCounters() {
   if (!state.config) return;
   const tasks = state.config.tasks;
   renderDailyBadge(fields.crealityDailyBadge, state.dailyCounters.creality, 1);
-  renderDailyBadge(fields.finishPrintDailyBadge, state.dailyCounters.finishPrint, tasks.finishPrint.totalDailyLimit || tasks.finishPrint.dailyLimit || 10);
-  renderDailyBadge(fields.modelsDailyBadge, state.dailyCounters.modelDownloads, tasks.modelDownloads.dailyLimit);
-  renderDailyBadge(fields.commentsDailyBadge, state.dailyCounters.comments, tasks.comments.dailyLimit || 0);
+  renderDailyBadge(fields.finishPrintDailyBadge, state.dailyCounters.finishPrint, state.dailyLimits.finishPrint || tasks.finishPrint.totalDailyLimit || tasks.finishPrint.dailyLimit || 10);
+  renderDailyBadge(fields.modelsDailyBadge, state.dailyCounters.modelDownloads, state.dailyLimits.modelDownloads || tasks.modelDownloads.dailyLimit);
+  renderDailyBadge(fields.commentsDailyBadge, state.dailyCounters.comments, state.dailyLimits.comments || tasks.comments.dailyLimit || 0);
   renderDailyBadge(fields.boostsDailyBadge, state.dailyCounters.modelBoosts, tasks.modelBoosts.availableBoosts || 0);
   renderDailyBadge(fields.likesDailyBadge, state.dailyCounters.modelLikes, tasks.modelLikes.dailyLimit || 1);
+  renderDailyBadge(fields.makeNowDailyBadge, state.dailyCounters.makeNow, 1);
   renderDailyBadge(fields.collectionsDailyBadge, state.dailyCounters.modelCollections, tasks.modelCollections.dailyLimit || 1);
+  fields.modelsDailyBadge.title = `Descargas recompensadas hoy. Objetivo programado: ${tasks.modelDownloads.dailyLimit}.`;
+  fields.commentsDailyBadge.title = `Comentarios recompensados hoy. Objetivo programado: ${tasks.comments.dailyLimit}.`;
+  fields.finishPrintDailyBadge.title = `Impresiones recompensadas de la cuenta. Objetivo programado: ${tasks.finishPrint.totalDailyLimit || tasks.finishPrint.dailyLimit || 10}.`;
 }
 
 function renderDailyBadge(node, count, max) {
@@ -3576,6 +3655,19 @@ function renderRunDetails(run) {
     items.push(`<li><strong>${title}</strong>: ya tenía el me gusta aplicado; se omitió${url}</li>`);
   }
 
+  if (run.taskId === 'rewardSync') {
+    for (const [key, value] of Object.entries(run.details?.dailyProgress || {})) {
+      items.push('<li>' + escapeHtml(scheduleTaskTypeText(key)) + ': ' + escapeHtml(value.done + '/' + value.valid) + '</li>');
+    }
+  }
+  if (run.taskId === 'makeNow') {
+    for (const event of run.details?.events || []) {
+      items.push('<li>' + escapeHtml(formatDate(event.at)) + ' · ' + escapeHtml(event.message) + '</li>');
+    }
+    const reward = actionRewardText(run.details?.rewardVerification);
+    if (reward) items.push('<li><strong>Recompensa MakeNow</strong>: ' + escapeHtml(reward) + '</li>');
+  }
+
   if (run.taskId === 'modelBoosts' && run.details?.raffle) {
     const prizes = Array.isArray(run.details.raffle.prizes) ? run.details.raffle.prizes.filter(Boolean) : [];
     const result = prizes.length ? prizes.join(', ') : run.details.raffle.status === 'no_tickets' ? 'Sin boletos disponibles' : 'Procesada';
@@ -3755,6 +3847,8 @@ function taskLabel(taskId) {
     comments: 'Comentarios',
     modelBoosts: 'Impulsar diseños',
     modelLikes: 'Dar me gusta',
+    rewardSync: 'Sincronización de recompensas',
+    makeNow: 'MakeNow',
     modelCollections: 'Añadir a la colección',
     favoriteProfiles: 'Perfiles favoritos',
     shopRedemption: 'Canje de objetivo'

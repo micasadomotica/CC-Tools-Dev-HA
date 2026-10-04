@@ -51,6 +51,7 @@ export async function startVirtualPrint(taskConfig = {}) {
       file,
       timezone: taskConfig.timezone || 'Europe/Madrid'
     });
+    if (execution.skipped) return { success: true, skipped: true, message: execution.message, details: execution };
     return {
       success: true,
       message: `Impresión iniciada: ${file.name}`,

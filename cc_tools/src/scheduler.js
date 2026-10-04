@@ -1,3 +1,6 @@
+import { dailyProgress, reconcileDailyPlans, applyRewardResult } from './dailyProgress.js';
+import { synchronizeDailyProgress } from './progressSync.js';
+import { runMakeNow } from './makeNowTask.js';
 import { appendRun, cleanupOldScreenshots, readConfig, readRuns, writeConfig } from './storage.js';
 import { runCrealityCheckin } from './crealityTask.js';
 import { runModelDownloads } from './modelDownloadTask.js';
@@ -28,7 +31,7 @@ import {
 } from './shopOrdersState.js';
 import { abortAutomationBrowser } from './browserManager.js';
 
-const TASK_IDS = ['creality', 'finishPrint', 'modelDownloads', 'comments', 'modelBoosts', 'modelLikes', 'modelCollections'];
+const TASK_IDS = ['creality', 'finishPrint', 'modelDownloads', 'comments', 'modelBoosts', 'modelLikes', 'modelCollections', 'makeNow'];
 const MIN_AUTOMATION_GAP_MINUTES = 10;
 const SILENT_RETRY_MINUTES = 10;
 const DEFAULT_TASK_TIMEOUT_MS = 8 * 60 * 1000;
@@ -82,7 +85,7 @@ export async function runTaskNow(taskId, source = 'manual', options = {}) {
       await writeConfig(config);
     }
     const result = await executeWithTimeout(
-      executeTask(taskId, taskConfig, options, config),
+      executePendingTask(taskId, taskConfig, options, config),
       {
         timeoutMs,
         taskId,
@@ -93,11 +96,13 @@ export async function runTaskNow(taskId, source = 'manual', options = {}) {
     const status = result.skipped ? 'skipped' : result.success ? 'success' : 'failed';
     const message = formatRunMessage(taskId, status, result);
 
-    if (result.skipped && source === 'schedule') {
+    if (result.skipped && source === 'schedule' && taskId !== 'makeNow') {
       const freshConfig = await readConfig();
       updateModelBoostState(freshConfig, taskId, result);
       updateNextRunAfterExecution(freshConfig.tasks[taskId], taskId, source, result);
       updatePointsCounter(freshConfig, result);
+      applyRewardResult(freshConfig, taskId, result);
+      reconcileDailyPlans(freshConfig, await readRuns());
       await writeConfig(freshConfig);
       return { status, message };
     }
@@ -128,6 +133,8 @@ export async function runTaskNow(taskId, source = 'manual', options = {}) {
     updateNextRunAfterExecution(freshConfig.tasks[taskId], taskId, source, result);
     updateDependentModelActions(freshConfig, taskId, result);
     updatePointsCounter(freshConfig, result);
+    applyRewardResult(freshConfig, taskId, result);
+    reconcileDailyPlans(freshConfig, await readRuns());
     const healthEvent = updateAutomationHealth(freshConfig, taskId, status, result);
     await writeConfig(freshConfig);
     if (taskId === 'creality') {
@@ -294,7 +301,12 @@ function taskExecutionTimeoutMs() {
 async function tick() {
   if (running) return;
 
-  const config = await readConfig();
+  let config = await readConfig();
+  if (config.setup?.assistantCompleted && TASK_IDS.some(id => config.tasks[id]?.enabled)) {
+    const sync = await synchronizeDailyProgress();
+    if (sync.busy) return;
+    config = await readConfig();
+  }
   if (await refreshScheduledShopOrders(config)) return;
   if (await holdForAutomationHealth(config)) return;
   const runs = await readRuns();
@@ -313,6 +325,10 @@ async function tick() {
     if (taskId === 'comments' && ensureCommentPlan(task, runs, new Date())) {
       await writeConfig(config);
     }
+
+    if (reconcileDailyPlans(config, runs)) await writeConfig(config);
+    const progress = dailyProgress(config, runs);
+    if (progress.counters[taskId] > 0 && progress.remaining[taskId] === 0) continue;
 
     if (!task.nextRunAt) {
       if (taskId === 'modelDownloads' || taskId === 'finishPrint' || taskId === 'comments') {
@@ -625,6 +641,7 @@ function taskDisplayName(taskId) {
     comments: 'Comentarios',
     modelBoosts: 'Impulsar diseños',
     modelLikes: 'Dar me gusta',
+    makeNow: 'MakeNow',
     modelCollections: 'Añadir a la colección',
     shopOrders: 'Seguimiento de pedidos',
     shopRedemption: 'Canje de objetivo'
@@ -855,8 +872,27 @@ export function delayPendingTaskPlan(taskConfig, taskId, delayedRunAt) {
   return taskConfig;
 }
 
+async function executePendingTask(taskId, taskConfig, options, config) {
+  const runs = await readRuns();
+  const progress = dailyProgress(config, runs);
+  if (progress.counters[taskId] > 0 && progress.remaining[taskId] === 0) {
+    return { success: true, skipped: true, message: 'El objetivo diario ya está completado según el progreso sincronizado.',
+      details: { synchronized: true, dailyCount: progress.counters[taskId] } };
+  }
+  if (taskId === 'comments') {
+    const kind = options.commentKind;
+    if (kind && progress.remaining[kind === 'image' ? 'commentImage' : 'commentText'] === 0) {
+      options = { ...options, commentKind: progress.remaining.commentImage > 0 ? 'image' : 'text' };
+    }
+    taskConfig = { ...taskConfig, synchronizedCounts: { image: progress.counters.commentImage, text: progress.counters.commentText } };
+  }
+  if (taskId === 'modelDownloads' && !options.single && !options.test) taskConfig = { ...taskConfig, dailyLimit: Math.min(taskConfig.dailyLimit, progress.remaining.modelDownloads) };
+  return executeTask(taskId, taskConfig, options, config);
+}
+
 function executeTask(taskId, taskConfig, options, config) {
   const ownershipOptions = { ...options, ownUserId: config.crealityProfile?.userId || '' };
+  if (taskId === 'makeNow') return runMakeNow(taskConfig);
   if (taskId === 'creality') return runCrealityCheckin({ ...options, timezone: taskConfig.timezone });
   if (taskId === 'finishPrint') {
     return startVirtualPrint(options.finishPrintSelection
@@ -904,6 +940,15 @@ async function notifyTaskResult(config, taskId, status, result, healthEvent = {}
       await sendTelegram(config, `❌ CC Tools: Automatizaciones pausadas\n${healthEvent.reason}${pauseUntil ? `\nReanudación prevista: ${pauseUntil}${source}` : ''}\nRevisa el diagnóstico en Logs.`).catch((error) => {
         console.error('[telegram]', error.message);
       });
+    }
+    return;
+  }
+
+  if (taskId === 'makeNow') {
+    const notify = status === 'success' ? config.telegram.notifyOnMakeNow : config.telegram.notifyOnMakeNowError;
+    if (notify !== false) {
+      await sendTelegram(config, 'CC Tools: ' + (result.message || 'MakeNow fallido. Revisa el Log.'))
+        .catch((error) => console.error('[telegram]', error.message));
     }
     return;
   }
@@ -1226,6 +1271,7 @@ function formatPauseUntil(value, timezone = 'Europe/Madrid') {
 
 function shouldNotifyIncident(config, taskId) {
   if (!config.telegram?.enabled) return false;
+  if (taskId === 'makeNow') return config.telegram.notifyOnMakeNowError !== false;
   if (taskId === 'creality') return config.telegram.notifyOnError !== false;
   if (taskId === 'modelDownloads') return config.telegram.notifyOnDesignError !== false;
   if (taskId === 'modelLikes') return config.telegram.notifyOnModelLikeError !== false;

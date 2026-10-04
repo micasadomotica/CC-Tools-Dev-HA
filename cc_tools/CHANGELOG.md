@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.0.21 — Dev independiente y puerto 8088
+
+- Puerto web externo 8088 por defecto para convivir con CC Tools de TitoTB en el 8080.
+- Instalación local desde el ZIP de Releases en `/addons/cc_tools`, con instrucciones de actualización.
+- Documentación para repartir los módulos entre ambas instalaciones y conservar los datos de Dev.
+- Rama permanente `dev`, releases con etiquetas `dev-v*` y validación de cambios en Dev.
+- Incluye MakeNow y la sincronización de contadores y planificación de las versiones locales anteriores.
+
+## 1.0.20 — progreso diario sincronizado
+
+- Los paneles y la API HA incluyen acciones realizadas fuera de CC Tools, sin duplicarlas.
+- Consulta conjunta de recompensas, historial y estado del check-in al entrar, al refrescar puntos y cada cinco minutos.
+- La planificación descuenta el progreso de la cuenta y conserva el objetivo configurado.
+- Comentarios con y sin imagen separados; cupo de impresiones compartido por la cuenta.
+- Persistencia del progreso observado, incluidos resultados omitidos; las lecturas fallidas no borran datos válidos.
+- Las tareas completadas se omiten y los cambios de sincronización aparecen en Log.
+- Se conserva MakeNow de la versión 1.0.19.
+
+## 1.0.19 — prueba local MakeNow
+
+- Nuevo módulo MakeNow: ejecución manual, franja diaria, contador y planificación.
+- Abre Lampshade Generator y pulsa New Project sin generar ni finalizar el proyecto.
+- Verifica Use MakeNow antes y después; evita repetir el clic el mismo día y registra pasos y diagnósticos en Log.
+- Preferencias de notificación Telegram para éxito y error.
+
 ## 1.0.18
 
 - Integra la versión 1.0.17 de TitoTB, incluida la comprobación de sesión, el límite de ocho minutos por tarea y la liberación del navegador al abrir el inicio de sesión.

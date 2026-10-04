@@ -1,8 +1,8 @@
 name: CC Tools Dev
-version: "1.0.18"
+version: "1.0.21"
 slug: cc_tools
 description: Automatiza tareas de Creality Cloud desde Home Assistant.
-url: https://github.com/micasadomotica/CC-Tools-HA
+url: https://github.com/micasadomotica/CC-Tools-HA/tree/dev
 arch:
   - amd64
   - aarch64
@@ -11,9 +11,9 @@ boot: auto
 init: false
 webui: "http://[HOST]:[PORT:8080]"
 ports:
-  8080/tcp: 8080
+  8080/tcp: 8088
 ports_description:
-  8080/tcp: Interfaz web de CC Tools
+  8080/tcp: Interfaz web de CC Tools Dev (8088 por defecto)
 options:
   timezone: Europe/Madrid
 schema:

@@ -1,4 +1,5 @@
 import { verifyVirtualPrint } from './finishPrintExecution.js';
+import { applyRewardResult } from './dailyProgress.js';
 import { buildPrintShuffleBag } from './finishPrintSelection.js';
 import { mergePointsState } from './pointsCounter.js';
 import { appendRun, readConfig, readRuns, writeConfig } from './storage.js';
@@ -68,6 +69,7 @@ export async function checkPendingFinishPrint() {
     const freshConfig = await readConfig();
     const current = freshConfig.tasks.finishPrint.pendingVerification;
     if (current?.printId !== pending.printId) return { status: 'replaced' };
+    applyRewardResult(freshConfig, 'finishPrint', { details: { rewardVerification: result.rewardVerification } });
 
     if (result.status === 'printing') {
       current.lastCheckedAt = new Date().toISOString();

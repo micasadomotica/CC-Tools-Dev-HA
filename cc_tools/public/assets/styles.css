@@ -4560,3 +4560,5 @@ textarea {
     justify-content: flex-end;
   }
 }
+
+.schedule-makeNow { border-right-color: #53b8a3; }

@@ -24,6 +24,7 @@ let designsQueue = Promise.resolve();
 let configBackupReady = false;
 
 const DEFAULT_CONFIG = {
+  dailyProgress: { tasks: {}, status: 'unavailable', checkedAt: '', lastAttemptAt: '', error: '' },
   timezone: 'Europe/Madrid',
   setup: {
     assistantCompleted: false
@@ -78,6 +79,8 @@ const DEFAULT_CONFIG = {
     notifyOnModelCollectionError: true,
     notifyOnComment: true,
     notifyOnCommentError: true,
+    notifyOnMakeNow: true,
+    notifyOnMakeNowError: true,
     notifyOnModelBoost: true,
     notifyOnModelBoostError: true,
     notifyOnShopRedemption: true,
@@ -157,6 +160,18 @@ const DEFAULT_CONFIG = {
       timezone: 'Europe/Madrid',
       prioritizeFavorites: true,
       dailyLimit: 1,
+      nextRunAt: '',
+      lastRunAt: '',
+      lastStatus: 'never',
+      lastMessage: ''
+    },
+    makeNow: {
+      enabled: false,
+      windowStart: '08:00',
+      windowEnd: '12:00',
+      timezone: 'Europe/Madrid',
+      dailyLimit: 1,
+      lastAttemptAt: '',
       nextRunAt: '',
       lastRunAt: '',
       lastStatus: 'never',

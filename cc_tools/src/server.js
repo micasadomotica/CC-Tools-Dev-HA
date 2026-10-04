@@ -1,3 +1,6 @@
+import { dailyProgress, reconcileDailyPlans } from './dailyProgress.js';
+import { synchronizeDailyProgress } from './progressSync.js';
+import { countMakeNowRun } from './makeNowTask.js';
 import 'dotenv/config';
 import express from 'express';
 import path from 'path';
@@ -112,6 +115,7 @@ app.get('/api/status', async (req, res) => {
     config: sanitizeConfig(config),
     nextExecutions: buildNextExecutions(config, runs),
     dailyCounters: buildDailyCounters(config, runs),
+    dailyLimits: dailyProgress(config, runs).limits,
     healthMetrics: buildHealthMetrics(config, runs),
     latestRuns: runs.slice(0, 20)
   });
@@ -138,30 +142,20 @@ app.post('/api/automation/resume', async (req, res) => {
   });
 });
 
+app.post('/api/progress/refresh', async (_req, res) => {
+  if (schedulerState().running) return res.json({ ok: false, busy: true });
+  try { res.json(await synchronizeDailyProgress()); }
+  catch (error) { res.status(409).json({ ok: false, error: error.message }); }
+});
+
 app.post('/api/points/refresh', async (req, res) => {
+  if (schedulerState().running) return res.status(409).json({ ok: false, error: 'BROWSER_BUSY' });
   try {
     const config = await readConfig();
-    const timezone = config.tasks.creality.timezone || 'Europe/Madrid';
-    const fullHistory = req.body?.fullHistory === true || config.points.historyComplete !== true;
-    const snapshot = await withAutomationBrowser({}, async (context) => {
-      const page = context.pages()[0] || await context.newPage();
-      return readPointsSummary(page, { timezone, fullHistory });
-    });
-    const currentPoints = fullHistory && snapshot.historyComplete !== true
-      ? { ...config.points, historyComplete: false }
-      : config.points;
-    config.points = mergePointsState(currentPoints, snapshot, {
-      replaceTransactions: fullHistory && snapshot.historyComplete === true
-    });
-    await writeConfig(config);
-    res.json({
-      ok: snapshot.status === 'current',
-      points: config.points,
-      error: snapshot.status === 'current' ? '' : (snapshot.error || 'POINTS_UNAVAILABLE')
-    });
-  } catch (error) {
-    res.status(409).json({ ok: false, error: error.message || 'POINTS_REFRESH_FAILED' });
-  }
+    const result = await synchronizeDailyProgress({ force: true, includePoints: true,
+      fullHistory: req.body?.fullHistory === true || config.points.historyComplete !== true });
+    res.json(result);
+  } catch (error) { res.status(409).json({ ok: false, error: error.message }); }
 });
 
 app.get('/api/shop/catalog', async (req, res) => {
@@ -714,6 +708,19 @@ app.post('/api/tasks/model-boosts/run', async (req, res) => {
   }
 });
 
+app.post('/api/tasks/makenow/run', async (req, res) => {
+  try {
+    const result = await runTaskNow('makeNow', 'manual');
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    res.status(409).json({
+      ok: false,
+      error: error.code || 'MAKENOW_EXECUTION_FAILED',
+      message: error.message || 'No se pudo ejecutar MakeNow. Revisa el diagnóstico en Logs.'
+    });
+  }
+});
+
 app.get('/api/schedule/preview', async (req, res) => {
   const config = await readConfig();
   const runs = await readRuns();
@@ -759,6 +766,8 @@ app.patch('/api/config', async (req, res) => {
     config.telegram.notifyOnFinishPrintError = input.telegram.notifyOnFinishPrintError !== false;
     config.telegram.notifyOnComment = input.telegram.notifyOnComment !== false;
     config.telegram.notifyOnCommentError = input.telegram.notifyOnCommentError !== false;
+    config.telegram.notifyOnMakeNow = input.telegram.notifyOnMakeNow !== false;
+    config.telegram.notifyOnMakeNowError = input.telegram.notifyOnMakeNowError !== false;
     config.telegram.notifyOnModelBoost = input.telegram.notifyOnModelBoost !== false;
     config.telegram.notifyOnModelBoostError = input.telegram.notifyOnModelBoostError !== false;
     config.telegram.notifyOnShopRedemption = input.telegram.notifyOnShopRedemption !== false;
@@ -899,6 +908,16 @@ app.patch('/api/config', async (req, res) => {
     }
   }
 
+  if (input.makeNow) {
+    const task = config.tasks.makeNow;
+    task.enabled = Boolean(input.makeNow.enabled);
+    task.windowStart = validClock(input.makeNow.windowStart, task.windowStart);
+    task.windowEnd = validClock(input.makeNow.windowEnd, task.windowEnd);
+    task.timezone = config.timezone || 'Europe/Madrid';
+    task.dailyLimit = 1;
+    task.nextRunAt = task.enabled ? scheduleNextRun(task) : '';
+  }
+
   if (input.modelBoosts) {
     const task = config.tasks.modelBoosts;
     task.enabled = Boolean(input.modelBoosts.enabled);
@@ -966,6 +985,7 @@ app.patch('/api/config', async (req, res) => {
   }
 
   await writeConfig(config);
+  if (reconcileDailyPlans(config, await readRuns())) await writeConfig(config);
   if (setupCompletedNow) {
     queueFavoriteProfilesFullRefresh(normalizeFavoriteProfiles(config.crealityFavorites), { source: 'schedule' })
       .catch((error) => console.error('[favorites] initial refresh:', error.message));
@@ -1291,6 +1311,7 @@ async function homeAssistantState() {
     scheduler: schedulerState(),
     browser: browserManagerState(),
     dailyCounters: buildDailyCounters(config, runs),
+    dailyLimits: dailyProgress(config, runs).limits,
     nextExecutions: buildNextExecutions(config, runs),
     health: buildHealthMetrics(config, runs)
   });
@@ -1338,6 +1359,7 @@ async function setIntegrationTaskEnabled(config, taskId, enabled) {
     return;
   }
   await rebuildSchedulesForTimezone(config);
+  reconcileDailyPlans(config, await readRuns());
 }
 
 async function appendShippedOrderRuns(orders, source) {
@@ -1370,18 +1392,13 @@ async function reconcileFinishPrintUsageHistory() {
 }
 
 function buildDailyCounters(config, runs) {
-  return {
-    creality: countTodayRuns(runs, 'creality', config.tasks.creality, countCheckinRun),
-    finishPrint: countTodayRuns(runs, 'finishPrint', config.tasks.finishPrint, countCreditedFinishPrintRun),
-    modelDownloads: countTodayRuns(runs, 'modelDownloads', config.tasks.modelDownloads, countDownloadedDesigns),
-    comments: countTodayRuns(runs, 'comments', config.tasks.comments, countCreditedComments),
-    modelBoosts: countTodayRuns(runs, 'modelBoosts', config.tasks.modelBoosts, countConsumedBoosts),
-    modelLikes: countTodayRuns(runs, 'modelLikes', config.tasks.modelLikes, countActedDesigns),
-    modelCollections: countTodayRuns(runs, 'modelCollections', config.tasks.modelCollections, countActedDesigns)
-  };
+  return dailyProgress(config, runs).counters;
 }
 
 function buildSchedulePreview(config, runs = []) {
+  config = structuredClone(config);
+  reconcileDailyPlans(config, runs);
+  const progress = dailyProgress(config, runs);
   const items = [];
   addSingleScheduleItem(items, config.tasks.creality, 'creality', 'Check-in diario', runs, countCheckinRun);
 
@@ -1443,10 +1460,18 @@ function buildSchedulePreview(config, runs = []) {
     pendingLabel: (_runAt, index, cursor) => commentScheduleLabel(config.tasks.comments.commentKindPlan?.[cursor + index])
   });
 
+  addSingleScheduleItem(items, config.tasks.makeNow, 'makeNow', 'MakeNow', runs, countMakeNowRun);
   addSingleScheduleItem(items, config.tasks.modelBoosts, 'modelBoosts', 'Impulsar diseños', runs, countConsumedBoosts);
 
   addSingleScheduleItem(items, config.tasks.modelLikes, 'modelLikes', 'Dar me gusta', runs, countActedDesigns);
   addSingleScheduleItem(items, config.tasks.modelCollections, 'modelCollections', 'Añadir a la colección', runs, countActedDesigns);
+  for (const [taskId, done] of Object.entries(progress.counters)) {
+    if (taskId === 'commentImage' || taskId === 'commentText' || !config.tasks[taskId]?.enabled || !done) continue;
+    const observation = progress.observations[taskId];
+    if (!observation) continue;
+    items.push({ taskId, label: taskId === 'comments' ? 'Comentarios' : ({ modelDownloads: 'Descarga de diseños', finishPrint: 'Enviar una impresión', creality: 'Check-in diario', modelLikes: 'Dar me gusta', modelCollections: 'Añadir a la colección', makeNow: 'MakeNow' })[taskId] || 'Impulsar diseños',
+      detail: 'Progreso de Creality Cloud: ' + done + '/' + progress.limits[taskId], runAt: observation.checkedAt, status: 'done' });
+  }
   return applyPreviewAutomationGap(items
     .filter((item) => item.runAt)
     .sort((left, right) => new Date(left.runAt).getTime() - new Date(right.runAt).getTime()));
@@ -1493,6 +1518,8 @@ function countActedDesigns(run) {
 }
 
 function buildNextExecutions(config, runs = []) {
+  config = structuredClone(config);
+  reconcileDailyPlans(config, runs);
   const next = {};
   for (const item of buildSchedulePreview(config, runs)) {
     if (item.status !== 'pending' || next[item.taskId]) continue;
@@ -1502,6 +1529,9 @@ function buildNextExecutions(config, runs = []) {
   const checkinCompletedToday = countTodayRuns(runs, 'creality', checkin, countCheckinRun) > 0;
   if (!next.creality && checkin?.enabled && checkinCompletedToday && checkin.nextRunAt) {
     next.creality = checkin.nextRunAt;
+  }
+  for (const id of ['creality', 'makeNow', 'modelLikes', 'modelCollections', 'modelBoosts']) {
+    if (!next[id] && config.tasks[id]?.enabled) next[id] = config.tasks[id].nextRunAt;
   }
   return next;
 }
@@ -1709,6 +1739,9 @@ async function rebuildSchedulesForTimezone(config) {
     const task = config.tasks[taskId];
     task.nextRunAt = task.enabled ? scheduleNextRun(task) : '';
   }
+
+  const makeNow = config.tasks.makeNow;
+  makeNow.nextRunAt = makeNow.enabled ? scheduleNextRun(makeNow) : '';
 
   const boosts = config.tasks.modelBoosts;
   boosts.nextRunAt = boosts.enabled ? scheduleNextRun(boosts) : '';

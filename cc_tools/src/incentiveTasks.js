@@ -5,6 +5,44 @@ import { parsePointsTotal, readPointsSummary } from './pointsCounter.js';
 export const INCENTIVE_POINTS_URL = 'https://www.crealitycloud.com/es/incentive-points?thirdType=earn-points';
 const TASK_RESPONSE_URL = 'https://www.crealitycloud.com/api/cxy/v2/task/taskResponse';
 
+// Read the whole daily task list with one navigation, without performing actions.
+export async function readIncentiveProgressBatch(page, observer, titles) {
+  const checkedAt = new Date().toISOString();
+  const context = captureTaskContext(page);
+  try {
+    await navigateToCrealityPage(page, INCENTIVE_POINTS_URL);
+    await page.waitForTimeout(3000);
+  } finally { await context.stop(); }
+  const diagnostic = await inspectCrealityPage(page, observer, { requireBody: true });
+  if (diagnostic) throw diagnosticError(diagnostic);
+  const payloads = [...context.payloads];
+  if (titles.some(title => !payloads.some(payload => findIncentiveTaskRecord(payload, title)))) {
+    const response = await postFromPage(page, TASK_RESPONSE_URL, { page: 1, pageSize: 100, rewardType: 1 }, context.headers).catch(() => null);
+    if (response?.body) payloads.push(response.body);
+  }
+  const result = {};
+  if (titles.some(title => !payloads.some(payload => findIncentiveTaskRecord(payload, title)))) {
+    await page.locator('.task-item-title').first().waitFor({ state: 'attached', timeout: 12000 }).catch(() => {});
+  }
+  for (const title of titles) {
+    const match = payloads.map(payload => findIncentiveTaskRecord(payload, title)).find(Boolean);
+    let progress = progressFromIncentiveTaskRecord(match?.record, title, { source: 'task-response' });
+    if (!progress) {
+      const lookup = await findTaskItem(page, title);
+      if (lookup.item) {
+        const done = toCount(await lookup.item.locator('.done-times').textContent().catch(() => ''));
+        const valid = toCount(await lookup.item.locator('.vaild-times').textContent().catch(() => ''));
+        progress = { found: true, title, done, valid, checkedAt: new Date().toISOString() };
+      }
+    }
+    if (progress && Number.isInteger(progress.done) && progress.done >= 0 && Number.isInteger(progress.valid) && progress.valid > 0) {
+      result[title] = { ...progress, checkedAt, completed: progress.done >= progress.valid };
+    }
+  }
+  if (!Object.keys(result).length) throw incentivePageNotReadyError();
+  return result;
+}
+
 export async function readIncentiveProgress(page, observer, title, options = {}) {
   const taskContext = captureTaskContext(page);
   let navigationError = null;

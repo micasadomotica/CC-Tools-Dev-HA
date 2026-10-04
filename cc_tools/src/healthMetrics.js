@@ -4,6 +4,7 @@ const TRACKED_TASKS = new Set([
   'modelDownloads',
   'comments',
   'modelBoosts',
+  'makeNow',
   'modelLikes',
   'modelCollections'
 ]);

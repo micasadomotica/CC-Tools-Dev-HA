@@ -149,6 +149,10 @@ export function executeVirtualPrint({
         includePoints: false,
         requireTaskList: true
       });
+      if (incentiveBefore.completed) {
+        return { skipped: true, message: 'La recompensa diaria de impresiones ya está completada.',
+          rewardVerification: { status: 'already_completed', before: incentiveBefore, after: incentiveBefore } };
+      }
       const authenticationHeaders = await workbenchAuthenticationHeaders(page, gcodeId);
       const checkPayload = buildPrintCheckPayload({ deviceName: normalizedDeviceName, gcodeId });
       const check = await requestJson(

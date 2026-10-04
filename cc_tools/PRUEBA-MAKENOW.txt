@@ -1,0 +1,35 @@
+MakeNow en CC Tools Dev (incorporado en 1.0.19)
+
+Consulta README.md o DOCS.md para instalar y actualizar Dev en el puerto 8088.
+Se conserva el nombre CC Tools Dev y el slug cc_tools.
+
+INSTALACIÓN
+Sustituye la carpeta cc_tools de tu app local por la incluida en este ZIP.
+Actualiza/reconstruye CC Tools Dev desde Home Assistant y recarga su interfaz.
+La configuración existente y la sesión permanecen en /data. MakeNow aparece
+desactivado al actualizar; no hace falta activar Descubrir diseños para usarlo.
+
+PRUEBA
+1. Comprueba que la sesión de Creality Cloud está iniciada.
+2. Abre Configurar MakeNow en Herramientas y pulsa Ejecutar ahora.
+3. Consulta Log. Debe mostrar la consulta de Use MakeNow, la apertura de
+   Lampshade Generator, el clic en New Project y la comprobación de recompensa.
+4. Si Use MakeNow ya está completada, se omite la apertura del proyecto.
+   Para probar el clic real, espera a que la recompensa vuelva a estar pendiente.
+5. Para programarlo, ajusta la franja horaria, guarda y activa MakeNow.
+
+ALCANCE
+No usa AI Create Lab. No genera ni finaliza el proyecto y no borra proyectos.
+Solo confirma éxito si Creality Cloud acredita la recompensa.
+Después de intentar New Project, no repite el clic durante ese día (zona horaria
+de CC Tools), aunque haya un reinicio o la recompensa tarde en aparecer.
+Ejecutar ahora vuelve a consultar la recompensa sin repetir el clic.
+Incluye contador diario, próxima/última ejecución, planificación, Log, diagnóstico,
+preferencias Telegram y estado/eventos/control mediante la API HA (id makenow).
+El componente HACS externo requiere soporte propio para exponer este módulo.
+
+VALIDACIÓN
+Pruebas locales de flujo, recompensa pendiente/completada, protección de intentos,
+cambio de día, persistencia, migración desde 1.0.18, planificación y API HA.
+Interfaz comprobada en una copia local con datos separados, sin errores de consola.
+Pendiente: prueba de New Project y acreditación real con tu sesión en Home Assistant.

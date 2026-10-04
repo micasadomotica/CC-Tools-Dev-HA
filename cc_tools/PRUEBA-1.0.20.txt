@@ -1,0 +1,60 @@
+GUÍA HISTÓRICA DE LA PRUEBA LOCAL 1.0.20. Para instalar la edición actual, consulta README.md o DOCS.md; Dev utiliza el puerto externo 8088.
+
+CC Tools Dev 1.0.20 — progreso diario de Creality Cloud
+
+Incluye MakeNow y todos los cambios de la versión local 1.0.19.
+Se mantienen el nombre CC Tools Dev, el slug cc_tools y los datos existentes.
+
+INSTALACIÓN
+Sustituye la carpeta cc_tools de tu app local por la incluida en este ZIP.
+Actualiza/reconstruye la app desde Home Assistant y recarga la interfaz.
+
+CAMBIOS
+Los contadores combinan las recompensas confirmadas de la cuenta con las
+ejecuciones locales, sin sumarlas dos veces. Las tareas se consultan juntas
+en Creality Cloud. La consulta de check-in solo lee su estado, sin pulsarlo.
+El historial aporta las acciones identificables cuando hay datos disponibles;
+no se usa la suma de puntos como número de impresiones o comentarios.
+
+La actualización se solicita al entrar en CC Tools, al refrescar el historial
+y periódicamente. Las consultas automáticas tienen una caché de cinco minutos.
+También funciona sin la interfaz abierta cuando hay módulos programados.
+Si el navegador está ocupado, se vuelve a intentar después.
+
+24 descargas confirmadas se muestran como 24/30. Con un objetivo configurado de
+30 se conservan como máximo seis descargas pendientes. Si tu objetivo es 20,
+se conserva ese ajuste y no se programan más descargas ese día: la fracción
+del panel describe la recompensa de Creality y el objetivo sigue siendo 20.
+
+Se separan comentarios con imagen y sin imagen. Las impresiones externas
+consumen el cupo de recompensa de la cuenta; no se atribuyen a una impresora
+concreta. No se interrumpen las impresiones en curso ni sus verificaciones.
+Las tareas diarias completadas se omiten y conservan su activación para el
+próximo día. MakeNow mantiene su protección para no repetir New Project.
+
+Los cambios detectados aparecen en Log como Sincronización de recompensas.
+No se crean ejecuciones locales ficticias ni se añaden modelos externos a
+Diseños. Última ejecución sigue indicando una ejecución real de CC Tools.
+La API de HA recibe los mismos contadores; configuredDailyLimit conserva
+el objetivo configurado y dailyLimit muestra el límite de la recompensa.
+
+PRUEBA RECOMENDADA
+1. Con la sesión de Creality Cloud iniciada, entra en CC Tools y espera a que
+   termine la consulta. También puedes refrescar Historial de puntos.
+2. Compara los paneles con las recompensas diarias de Creality Cloud.
+3. Con 24/30 descargas y objetivo 30, revisa que Planificación tenga como
+   máximo seis descargas pendientes dentro de la franja disponible.
+4. Comprueba que las tareas 1/1 no se repiten al pulsar Ejecutar ahora.
+5. Tras realizar una acción en la web, refresca el historial y comprueba
+   que se actualizan el contador y la programación sin duplicar acciones.
+
+Si una consulta falla, se conservan los últimos datos válidos y se registra
+el problema. Los datos del día anterior dejan de contar al cambiar de fecha
+según la zona horaria configurada. Los boosts solo se dan por consumidos con
+evidencia en los movimientos o en una ejecución local, no por tener cero boletos.
+
+VALIDACIÓN LOCAL
+309 pruebas superadas, incluidas consulta conjunta, API, tareas omitidas,
+24/30 descargas, comentarios, impresiones, cambio de día y persistencia.
+Interfaz comprobada con datos simulados. La acreditación real debe probarse
+con tu sesión en Home Assistant. No se ha subido al fork ni abierto una PR.

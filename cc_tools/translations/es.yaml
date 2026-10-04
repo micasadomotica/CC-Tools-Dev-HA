@@ -3,4 +3,4 @@ configuration:
     name: Zona horaria
     description: Zona horaria utilizada para programar las automatizaciones.
 network:
-  8080/tcp: Interfaz web de CC Tools
+  8080/tcp: Interfaz web de CC Tools Dev (8088 por defecto)

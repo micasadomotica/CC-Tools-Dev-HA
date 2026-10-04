@@ -10,6 +10,7 @@ export const HOME_ASSISTANT_TASKS = Object.freeze({
   comments: 'comments',
   boosts: 'modelBoosts',
   likes: 'modelLikes',
+  makenow: 'makeNow',
   collections: 'modelCollections'
 });
 
@@ -20,6 +21,7 @@ const TASK_LABELS = Object.freeze({
   comments: 'Comentarios',
   modelBoosts: 'Impulsar diseños',
   modelLikes: 'Dar me gusta',
+  makeNow: 'MakeNow',
   modelCollections: 'Añadir a la colección',
   shopOrders: 'Seguimiento de pedidos',
   shopRedemption: 'Canje de puntos'
@@ -33,6 +35,7 @@ export function buildHomeAssistantState({
   scheduler = {},
   browser = {},
   dailyCounters = {},
+  dailyLimits = {},
   nextExecutions = {},
   health = {}
 }) {
@@ -47,7 +50,8 @@ export function buildHomeAssistantState({
       name: TASK_LABELS[internalId],
       enabled: task.enabled === true,
       dailyCount: Math.max(0, Number(dailyCounters[internalId]) || 0),
-      dailyLimit: taskDailyLimit(internalId, task),
+      dailyLimit: dailyLimits[internalId] ?? taskDailyLimit(internalId, task),
+      configuredDailyLimit: taskDailyLimit(internalId, task),
       lastRunAt: String(task.lastRunAt || ''),
       lastStatus: String(task.lastStatus || 'never'),
       lastMessage: String(task.lastMessage || ''),

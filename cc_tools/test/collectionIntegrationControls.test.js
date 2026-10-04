@@ -3,12 +3,13 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import { internalTaskId } from '../src/homeAssistantApi.js';
+import { reconcileDailyPlans } from '../src/dailyProgress.js';
 
 const source = fs.readFileSync(new URL('../src/server.js', import.meta.url), 'utf8').replaceAll('\r\n', '\n');
 const start = source.indexOf('async function setIntegrationTaskEnabled(');
 const fn = source.slice(start, source.indexOf('\n}', start) + 2);
 function setup() {
-  const context = vm.createContext({ rebuildSchedulesForTimezone: async config => {
+  const context = vm.createContext({ reconcileDailyPlans, readRuns: async () => [], rebuildSchedulesForTimezone: async config => {
     config.tasks.modelCollections.nextRunAt = '2026-09-29T09:00:00Z';
   } });
   vm.runInContext(fn, context);
