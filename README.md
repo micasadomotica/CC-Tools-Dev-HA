@@ -55,7 +55,7 @@ Mantén la carpeta `cc_tools` y la instalación existente para conservar la conf
 
 Ambas pueden estar instaladas y ejecutándose a la vez. Cada una mantiene su propia configuración, sesión de Creality Cloud, diseños, programación y Log. Inicia sesión por separado en cada aplicación.
 
-Puedes activar **MakeNow en Dev** y mantener **check-in, descargas o impresiones en la principal de TitoTB**. Elige en qué instalación ejecutar cada módulo y desactívalo en la otra. Evita programar la misma tarea en ambas para la misma cuenta; sus programadores no comparten un bloqueo y podrían actuar a la vez. Las recompensas y sus límites diarios pertenecen a la cuenta de Creality Cloud, no a cada instalación.
+Puedes activar los módulos **Añadir a la colección** y **MakeNow en Dev** y mantener **check-in o impresiones en la principal de TitoTB**. Elige en qué instalación ejecutar cada módulo y desactívalo en la otra. Evita programar la misma tarea en ambas para la misma cuenta; sus programadores no comparten un bloqueo y podrían actuar a la vez. Las recompensas y sus límites diarios pertenecen a la cuenta de Creality Cloud, no a cada instalación.
 
 Al repartir módulos, ten en cuenta sus dependencias: **likes y colecciones requieren Descubrir diseños activado en la misma instalación**, y los diseños descargados por una aplicación no se transfieren automáticamente a la otra. La sincronización de recompensas de Dev actualiza sus contadores y pendientes; no copia la configuración ni el catálogo de la aplicación principal.
 
