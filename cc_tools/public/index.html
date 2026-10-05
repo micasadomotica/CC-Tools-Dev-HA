@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>CC Tools</title>
+    <title>CC Tools Dev</title>
     <link rel="icon" type="image/png" href="/assets/app-icon.png">
     <link rel="stylesheet" href="/assets/styles.css?v=20260930-01">
   </head>
@@ -12,7 +12,7 @@
       <div class="topbar-inner">
         <a id="brand-home" class="brand" href="/" aria-label="Ir al inicio">
           <img src="/assets/app-icon.png" alt="">
-          <span>CC Tools</span>
+          <span>CC Tools Dev</span>
         </a>
 
         <nav class="topbar-actions" aria-label="Navegación principal">
@@ -203,8 +203,8 @@
 
         <article class="tool-card">
           <div class="tool-card-content">
-            <h2 class="tool-title"><svg class="tool-title-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h12a1 1 0 0 1 1 1v19l-7-4-7 4V3a1 1 0 0 1 1-1z"/></svg><span>MakeNow</span></h2>
-            <p>Abre New Project en Lampshade Generator y comprueba la recompensa diaria de MakeNow.</p>
+            <h2 class="tool-title"><svg class="tool-title-icon" viewBox="0 0 24 24" aria-hidden="true"><path fill-rule="evenodd" d="M10.7 2.6a1.5 1.5 0 0 1 2.6 0l9 17a1.2 1.2 0 0 1-1.5 1.7L12 17.8l-8.8 3.5a1.2 1.2 0 0 1-1.5-1.7l9-17ZM12 7l-4.5 8.5 4.5-1.8 4.5 1.8L12 7Z"/></svg><span>Crear un proyecto</span></h2>
+            <p>Abre New Project en una herramienta MakeNow con espacio y comprueba la recompensa diaria.</p>
             <div class="tool-meta">
               <span>Última ejecución:</span>
               <strong id="makenow-last-run">-</strong>
@@ -212,12 +212,12 @@
               <strong id="makenow-next-run">-</strong>
             </div>
           </div>
-          <label class="switch tool-switch" title="Activar MakeNow">
+          <label class="switch tool-switch" title="Activar creación de proyectos">
             <input id="makenow-enabled" type="checkbox">
             <span></span>
           </label>
           <span id="makenow-daily-badge" class="daily-badge">0/1</span>
-          <button id="open-makenow-config" class="corner-config" type="button" title="Configurar MakeNow" aria-label="Configurar MakeNow">
+          <button id="open-makenow-config" class="corner-config" type="button" title="Configurar creación de proyectos" aria-label="Configurar creación de proyectos">
             <svg viewBox="0 0 512 512" aria-hidden="true"><path d="M495.9 166.6c3.2 8.7 .5 18.4-6.4 24.6l-43.3 39.4c1.1 8.3 1.7 16.8 1.7 25.4s-.6 17.1-1.7 25.4l43.3 39.4c6.9 6.2 9.6 15.9 6.4 24.6c-4.4 11.9-9.7 23.3-15.8 34.3l-4.7 8.1c-6.6 11-14 21.4-22.1 31.2c-5.9 7.2-15.7 9.6-24.5 6.8l-55.7-17.7c-13.4 10.3-28.2 18.9-44 25.4l-12.5 57.1c-2 9.1-9 16.3-18.2 17.8c-13.8 2.3-28 3.5-42.5 3.5s-28.7-1.2-42.5-3.5c-9.2-1.5-16.2-8.7-18.2-17.8l-12.5-57.1c-15.8-6.5-30.6-15.1-44-25.4L83.1 425.9c-8.8 2.8-18.6 .3-24.5-6.8c-8.1-9.8-15.5-20.2-22.1-31.2l-4.7-8.1c-6.1-11-11.4-22.4-15.8-34.3c-3.2-8.7-.5-18.4 6.4-24.6l43.3-39.4C64.6 273.1 64 264.6 64 256s.6-17.1 1.7-25.4L22.4 191.2c-6.9-6.2-9.6-15.9-6.4-24.6c4.4-11.9 9.7-23.3 15.8-34.3l4.7-8.1c6.6-11 14-21.4 22.1-31.2c5.9-7.2 15.7-9.6 24.5-6.8l55.7 17.7c13.4-10.3 28.2-18.9 44-25.4l12.5-57.1c2-9.1 9-16.3 18.2-17.8C227.3 1.2 241.5 0 256 0s28.7 1.2 42.5 3.5c9.2 1.5 16.2 8.7 18.2 17.8l12.5 57.1c15.8 6.5 30.6 15.1 44 25.4l55.7-17.7c8.8-2.8 18.6-.3 24.5 6.8c8.1 9.8 15.5 20.2 22.1 31.2l4.7 8.1c6.1 11 11.4 22.4 15.8 34.3zM256 336a80 80 0 1 0 0-160 80 80 0 1 0 0 160z"/></svg>
           </button>
         </article>
@@ -432,7 +432,7 @@
                 </label>
                 <label class="check-option">
                   <input id="notify-makenow-error" type="checkbox">
-                  <span>Cuando falle "MakeNow"</span>
+                  <span>Cuando falle "Crear un proyecto"</span>
                 </label>
                 <label class="check-option">
                   <input id="notify-shop-redemption" type="checkbox">
@@ -474,11 +474,11 @@
             <section id="tab-disclaimer" class="panel tab-panel">
               <div class="panel-heading">
                 <div>
-                  <p class="eyebrow">CC Tools</p>
+                  <p class="eyebrow">CC Tools Dev</p>
                   <h2>Disclaimer</h2>
                 </div>
               </div>
-              <p class="disclaimer-copy"><b>CC Tools no es una aplicación oficial</b> y no está de ninguna manera afiliada con Creality o Creality Cloud. Se trata de una iniciativa desarrollada por la <a href="https://t.me/aguacatec_es/13374" target="_blank" rel="noreferrer"><b>comunidad de Aguacatec</b></a>, con el objetivo de mejorar la experiencia de la impresión 3D, e integrarla en nuestro sistema domótico de automatización.<br><br>El objetivo no es, en ningún caso, violar o evadir las reglas de Creality Cloud. <b>Utiliza la herramienta bajo tu responsabilidad</b>, cumpliendo siempre las normas establecidas por la plataforma.<br><br>Si quieres reportar algún fallo o hacer alguna sugerencia, puedes unirte a <a href="https://t.me/aguacatec_es/13374" target="_blank" rel="noreferrer"><b>nuestra comunidad de Telegram</b></a>.</p>
+              <p class="disclaimer-copy"><b>CC Tools Dev no es una aplicación oficial</b> y no está de ninguna manera afiliada con Creality o Creality Cloud. Se trata de una iniciativa desarrollada por la <a href="https://t.me/aguacatec_es/13374" target="_blank" rel="noreferrer"><b>comunidad de Aguacatec</b></a>, con el objetivo de mejorar la experiencia de la impresión 3D, e integrarla en nuestro sistema domótico de automatización.<br><br>El objetivo no es, en ningún caso, violar o evadir las reglas de Creality Cloud. <b>Utiliza la herramienta bajo tu responsabilidad</b>, cumpliendo siempre las normas establecidas por la plataforma.<br><br>Si quieres reportar algún fallo o hacer alguna sugerencia, puedes unirte a <a href="https://t.me/aguacatec_es/13374" target="_blank" rel="noreferrer"><b>nuestra comunidad de Telegram</b></a>.</p>
             </section>
 
           </div>
@@ -935,11 +935,12 @@
         <div class="panel-heading">
           <div>
             <p class="eyebrow">Creality Cloud</p>
-            <h2 id="makenow-config-title">Configurar MakeNow</h2>
+            <h2 id="makenow-config-title">Configurar creación de proyectos</h2>
           </div>
           <button id="close-makenow-config" class="icon-button" type="button" aria-label="Cerrar">×</button>
         </div>
-        <p class="muted">Configura la franja diaria para pulsar New Project en Lampshade Generator. No genera ni finaliza el proyecto. AI Create Lab queda excluido. Si la recompensa ya está completada, no abre otro proyecto.</p>
+        <p class="muted">Consulta el cupo real de las herramientas y elige la que tenga menos proyectos, con espacio disponible. Excluye AI Create Lab, Fanforge-Football y FlexiToys. No genera, finaliza ni elimina proyectos. Si la recompensa ya está completada, no abre otro proyecto.</p>
+        <details><summary>Cupos y proyectos registrados para este perfil CC</summary><div id="makenow-project-inventory" class="muted">Se consultarán al ejecutar.</div></details>
         <div class="form-grid tool-config-grid">
           <label>
             <span>Ventana inicio</span>

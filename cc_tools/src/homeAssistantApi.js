@@ -21,7 +21,7 @@ const TASK_LABELS = Object.freeze({
   comments: 'Comentarios',
   modelBoosts: 'Impulsar diseños',
   modelLikes: 'Dar me gusta',
-  makeNow: 'MakeNow',
+  makeNow: 'Crear un proyecto',
   modelCollections: 'Añadir a la colección',
   shopOrders: 'Seguimiento de pedidos',
   shopRedemption: 'Canje de puntos'

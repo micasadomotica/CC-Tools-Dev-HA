@@ -1,27 +1,25 @@
 import { withAutomationBrowser } from './browserManager.js';
-import { readConfig, writeConfig } from './storage.js';
-import { navigateToCrealityPage } from './crealityNavigation.js';
-import { observeCrealityPage, inspectCrealityPage, diagnoseTaskError, captureDiagnosticScreenshot } from './crealityDiagnostics.js';
+import { readConfig } from './storage.js';
+import { MAKENOW_HOME, selectAndCreateMakeNowProject, createMakeNowJournal, lastProfileAttempt } from './makeNowProjects.js';
+import { observeCrealityPage, diagnoseTaskError, captureDiagnosticScreenshot } from './crealityDiagnostics.js';
 import { readIncentiveProgress, waitForIncentiveProgress, compareIncentiveProgress } from './incentiveTasks.js';
 
-export const MAKENOW_URL = 'https://www.crealitycloud.com/es/makenow/ModelingTools/Home';
+export const MAKENOW_URL = MAKENOW_HOME;
 export const MAKENOW_TITLE = 'Use MakeNow';
-const TOOL = 'Lampshade Generator';
 
-export async function runMakeNow(taskConfig = {}) {
+export async function runMakeNow(taskConfig = {}, options = {}) {
   return withAutomationBrowser({}, async (context) => {
     const page = context.pages()[0] || await context.newPage();
     const observer = observeCrealityPage(page, 'makeNow');
     const events = [];
     try {
-      return await executeMakeNow(page, observer, taskConfig, {
-        events,
-        reserveAttempt: async () => {
-          // Reserve before clicking: a timeout must not create another project on retry.
-          const config = await readConfig();
-          config.tasks.makeNow.lastAttemptAt = new Date().toISOString();
-          await writeConfig(config);
-        }
+      const config = await readConfig();
+      const profile = config.crealityProfile;
+      const journal = createMakeNowJournal(profile);
+      return await executeMakeNow(page, observer, {
+        ...taskConfig, lastAttemptAt: lastProfileAttempt(config.tasks.makeNow, profile?.userId)
+      }, {
+        ...journal, events, signal: options.signal
       });
     } catch (error) {
       if (error.silentRetry) throw error;
@@ -32,7 +30,7 @@ export async function runMakeNow(taskConfig = {}) {
       const screenshot = await captureDiagnosticScreenshot(page, 'makeNow', diagnostic.code);
       return {
         success: false, message: diagnostic.message,
-        details: { events, diagnostics: [diagnostic], incident: diagnostic.systemic ? diagnostic : null },
+        details: { events, inventory: error.inventory, diagnostics: [diagnostic], incident: diagnostic.systemic ? diagnostic : null },
         screenshots: screenshot ? [screenshot] : []
       };
     } finally {
@@ -62,44 +60,25 @@ export async function executeMakeNow(page, observer, taskConfig = {}, dependenci
     return { success: false, message: 'MakeNow: ya se intentó abrir un proyecto hoy; recompensa todavía sin confirmar.',
       details: { events, rewardVerification: { status: 'unverified', before, after: before } } };
   }
-  await openProject(page, observer, { record, reserveAttempt: dependencies.reserveAttempt });
+  const selection = await openProject(page, observer, { record, reserveAttempt: dependencies.reserveAttempt,
+    updateAttempt: dependencies.updateAttempt, saveInventory: dependencies.saveInventory, signal: dependencies.signal });
+  dependencies.signal?.throwIfAborted();
   const after = await waitProgress(page, observer, MAKENOW_TITLE, before, [0, 10000, 15000, 20000], {
     timezone: taskConfig.timezone, requireTaskList: true
   });
   const verification = compareIncentiveProgress(before, after);
   const success = verification.status === 'credited';
+  await dependencies.updateAttempt?.(selection?.project, { rewardStatus: verification.status, verifiedAt: new Date().toISOString() });
   record(success ? 'Creality Cloud confirmó la recompensa MakeNow.' : 'Creality Cloud no confirmó la recompensa tras el clic.');
   return {
     success,
     message: success ? 'MakeNow: recompensa diaria confirmada.' : 'MakeNow: New Project pulsado; recompensa sin confirmar. Revisa el Log.',
-    details: { events, tool: TOOL, newProjectClicked: true, rewardVerification: verification }
+    details: { events, ...selection, newProjectClicked: true, rewardVerification: verification }
   };
 }
 
-export async function openMakeNowProject(page, observer, { record, reserveAttempt }) {
-  await navigateToCrealityPage(page, MAKENOW_URL);
-  record('Abierta la página MakeNow.');
-  await assertPageReady(page, observer);
-  // MakeNow lives on a different origin inside Creality Cloud's authenticated wrapper.
-  const frame = page.frameLocator('#makenowIframe');
-  const tool = frame.getByText(TOOL, { exact: true });
-  await tool.waitFor({ state: 'visible', timeout: 45000 });
-  await tool.click({ timeout: 15000 });
-  record(`Seleccionada la herramienta ${TOOL}.`);
-  const newProject = frame.getByText(/^(?:\+\s*)?(?:New Project|Nuevo proyecto)$/i).first();
-  await newProject.waitFor({ state: 'visible', timeout: 30000 });
-  await assertPageReady(page, observer);
-  await reserveAttempt();
-  await newProject.click({ timeout: 15000 });
-  record('Pulsado New Project. No se genera ni se finaliza el proyecto.');
-  // Let the click's requests finish before navigating to reward verification.
-  await page.waitForTimeout(5000);
-  await assertPageReady(page, observer);
-}
-
-async function assertPageReady(page, observer) {
-  const diagnostic = await inspectCrealityPage(page, observer, { requireBody: true });
-  if (diagnostic) throw Object.assign(new Error(diagnostic.message), diagnostic);
+export async function openMakeNowProject(page, observer, options) {
+  return selectAndCreateMakeNowProject(page, options);
 }
 
 export function attemptedToday(timestamp, timezone = 'Europe/Madrid', now = new Date()) {

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { executeMakeNow, openMakeNowProject, attemptedToday, countMakeNowRun, MAKENOW_URL, MAKENOW_TITLE } from '../src/makeNowTask.js';
+import { executeMakeNow, attemptedToday, countMakeNowRun, MAKENOW_TITLE } from '../src/makeNowTask.js';
 import { updateNextRunAfterExecution } from '../src/scheduler.js';
 import { buildHealthMetrics } from '../src/healthMetrics.js';
 import { buildHomeAssistantState, buildHomeAssistantEvents, internalTaskId } from '../src/homeAssistantApi.js';
@@ -101,43 +101,6 @@ test('la API HA expone configuración, ejecución y eventos MakeNow', () => {
   assert.equal(state.tasks.makenow.enabled, true);
   assert.equal(state.scheduler.runningTask, 'makenow');
   const events = buildHomeAssistantEvents([{ id: 'make-1', taskId: 'makeNow', status: 'success' }]);
-  assert.equal(events[0].taskName, 'MakeNow');
+  assert.equal(events[0].taskName, 'Crear un proyecto');
   assert.equal(events[0].type, 'task_completed');
-});
-
-test('el flujo de página usa el iframe, excluye AI Create Lab y termina tras New Project', async () => {
-  const clicked = [];
-  let reserved = false;
-  const empty = {
-    first() { return this; },
-    isVisible: async () => false,
-    count: async () => 0,
-    innerText: async () => 'Creality Cloud MakeNow Lampshade Generator New Project My Projects',
-    allTextContents: async () => []
-  };
-  const page = {
-    goto: async url => assert.equal(url, MAKENOW_URL),
-    url: () => MAKENOW_URL,
-    title: async () => 'MakeNow',
-    frames: () => [],
-    locator: () => empty,
-    waitForTimeout: async () => {},
-    frameLocator: selector => {
-      assert.equal(selector, '#makenowIframe');
-      return { getByText: name => ({
-        first() { return this; },
-        waitFor: async () => {},
-        click: async () => {
-          if (name instanceof RegExp) {
-            assert.equal(reserved, true);
-            assert.equal(name.test('New Project'), true);
-            assert.equal(name.test('Generate'), false);
-            clicked.push('New Project');
-          } else { clicked.push(name); }
-        }
-      }) };
-    }
-  };
-  await openMakeNowProject(page, null, { record: () => {}, reserveAttempt: async () => { reserved = true; } });
-  assert.deepEqual(clicked, ['Lampshade Generator', 'New Project']);
 });

@@ -758,7 +758,7 @@ async function saveDownload(page, candidate, batchDir, title, button, options = 
         throw taskError(
           'DOWNLOAD_CAPTURE_FAILED',
           'download',
-          'Creality Cloud inició la descarga, pero CC Tools no pudo guardar el archivo temporal.'
+          'Creality Cloud inició la descarga, pero CC Tools Dev no pudo guardar el archivo temporal.'
         );
       }
     } else {

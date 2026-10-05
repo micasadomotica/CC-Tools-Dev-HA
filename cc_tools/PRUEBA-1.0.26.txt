@@ -1,0 +1,24 @@
+CC Tools Dev 1.0.26 — paquete local para Home Assistant
+
+INSTALACIÓN
+1. Detén CC Tools Dev.
+2. Descomprime el ZIP y sustituye los archivos de /addons/cc_tools por la
+   carpeta cc_tools incluida, manteniendo la instalación existente.
+3. Busca actualizaciones en la tienda de Home Assistant y pulsa Actualizar.
+4. Confirma la versión 1.0.26, inicia Dev y recarga la interfaz web (puerto 8088).
+
+MODEL BOOST
+Se restaura el módulo anterior a 1.0.25: un impulso al día, su contador
+original y el bloqueo de la ejecución manual al completar el día o no tener
+boletos. La programación también respeta de nuevo ese límite diario.
+Si la recompensa ya está completada, no debe gastar otro boleto ese día.
+Los impulsos ya registrados en el Log cuentan para evitar repetirlos.
+
+RESTO DE CAMBIOS
+Se mantienen el nombre CC Tools Dev, «Perfil CC:» en Telegram y los cambios
+de «Crear un proyecto»: icono triangular verde, selección de herramienta
+por cupo, exclusiones comerciales, registro por perfil y avisos de cupo lleno.
+La guía PRUEBA-1.0.25.txt describe la prueba anterior; sus indicaciones sobre
+usar todos los boletos quedan sustituidas por el límite diario de esta versión.
+
+La publicación en GitHub sigue pendiente de confirmar el funcionamiento en HA.

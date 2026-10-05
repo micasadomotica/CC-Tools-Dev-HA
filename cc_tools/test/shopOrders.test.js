@@ -154,6 +154,6 @@ test('enlaza el nombre del producto en la notificación de pedido disponible', (
     points: 3473,
     useUrl: 'https://store.creality.com/es/product?discountCode=A&B'
   });
-  assert.equal(message, '📦 CC Tools: Pedido disponible\n<a href="https://store.creality.com/es/product?discountCode=A&amp;B">Filamento &lt;PETG&gt;</a>\n3473 puntos');
+  assert.equal(message, '📦 CC Tools Dev: Pedido disponible\n<a href="https://store.creality.com/es/product?discountCode=A&amp;B">Filamento &lt;PETG&gt;</a>\n3473 puntos');
   assert.equal(message.split('\n').length, 3);
 });

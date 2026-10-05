@@ -9,7 +9,7 @@ export async function sendTelegram(config, text, options = {}) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       chat_id: config.telegram.chatId,
-      text,
+      text: withCrealityProfile(config, text, options.parseMode),
       parse_mode: options.parseMode,
       disable_web_page_preview: true
     })
@@ -20,4 +20,15 @@ export async function sendTelegram(config, text, options = {}) {
     throw new Error(body.description || `Telegram respondió con HTTP ${response.status}`);
   }
   return { sent: true };
+}
+
+function withCrealityProfile(config, text, parseMode) {
+  const profile = config.crealityProfile || {};
+  const name = String(profile.name || '').replace(/[\r\n]+/g, ' ').trim();
+  const userId = String(profile.userId || '').replace(/[\r\n]+/g, ' ').trim();
+  let label = name || (userId ? `ID ${userId}` : 'sin identificar');
+  if (String(parseMode || '').toUpperCase() === 'HTML') {
+    label = label.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  return `${text}\n\n👤 Perfil CC: ${label}`;
 }

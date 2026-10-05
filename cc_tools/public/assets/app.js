@@ -732,7 +732,7 @@ fields.likesConfigModal.addEventListener('click', (event) => {
 });
 
 fields.makeNowEnabled.addEventListener('change', async () => {
-  if (await saveConfig({ includeMakeNow: true })) toast(fields.makeNowEnabled.checked ? 'MakeNow activado.' : 'MakeNow desactivado.');
+  if (await saveConfig({ includeMakeNow: true })) toast(fields.makeNowEnabled.checked ? 'Crear un proyecto activado.' : 'Crear un proyecto desactivado.');
 });
 $('#open-makenow-config').addEventListener('click', () => { fields.makeNowConfigModal.hidden = false; });
 $('#close-makenow-config').addEventListener('click', () => { fields.makeNowConfigModal.hidden = true; });
@@ -746,9 +746,9 @@ $('#run-makenow-now').addEventListener('click', async () => {
   if (!(await saveConfig({ includeMakeNow: true }))) return;
   fields.makeNowConfigModal.hidden = true;
   await runWithProgress({
-    title: 'MakeNow',
+    title: 'Crear un proyecto',
     steps: ['Consultando recompensa...', 'Abriendo New Project', 'Verificando recompensa'],
-    activeMessage: 'Abriendo Lampshade Generator y comprobando Use MakeNow...',
+    activeMessage: 'Comprobando los cupos de MakeNow y seleccionando una herramienta con espacio...',
     endpoint: '/api/tasks/makenow/run'
   });
 });
@@ -1620,7 +1620,7 @@ async function handleFinishPrinterStatusAction(event) {
   const action = button.dataset.printerControl;
   const labels = { pause: 'pausar', resume: 'reanudar', stop: 'detener', kill: 'eliminar el proceso pendiente de' };
   const warning = action === 'kill'
-    ? `¿Quieres eliminar el proceso pendiente de ${printerName}? Esto desbloqueará CC Tools, pero no enviará ninguna orden a la impresora.`
+    ? `¿Quieres eliminar el proceso pendiente de ${printerName}? Esto desbloqueará CC Tools Dev, pero no enviará ninguna orden a la impresora.`
     : `¿Quieres ${labels[action]} la impresión de ${printerName}?`;
   if (!confirm(warning)) return;
   button.disabled = true;
@@ -2393,7 +2393,7 @@ function scheduleTaskTypeText(taskId, fallback = 'Tarea') {
     modelBoosts: 'Impulsar diseños',
     modelLikes: 'Dar me gusta',
     rewardSync: 'Sincronización de recompensas',
-    makeNow: 'MakeNow',
+    makeNow: 'Crear un proyecto',
     modelCollections: 'Añadir a la colección'
   })[taskId] || fallback || 'Tarea';
 }
@@ -2526,7 +2526,7 @@ async function openCrealityViewer() {
     return;
   }
 
-  viewer.document.write('<!doctype html><title>CC Tools</title><body style="margin:0;background:#0b0d10;color:#f4f7f6;font-family:system-ui;display:grid;place-items:center;height:100vh">Preparando Creality Cloud...</body>');
+  viewer.document.write('<!doctype html><title>CC Tools Dev</title><body style="margin:0;background:#0b0d10;color:#f4f7f6;font-family:system-ui;display:grid;place-items:center;height:100vh">Preparando Creality Cloud...</body>');
 
   const viewerWarmup = fetch(`/novnc/vnc.html?preflight=${Date.now()}`, {
     cache: 'no-store',
@@ -2658,6 +2658,14 @@ function render() {
   fields.likesPrioritizeFavorites.checked = likes.prioritizeFavorites !== false;
   $('#run-likes-now').disabled = state.scheduler?.running === true;
   renderLastExecution(fields.makeNowLastRun, makeNow);
+  const makeNowAccount = makeNow.projectAccounts?.[state.config.crealityProfile?.userId];
+  const makeNowInventory = makeNowAccount?.inventory || [];
+  const makeNowProjects = (makeNowAccount?.attempts || []).filter(item => item.projectId);
+  $('#makenow-project-inventory').innerHTML = makeNowInventory.length
+    ? '<p>Última consulta: ' + escapeHtml(formatDate(makeNowAccount.checkedAt)) + '. Proyectos identificados de Dev: ' + makeNowProjects.length + '.</p><ul>'
+      + makeNowInventory.map(tool => '<li>' + escapeHtml(tool.name) + ': ' + escapeHtml(tool.used === undefined
+        ? (tool.status === 'restricted' ? 'acceso restringido' : 'sin verificar') : `${tool.used}/${tool.limit}`) + '</li>').join('') + '</ul>'
+    : 'Se consultarán los cupos al ejecutar. Los proyectos anteriores no se atribuyen automáticamente a Dev.';
   fields.makeNowEnabled.checked = makeNow.enabled;
   fields.makeNowWindowStart.value = makeNow.windowStart;
   fields.makeNowWindowEnd.value = makeNow.windowEnd;
@@ -3661,6 +3669,13 @@ function renderRunDetails(run) {
     }
   }
   if (run.taskId === 'makeNow') {
+    const project = run.details?.project;
+    if (project) items.push('<li><strong>Proyecto de Dev</strong>: ' + escapeHtml(project.tool || run.details.tool || '')
+      + ' · ' + escapeHtml(project.projectId || 'identificador no disponible') + ' · Perfil CC: '
+      + escapeHtml(project.profileName || project.profileId || 'sin identificar') + '</li>');
+    for (const tool of run.details?.inventory || []) {
+      items.push('<li>' + escapeHtml(tool.name) + ': ' + escapeHtml(tool.used === undefined ? tool.status : `${tool.used}/${tool.limit}`) + '</li>');
+    }
     for (const event of run.details?.events || []) {
       items.push('<li>' + escapeHtml(formatDate(event.at)) + ' · ' + escapeHtml(event.message) + '</li>');
     }
@@ -3848,7 +3863,7 @@ function taskLabel(taskId) {
     modelBoosts: 'Impulsar diseños',
     modelLikes: 'Dar me gusta',
     rewardSync: 'Sincronización de recompensas',
-    makeNow: 'MakeNow',
+    makeNow: 'Crear un proyecto',
     modelCollections: 'Añadir a la colección',
     favoriteProfiles: 'Perfiles favoritos',
     shopRedemption: 'Canje de objetivo'
@@ -3874,7 +3889,7 @@ function statusIcon(type, completed, actionState = 'pending', designId = '', act
   const title = actionState === 'manual_completed'
     ? 'Marcado manualmente como completado. Pulsa para dejarlo pendiente'
     : actionState === 'already_applied'
-    ? 'Ya completado fuera de CC Tools'
+    ? 'Ya completado fuera de CC Tools Dev'
     : completed
     ? 'Completado con recompensa. Pulsa para dejarlo pendiente'
     : warning ? 'Acción enviada sin recompensa; pulsa para cambiar el estado' : 'Pendiente. Pulsa para marcar como completado';

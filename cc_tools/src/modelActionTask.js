@@ -27,8 +27,8 @@ const ACTIONS = {
     completedField: 'likeCompleted',
     actionStateField: 'likeActionState',
     incentiveTitle: 'Like 3D Model',
-    telegramSuccess: '♥️ CC Tools: Me gusta completado',
-    telegramError: '❌ CC Tools: Me gusta fallido',
+    telegramSuccess: '♥️ CC Tools Dev: Me gusta completado',
+    telegramError: '❌ CC Tools Dev: Me gusta fallido',
     progress: 'Pulsando el botón de me gusta...'
   },
   add_to_collection: {
@@ -37,8 +37,8 @@ const ACTIONS = {
     completedField: 'collectionCompleted',
     actionStateField: 'collectionActionState',
     incentiveTitle: 'Collection Models',
-    telegramSuccess: '✅ CC Tools: Diseño añadido a la colección',
-    telegramError: '❌ CC Tools: Colección fallida',
+    telegramSuccess: '✅ CC Tools Dev: Diseño añadido a la colección',
+    telegramError: '❌ CC Tools Dev: Colección fallida',
     progress: 'Añadiendo el diseño a la colección...'
   }
 };
@@ -171,7 +171,7 @@ export async function runModelAction(actionKey, taskConfig = {}, options = {}) {
             reason: ownModelsSkipped
               ? 'Los diseños pendientes pertenecen al usuario conectado y se han omitido.'
               : alreadyApplied.length
-                ? `${alreadyApplied.length} diseño(s) ya tenían la acción aplicada fuera de CC Tools.`
+                ? `${alreadyApplied.length} diseño(s) ya tenían la acción aplicada fuera de CC Tools Dev.`
                 : `No hay diseños pendientes para ${action.label.toLowerCase()}.`
           },
           screenshots

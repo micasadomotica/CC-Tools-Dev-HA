@@ -55,11 +55,19 @@ Mantén la carpeta `cc_tools` y la instalación existente para conservar la conf
 
 Ambas pueden estar instaladas y ejecutándose a la vez. Cada una mantiene su propia configuración, sesión de Creality Cloud, diseños, programación y Log. Inicia sesión por separado en cada aplicación.
 
-Puedes activar los módulos **Añadir a la colección** y **MakeNow en Dev** y mantener **check-in o impresiones en la principal de TitoTB**. Elige en qué instalación ejecutar cada módulo y desactívalo en la otra. Evita programar la misma tarea en ambas para la misma cuenta; sus programadores no comparten un bloqueo y podrían actuar a la vez. Las recompensas y sus límites diarios pertenecen a la cuenta de Creality Cloud, no a cada instalación.
+Puedes activar los módulos **Añadir a la colección** y **Crear un proyecto (MakeNow) en Dev** y mantener **check-in o impresiones en la principal de TitoTB**. Elige en qué instalación ejecutar cada módulo y desactívalo en la otra. Evita programar la misma tarea en ambas para la misma cuenta; sus programadores no comparten un bloqueo y podrían actuar a la vez. Las recompensas y sus límites diarios pertenecen a la cuenta de Creality Cloud, no a cada instalación.
 
 Al repartir módulos, ten en cuenta sus dependencias: **likes y colecciones requieren Descubrir diseños activado en la misma instalación**, y los diseños descargados por una aplicación no se transfieren automáticamente a la otra. La sincronización de recompensas de Dev actualiza sus contadores y pendientes; no copia la configuración ni el catálogo de la aplicación principal.
 
 La convivencia descrita utiliza la principal instalada desde el repositorio de TitoTB y Dev como aplicación local. Si ya tienes otra aplicación local ocupando `/addons/cc_tools`, no la sobrescribas para crear una segunda instalación: esa carpeta identifica tu aplicación local existente.
+
+## Crear un proyecto (MakeNow)
+
+El módulo consulta primero la recompensa diaria. Si está pendiente, revisa los cupos de Lampshade Generator, FrameStudio, ClickerMaker, FlexiWeave, CubeMe, SnapForm, MagicRelief y SignForge. Cada herramienta admite 30 proyectos. Elige la que tenga menos proyectos y espacio disponible, y pulsa **New Project** sin generar ni finalizar el proyecto. Quedan excluidos AI Create Lab, Fanforge-Football y FlexiToys.
+
+En la configuración del módulo puedes consultar los últimos cupos leídos. Dev registra cada intento por perfil CC y guarda el identificador del proyecto cuando la web lo muestra. Si hay un corte después del clic, no repite la creación ese día; vuelve a consultar la recompensa. El contador diario solo se completa cuando Creality Cloud confirma la recompensa.
+
+Dev no elimina proyectos. Si todos los cupos están llenos, lo registra en el Log y avisa por Telegram si tienes activadas las notificaciones de error del módulo. Libera espacio manualmente en alguna herramienta y vuelve a ejecutar el módulo. Los proyectos que ya existían se incluyen en el cupo, pero no se atribuyen a Dev.
 
 ## Organización del fork
 

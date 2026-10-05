@@ -93,7 +93,7 @@ export async function runTaskNow(taskId, source = 'manual', options = {}) {
           await writeConfig(config);
         }
         executionAbort.signal.throwIfAborted();
-        return executePendingTask(taskId, taskConfig, options, config);
+        return executePendingTask(taskId, taskConfig, { ...options, signal: executionAbort.signal }, config);
       })(),
       {
         timeoutMs,
@@ -486,7 +486,7 @@ async function redeemScheduledShopGoal(config, now = new Date()) {
       details: { product: { id: goal.productId, name: goal.name, points: goal.points, imageUrl: goal.imageUrl } }
     });
     if (config.telegram.enabled && config.telegram.notifyOnShopRedemption !== false) {
-      await sendTelegram(config, `🎁 CC Tools: Objetivo canjeado\n${goal.name}\n${goal.points} puntos`).catch((error) => {
+      await sendTelegram(config, `🎁 CC Tools Dev: Objetivo canjeado\n${goal.name}\n${goal.points} puntos`).catch((error) => {
         console.error('[telegram]', error.message);
       });
     }
@@ -514,7 +514,7 @@ async function redeemScheduledShopGoal(config, now = new Date()) {
       details: { failures: [{ title: goal.name, error: goal.lastMessage, diagnostic }], diagnostics: [diagnostic] }
     });
     if (config.telegram.enabled && config.telegram.notifyOnShopRedemptionError !== false) {
-      await sendTelegram(config, `❌ CC Tools: No se pudo canjear el objetivo\n${goal.name}\n${goal.lastMessage}`).catch((telegramError) => {
+      await sendTelegram(config, `❌ CC Tools Dev: No se pudo canjear el objetivo\n${goal.name}\n${goal.lastMessage}`).catch((telegramError) => {
         console.error('[telegram]', telegramError.message);
       });
     }
@@ -672,7 +672,7 @@ function taskDisplayName(taskId) {
     comments: 'Comentarios',
     modelBoosts: 'Impulsar diseños',
     modelLikes: 'Dar me gusta',
-    makeNow: 'MakeNow',
+    makeNow: 'Crear un proyecto',
     modelCollections: 'Añadir a la colección',
     shopOrders: 'Seguimiento de pedidos',
     shopRedemption: 'Canje de objetivo'
@@ -923,7 +923,7 @@ async function executePendingTask(taskId, taskConfig, options, config) {
 
 function executeTask(taskId, taskConfig, options, config) {
   const ownershipOptions = { ...options, ownUserId: config.crealityProfile?.userId || '' };
-  if (taskId === 'makeNow') return runMakeNow(taskConfig);
+  if (taskId === 'makeNow') return runMakeNow(taskConfig, options);
   if (taskId === 'creality') return runCrealityCheckin({ ...options, timezone: taskConfig.timezone });
   if (taskId === 'finishPrint') {
     return startVirtualPrint(options.finishPrintSelection
@@ -968,7 +968,7 @@ async function notifyTaskResult(config, taskId, status, result, healthEvent = {}
     if (shouldNotifyIncident(config, taskId)) {
       const pauseUntil = formatPauseUntil(healthEvent.pausedUntil, config.tasks?.[taskId]?.timezone);
       const source = healthEvent.pauseSource === 'retry-after' ? ' (indicado por Creality Cloud)' : '';
-      await sendTelegram(config, `❌ CC Tools: Automatizaciones pausadas\n${healthEvent.reason}${pauseUntil ? `\nReanudación prevista: ${pauseUntil}${source}` : ''}\nRevisa el diagnóstico en Logs.`).catch((error) => {
+      await sendTelegram(config, `❌ CC Tools Dev: Automatizaciones pausadas\n${healthEvent.reason}${pauseUntil ? `\nReanudación prevista: ${pauseUntil}${source}` : ''}\nRevisa el diagnóstico en Logs.`).catch((error) => {
         console.error('[telegram]', error.message);
       });
     }
@@ -978,7 +978,7 @@ async function notifyTaskResult(config, taskId, status, result, healthEvent = {}
   if (taskId === 'makeNow') {
     const notify = status === 'success' ? config.telegram.notifyOnMakeNow : config.telegram.notifyOnMakeNowError;
     if (notify !== false) {
-      await sendTelegram(config, 'CC Tools: ' + (result.message || 'MakeNow fallido. Revisa el Log.'))
+      await sendTelegram(config, (status === 'success' ? '🎨 CC Tools Dev: ' : '❌ CC Tools Dev: ') + (result.message || 'MakeNow fallido. Revisa el Log.'))
         .catch((error) => console.error('[telegram]', error.message));
     }
     return;
@@ -988,13 +988,13 @@ async function notifyTaskResult(config, taskId, status, result, healthEvent = {}
     const design = result.details?.boosted?.[0] || result.details?.acted?.[0];
     const failures = result.details?.failures || [];
     if (status === 'success' && config.telegram.notifyOnModelBoost !== false && design) {
-      await sendTelegram(config, `🚀 CC Tools: Boost aplicado\n<a href="${escapeTelegramHtmlAttribute(design.url)}">${escapeTelegramHtml(design.title)}</a>`, {
+      await sendTelegram(config, `🚀 CC Tools Dev: Boost aplicado\n<a href="${escapeTelegramHtmlAttribute(design.url)}">${escapeTelegramHtml(design.title)}</a>`, {
         parseMode: 'HTML'
       }).catch((error) => console.error('[telegram]', error.message));
     }
     if (status !== 'success' && config.telegram.notifyOnModelBoostError !== false) {
       const failure = failures[0];
-      await sendTelegram(config, `❌ CC Tools: Falló Impulsar diseños\n${failure?.title || 'Diseño desconocido'}\n${publicError(failure)}`)
+      await sendTelegram(config, `❌ CC Tools Dev: Falló Impulsar diseños\n${failure?.title || 'Diseño desconocido'}\n${publicError(failure)}`)
         .catch((error) => console.error('[telegram]', error.message));
     }
     return;
@@ -1005,7 +1005,7 @@ async function notifyTaskResult(config, taskId, status, result, healthEvent = {}
       const fileName = result.details?.file?.name || 'G-code';
       await sendTelegram(
         config,
-        `❌ CC Tools: Error al enviar una impresión virtual\n${fileName}\n${publicError(failure)}`
+        `❌ CC Tools Dev: Error al enviar una impresión virtual\n${fileName}\n${publicError(failure)}`
       ).catch((error) => {
         console.error('[telegram]', error.message);
       });
@@ -1017,7 +1017,7 @@ async function notifyTaskResult(config, taskId, status, result, healthEvent = {}
 
   if (healthEvent.recovered) {
     if (config.telegram.enabled) {
-      await sendTelegram(config, '✅ CC Tools: Automatizaciones reanudadas').catch((error) => {
+      await sendTelegram(config, '✅ CC Tools Dev: Automatizaciones reanudadas').catch((error) => {
         console.error('[telegram]', error.message);
       });
     }
@@ -1038,7 +1038,7 @@ async function notifyTaskResult(config, taskId, status, result, healthEvent = {}
 
     if (config.telegram.notifyOnDesignDownload !== false) {
       for (const design of downloaded) {
-        await sendTelegram(config, `🎨 CC Tools: Diseño descargado\n<a href="${escapeTelegramHtmlAttribute(design.url)}">${escapeTelegramHtml(design.title)}</a>`, {
+        await sendTelegram(config, `🎨 CC Tools Dev: Diseño descargado\n<a href="${escapeTelegramHtmlAttribute(design.url)}">${escapeTelegramHtml(design.title)}</a>`, {
           parseMode: 'HTML'
         }).catch((error) => {
           console.error('[telegram]', error.message);
@@ -1050,7 +1050,7 @@ async function notifyTaskResult(config, taskId, status, result, healthEvent = {}
       if (failures.length) {
         const failure = failures[0];
         const suffix = failures.length > 1 ? `\n${failures.length} intentos fallidos en esta ejecución.` : '';
-        await sendTelegram(config, `❌ CC Tools: Descarga de diseño fallida\n${failure.title || 'Diseño desconocido'}\n${publicError(failure)}${suffix}`).catch((error) => {
+        await sendTelegram(config, `❌ CC Tools Dev: Descarga de diseño fallida\n${failure.title || 'Diseño desconocido'}\n${publicError(failure)}${suffix}`).catch((error) => {
           console.error('[telegram]', error.message);
         });
       }
@@ -1064,14 +1064,14 @@ async function notifyTaskResult(config, taskId, status, result, healthEvent = {}
       for (const design of acted) {
         const type = design.commentKind === 'image' ? 'con imagen' : 'sin imagen';
         const icon = design.commentKind === 'image' ? '🖼️' : '💬';
-        await sendTelegram(config, `${icon} CC Tools: Comentario ${type} publicado\n<a href="${escapeTelegramHtmlAttribute(design.url)}">${escapeTelegramHtml(design.title)}</a>`, {
+        await sendTelegram(config, `${icon} CC Tools Dev: Comentario ${type} publicado\n<a href="${escapeTelegramHtmlAttribute(design.url)}">${escapeTelegramHtml(design.title)}</a>`, {
           parseMode: 'HTML'
         }).catch((error) => console.error('[telegram]', error.message));
       }
     }
     if (status !== 'success' && config.telegram.notifyOnCommentError !== false && failures.length) {
       const failure = failures[0];
-      await sendTelegram(config, `❌ CC Tools: Comentario fallido\n${failure.title || 'Diseño desconocido'}\n${publicError(failure)}`)
+      await sendTelegram(config, `❌ CC Tools Dev: Comentario fallido\n${failure.title || 'Diseño desconocido'}\n${publicError(failure)}`)
         .catch((error) => console.error('[telegram]', error.message));
     }
     return;
@@ -1111,10 +1111,10 @@ async function notifyTaskResult(config, taskId, status, result, healthEvent = {}
 }
 
 function formatCheckinTelegramMessage(status, result = {}) {
-  if (status !== 'success') return '❌ CC Tools: Check-in fallido';
+  if (status !== 'success') return '❌ CC Tools Dev: Check-in fallido';
   return result.details?.checkin?.status === 'already_done'
-    ? '✅ CC Tools: Check-in ya realizado'
-    : '✅ CC Tools: Check-in completado con éxito';
+    ? '✅ CC Tools Dev: Check-in ya realizado'
+    : '✅ CC Tools Dev: Check-in completado con éxito';
 }
 
 function updateDependentModelActions(config, taskId, result) {

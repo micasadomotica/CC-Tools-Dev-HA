@@ -16,7 +16,7 @@ export function formatAvailableShopOrderTelegram(order = {}) {
   const points = new Intl.NumberFormat('es-ES').format(Math.max(0, Number(order.points) || 0));
   const url = order.useUrl || CREALITY_SHOP_ORDERS_URL;
   const title = order.title || 'Producto de Creality Cloud';
-  return `📦 CC Tools: Pedido disponible\n<a href="${escapeTelegramHtmlAttribute(url)}">${escapeTelegramHtml(title)}</a>\n${points} puntos`;
+  return `📦 CC Tools Dev: Pedido disponible\n<a href="${escapeTelegramHtmlAttribute(url)}">${escapeTelegramHtml(title)}</a>\n${points} puntos`;
 }
 
 function escapeTelegramHtml(value) {

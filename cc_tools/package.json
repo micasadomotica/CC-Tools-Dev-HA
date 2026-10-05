@@ -1,6 +1,6 @@
 {
   "name": "cc-tools",
-  "version": "1.0.24",
+  "version": "1.0.26",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,6 +9,7 @@
     "test": "node --test",
     "test:incentives:browser": "node --test scripts/incentiveProgress.browser.mjs",
     "test:checkin:browser": "node --test scripts/checkinReminder.browser.mjs",
+    "test:makenow:browser": "node --test scripts/makeNowProjects.browser.mjs",
     "test:setup:browser": "node --test scripts/setup.browser.mjs"
   },
   "dependencies": {

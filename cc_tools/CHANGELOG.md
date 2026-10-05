@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.0.26 — restauración del límite diario de Model Boost
+
+- Restaura el comportamiento de «Impulsa un diseño» anterior a la prueba 1.0.25: un impulso diario, contador original y bloqueo manual al completar el día o no disponer de boletos.
+- La programación vuelve a aplazar el siguiente impulso al día siguiente una vez completado. Se retira el consumo de varios boletos por ejecución.
+- Conserva el resto de cambios de 1.0.25: CC Tools Dev, Perfil CC en Telegram y selección de herramientas MakeNow por cupo, con su icono y registro por perfil.
+
+## 1.0.25 — prueba local pendiente de validación en Home Assistant
+
+- Icono triangular verde inspirado en MakeNow para «Crear un proyecto», distinto del marcador de «Añadir a la colección».
+- Selección automática entre ocho herramientas MakeNow, priorizando las de menor ocupación y comprobando el cupo real antes de crear.
+- Excluye AI Create Lab, Fanforge-Football y FlexiToys, además de cualquier herramienta sin acceso o cupo verificable.
+- Registra por perfil CC el intento, herramienta, cupo, identificador del proyecto cuando esté disponible y resultado de la recompensa. No elimina proyectos ni repite un clic incierto.
+- Muestra los cupos consultados en la configuración y avisa en Log y Telegram si no queda una herramienta utilizable.
+- Renombra el módulo MakeNow a «Crear un proyecto» en la interfaz, Logs y planificación, y adapta la descripción a las herramientas disponibles.
+
+- Incluye el nombre del perfil de Creality Cloud en todos los mensajes de Telegram; usa el ID si aún no se conoce el nombre.
+- Añade 🎨 a las notificaciones de MakeNow completado y ❌ a las de error.
+- Identifica la interfaz y todas las notificaciones de Telegram como CC Tools Dev, incluida la prueba de Telegram.
+- Impulsos manuales y programados utilizan todos los boletos disponibles, sin bloquearse por haber obtenido la recompensa diaria.
+- Consulta el saldo al ejecutar y después de cada impulso, respeta los permisos de Creality y registra los resultados parciales.
+- Muestra los boletos restantes y la fecha de consulta, actualiza el saldo periódicamente y permite comprobarlo manualmente aunque el saldo guardado sea cero.
+
 ## 1.0.24 — integración de TitoTB 1.0.19
 
 - Integra los cambios de TitoTB 1.0.19 sobre Dev 1.0.23.

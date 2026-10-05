@@ -1001,7 +1001,7 @@ app.patch('/api/config', async (req, res) => {
 app.post('/api/telegram/test', async (req, res) => {
   const config = await readConfig();
   try {
-    await sendTelegram(config, 'CC Tools: prueba de Telegram correcta.');
+    await sendTelegram(config, 'CC Tools Dev: prueba de Telegram correcta.');
     res.json({ ok: true });
   } catch (error) {
     res.status(400).json({ ok: false, error: error.message });
@@ -1233,7 +1233,7 @@ app.post('/api/tasks/creality/login/open', async (req, res) => {
         return res.status(409).json({
           ok: false,
           error: 'TASK_CANCELLATION_TIMEOUT',
-          message: 'No se pudo liberar el navegador automáticamente. Reinicia CC Tools e inténtalo de nuevo.'
+          message: 'No se pudo liberar el navegador automáticamente. Reinicia CC Tools Dev e inténtalo de nuevo.'
         });
       }
     }
@@ -1277,7 +1277,7 @@ startFavoriteModelIndex();
 startDesignMetadataRepair();
 
 const server = app.listen(port, host, () => {
-  console.log(`CC Tools escuchando en http://${host}:${port}`);
+  console.log(`CC Tools Dev escuchando en http://${host}:${port}`);
 });
 
 for (const signal of ['SIGTERM', 'SIGINT']) {
@@ -1326,7 +1326,7 @@ async function setIntegrationTaskEnabled(config, taskId, enabled) {
     throw Object.assign(new Error('Activa primero Descubrir diseños.'), { code: 'MODEL_DOWNLOADS_REQUIRED' });
   }
   if (taskId === 'finishPrint' && enabled && !normalizeFinishPrintProfiles(task).length) {
-    throw Object.assign(new Error('Configura al menos una impresora en CC Tools.'), {
+    throw Object.assign(new Error('Configura al menos una impresora en CC Tools Dev.'), {
       code: 'FINISH_PRINT_PROFILE_REQUIRED'
     });
   }
@@ -1461,7 +1461,7 @@ function buildSchedulePreview(config, runs = []) {
   });
 
   const makeNowRuns = progress.observations.makeNow && progress.counters.makeNow === 0 ? [] : runs;
-  addSingleScheduleItem(items, config.tasks.makeNow, 'makeNow', 'MakeNow', makeNowRuns, countMakeNowRun);
+  addSingleScheduleItem(items, config.tasks.makeNow, 'makeNow', 'Crear un proyecto', makeNowRuns, countMakeNowRun);
   addSingleScheduleItem(items, config.tasks.modelBoosts, 'modelBoosts', 'Impulsar diseños', runs, countConsumedBoosts);
 
   addSingleScheduleItem(items, config.tasks.modelLikes, 'modelLikes', 'Dar me gusta', runs, countActedDesigns);
@@ -1470,7 +1470,7 @@ function buildSchedulePreview(config, runs = []) {
     if (taskId === 'commentImage' || taskId === 'commentText' || !config.tasks[taskId]?.enabled || !done) continue;
     const observation = progress.observations[taskId];
     if (!observation) continue;
-    items.push({ taskId, label: taskId === 'comments' ? 'Comentarios' : ({ modelDownloads: 'Descarga de diseños', finishPrint: 'Enviar una impresión', creality: 'Check-in diario', modelLikes: 'Dar me gusta', modelCollections: 'Añadir a la colección', makeNow: 'MakeNow' })[taskId] || 'Impulsar diseños',
+    items.push({ taskId, label: taskId === 'comments' ? 'Comentarios' : ({ modelDownloads: 'Descarga de diseños', finishPrint: 'Enviar una impresión', creality: 'Check-in diario', modelLikes: 'Dar me gusta', modelCollections: 'Añadir a la colección', makeNow: 'Crear un proyecto' })[taskId] || 'Impulsar diseños',
       detail: 'Progreso de Creality Cloud: ' + done + '/' + progress.limits[taskId], runAt: observation.checkedAt, status: 'done' });
   }
   return applyPreviewAutomationGap(items

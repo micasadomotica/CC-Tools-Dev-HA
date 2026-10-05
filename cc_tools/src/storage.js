@@ -172,6 +172,8 @@ const DEFAULT_CONFIG = {
       timezone: 'Europe/Madrid',
       dailyLimit: 1,
       lastAttemptAt: '',
+      lastAttemptProfileId: '',
+      projectAccounts: {},
       nextRunAt: '',
       lastRunAt: '',
       lastStatus: 'never',

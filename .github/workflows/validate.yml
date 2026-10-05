@@ -35,6 +35,8 @@ jobs:
         run: npm run test:checkin:browser
       - name: Test reward counters with the real task-card structure
         run: npm run test:incentives:browser
+      - name: Test MakeNow project capacity and selection in browser
+        run: npm run test:makenow:browser
       - name: Test setup and download defaults in browser
         run: npm run test:setup:browser
 

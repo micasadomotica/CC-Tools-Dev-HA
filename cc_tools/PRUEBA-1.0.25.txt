@@ -1,0 +1,46 @@
+CC Tools Dev 1.0.25 — paquete local para probar en Home Assistant
+
+INSTALACIÓN
+1. Detén CC Tools Dev.
+2. Descomprime el ZIP y copia la carpeta cc_tools dentro de /addons,
+   sustituyendo los archivos de /addons/cc_tools.
+3. Busca actualizaciones en la tienda de aplicaciones de Home Assistant
+   y pulsa Actualizar en la instalación existente de CC Tools Dev.
+4. Confirma la versión 1.0.25, inicia Dev y recarga la página del navegador.
+5. El puerto externo sigue siendo 8088. Conserva la instalación existente
+   para mantener la configuración, la sesión y el historial.
+
+CAMBIOS INCLUIDOS
+- Nombre CC Tools Dev en la interfaz y las notificaciones de Telegram.
+- Todos los mensajes de Telegram incluyen «Perfil CC:» y el nombre guardado.
+- MakeNow pasa a llamarse «Crear un proyecto» y tiene un icono triangular
+  verde inspirado en MakeNow. Sus mensajes incluyen un icono de resultado.
+- Consulta los cupos de ocho herramientas MakeNow (30 proyectos cada una)
+  y elige la menos ocupada con espacio y acceso confirmados.
+- Excluye AI Create Lab, Fanforge-Football y FlexiToys.
+- Guarda los intentos y los identificadores disponibles por perfil CC.
+  No repite la creación el mismo día tras un clic incierto y no borra proyectos.
+- Si todas las herramientas están llenas, avisa en Log y Telegram según ajustes.
+- Los impulsos manuales y programados utilizan todos los boletos disponibles;
+  haber conseguido la recompensa diaria ya no bloquea nuevas ejecuciones.
+- Conserva la integración de TitoTB 1.0.19 y las correcciones anteriores.
+
+COMPROBACIONES EN HOME ASSISTANT
+1. Revisa el nombre CC Tools Dev y el icono de «Crear un proyecto».
+2. Usa la prueba de Telegram para comprobar el nombre y «Perfil CC:».
+3. En Impulsa un diseño, comprueba el saldo de boletos. La ejecución manual
+   debe poder consultar el saldo y consumir los disponibles, si hay diseños
+   válidos según tus preferencias. Revisa también la próxima ejecución
+   programada y sus resultados en el Log.
+4. Cuando MakeNow esté pendiente en la web, ejecuta «Crear un proyecto».
+   En el Log deben aparecer los cupos, la herramienta seleccionada, el
+   identificador si está disponible y la verificación de la recompensa.
+   El contador no debe marcar 1/1 hasta que Creality Cloud la confirme.
+5. Abre la configuración de «Crear un proyecto» y despliega los cupos.
+   La fecha indica cuándo se consultaron: no es un contador en tiempo real.
+6. Si vuelves a ejecutar MakeNow ese día, debe consultar la recompensa sin
+   crear otro proyecto. Los proyectos anteriores no se atribuyen a Dev.
+
+Las comprobaciones automáticas usan datos y páginas simuladas; la creación
+real y el comportamiento dentro de Home Assistant se validan con este ZIP.
+La subida a la rama dev de GitHub queda pendiente de confirmar estas pruebas.

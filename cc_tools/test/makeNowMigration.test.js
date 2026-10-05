@@ -28,8 +28,18 @@ test('una configuración 1.0.18 recibe MakeNow desactivado y conserva sus ajuste
     assert.equal(config.tasks.creality.windowStart, '09:17');
     assert.equal(config.telegram.notifyOnSuccess, false);
     config.tasks.makeNow.lastAttemptAt = '2026-10-04T10:00:00Z';
+    assert.deepEqual(config.tasks.makeNow.projectAccounts, {});
+    config.tasks.makeNow.lastAttemptProfileId = 'profile42';
+    config.tasks.makeNow.projectAccounts.profile42 = {
+      profileName: 'Mi perfil', checkedAt: '2026-10-04T10:00:00Z',
+      inventory: [{ id: '17', name: 'Lampshade Generator', used: 29, limit: 30, status: 'available' }],
+      attempts: [{ attemptId: 'attempt-1', profileId: 'profile42', projectId: 'project-1', toolId: '17', status: 'created', rewardStatus: 'credited' }]
+    };
     await storage.writeConfig(config);
-    assert.equal((await storage.readConfig()).tasks.makeNow.lastAttemptAt, config.tasks.makeNow.lastAttemptAt);
+    const restored = (await storage.readConfig()).tasks.makeNow;
+    assert.equal(restored.lastAttemptAt, config.tasks.makeNow.lastAttemptAt);
+    assert.equal(restored.lastAttemptProfileId, 'profile42');
+    assert.deepEqual(restored.projectAccounts, config.tasks.makeNow.projectAccounts);
   } finally {
     await fs.rm(directory, { recursive: true, force: true });
   }
