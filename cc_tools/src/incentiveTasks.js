@@ -264,19 +264,18 @@ async function findTaskItemWithRetry(page, expectedTitle) {
 }
 
 async function taskTitle(item) {
-  const directHeading = normalize(await item.locator('h5.task-item-title').first().textContent().catch(() => ''));
-  if (directHeading) return cleanTaskTitle(directHeading);
-
-  const nestedHeading = normalize(await item.locator('.task-item-title h5').first().textContent().catch(() => ''));
-  if (nestedHeading) return cleanTaskTitle(nestedHeading);
-
-  const heading = normalize(await item.locator('.task-item-title').first().textContent().catch(() => ''));
-  if (heading) return cleanTaskTitle(heading);
-
-  const imageAlt = normalize(await item.locator('.task-item-icon img[alt]').first().getAttribute('alt').catch(() => ''));
-  if (imageAlt) return cleanTaskTitle(imageAlt);
-
-  return '';
+  // Creality currently uses <div class="task-item-title"><h5>...</h5></div>.
+  // Optional layouts must be checked before textContent: waiting for a missing
+  // h5.task-item-title used to stall every card for Playwright's full timeout.
+  for (const selector of ['h5.task-item-title, .task-item-title h5', '.task-item-title']) {
+    const heading = item.locator(selector).first();
+    if (!await heading.count()) continue;
+    const title = normalize(await heading.textContent({ timeout: 1500 }).catch(() => ''));
+    if (title) return cleanTaskTitle(title);
+  }
+  const icon = item.locator('.task-item-icon img[alt]').first();
+  if (!await icon.count()) return '';
+  return cleanTaskTitle(await icon.getAttribute('alt', { timeout: 1500 }).catch(() => ''));
 }
 
 function cleanTaskTitle(value) {

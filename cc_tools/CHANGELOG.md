@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.23 — lectura de MakeNow con el HTML actual
+
+- Evita esperar por encabezados opcionales que no existen en las tarjetas de Creality Cloud; la espera por cada tarjeta retenía el navegador y retrasaba la actualización de MakeNow.
+- Lee el encabezado anidado real y su contador 0/1, sin confundirlo con el 1/1 de Collection Models.
+- Comprueba primero si existen los elementos alternativos y limita la espera al leerlos.
+- Añade pruebas de navegador con la estructura real de las diez tarjetas, incluyendo MakeNow ausente de la API o con una respuesta antigua.
+- Conserva las correcciones de check-in, los cambios de TitoTB 1.0.18 y el puerto externo 8088.
+
 ## 1.0.22 — check-in, progreso MakeNow y base TitoTB 1.0.18
 
 - Las tareas esperan a que termine una sincronización de recompensas en curso antes de utilizar el navegador.

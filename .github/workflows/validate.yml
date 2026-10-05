@@ -33,6 +33,8 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Test check-in reminder in browser
         run: npm run test:checkin:browser
+      - name: Test reward counters with the real task-card structure
+        run: npm run test:incentives:browser
       - name: Test setup and download defaults in browser
         run: npm run test:setup:browser
 

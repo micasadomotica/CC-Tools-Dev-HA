@@ -1,0 +1,30 @@
+CC Tools Dev 1.0.23 — lectura del contador MakeNow
+
+Se ha contrastado el estado de Dev con el HTML real de la página de recompensas.
+El lector anterior esperaba un encabezado h5.task-item-title que no existe:
+la página usa un div.task-item-title con un h5 dentro. Esa espera se repetía
+por cada tarjeta y retenía el navegador durante la sincronización.
+Ahora comprueba que exista cada selector alternativo antes de leerlo.
+
+INSTALACIÓN
+1. Detén CC Tools Dev para finalizar la sincronización antigua.
+2. Descomprime el ZIP y sustituye los archivos de /addons/cc_tools por la
+   carpeta cc_tools incluida.
+3. Busca actualizaciones y pulsa Actualizar en la instalación existente.
+4. Confirma que Home Assistant muestra 1.0.23 e inicia Dev.
+   Se conserva el puerto externo 8088 y los datos de la aplicación.
+
+COMPROBACIÓN
+Abre Historial de puntos y pulsa refrescar. Al terminar la sincronización,
+compara Use MakeNow en Creality Cloud con el panel MakeNow de Dev.
+Si la web muestra 0/1, Dev debe reflejar 0/1. Collection Models puede seguir
+mostrando 1/1 de forma independiente. La franja de MakeNow se respeta:
+si ya ha terminado, la próxima ejecución seguirá siendo la del día siguiente.
+
+La protección contra repetir New Project si ya se intentó hoy permanece activa.
+No se ha ejecutado MakeNow ni modificado tu cuenta durante el diagnóstico.
+
+PRUEBAS
+Las dos pruebas con la estructura real reproducían la espera de la versión
+anterior y pasan con la corrección. Las respuestas de red de las pruebas son
+simuladas; queda por validar la actualización en tu Home Assistant.

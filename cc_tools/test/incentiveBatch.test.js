@@ -44,7 +44,7 @@ function makeNowPageWithStaleApi() {
   const items=[{title:'Collection Models',done:1},{title:'Use MakeNow',done:0}];
   f.page.locator=selector=>selector==='.task-item' ? {
     count:async()=>items.length,
-    nth:index=>({isVisible:async()=>true,locator: selector=>({first(){return this;},
+    nth:index=>({isVisible:async()=>true,locator: selector=>({first(){return this;},count:async()=>1,
       textContent:async()=> selector==='.done-times' ? String(items[index].done) : selector==='.vaild-times' ? '/1' : items[index].title
     })})
   } : original(selector);
