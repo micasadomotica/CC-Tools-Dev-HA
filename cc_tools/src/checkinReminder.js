@@ -1,9 +1,9 @@
 const CHECKIN_BUTTON_SELECTOR = '.sign-in-action .sign-in-btn';
 const AVAILABLE_RE = /^(registrar|check\s*in\s*today)$/i;
 const DONE_RE = /^(registrado|checked\s*in)$/i;
-const REMINDER_TITLE_RE = /recordatorio de reposici[oó]n|(?:make[ -]?up|replenishment) reminder/i;
-const REMINDER_OPTION_RE = /no recordar de nuevo en este ciclo|(?:do not|don['’]t) remind(?: me)? again (?:in|during|for) this cycle/i;
-const CONFIRM_RE = /^\s*(?:Hecho|Done)\s*$/i;
+const REMINDER_TITLE_RE = /recordatorio\s+de\s+reposici[oó]n|(?:make[ -]?up|replenish(?:ment)?)\s+reminder|replenish.*consecutive\s+rewards/i;
+const REMINDER_OPTION_RE = /no\s+recordar(?:me)?\s+de\s+nuevo\s+en\s+este\s+ciclo|(?:do not|don['’]?t)\s+remind(?:\s+me)?\s+again(?:\s+(?:in|during|for)\s+this\s+cycle)?/i;
+const CONFIRM_RE = /^\s*(?:Hecho|Done|Got\s*it)\s*$/i;
 
 const normalize = value => String(value || '').replace(/\s+/g, ' ').trim();
 
@@ -11,7 +11,7 @@ const normalize = value => String(value || '').replace(/\s+/g, ' ').trim();
 // Require its title and cycle option: other check-in dialogs can spend makeup cards.
 export async function findCheckinReminder(page, container) {
   for (const scope of [...new Set([container, page])]) {
-    const dialogs = scope.locator('.el-dialog, [role="dialog"]')
+    const dialogs = scope.locator('.el-dialog, [role="dialog"], .van-dialog, .el-dialog__wrapper')
       .filter({ hasText: REMINDER_TITLE_RE })
       .filter({ hasText: REMINDER_OPTION_RE });
     for (let index = 0; index < await dialogs.count(); index += 1) {
@@ -38,7 +38,7 @@ async function dismissCheckinReminder(dialog) {
     }
   }
   if (!(await checkbox.isChecked())) throw new Error('No se pudo marcar «No recordar de nuevo en este ciclo».');
-  const done = dialog.locator('button, [role="button"], .base-confirm-btn').filter({ hasText: CONFIRM_RE }).first();
+  const done = dialog.locator('button, [role="button"], .base-confirm-btn, .el-button, .van-button, .cus-button').filter({ hasText: CONFIRM_RE }).first();
   await done.click({ timeout: 3000 });
   await dialog.waitFor({ state: 'hidden', timeout: 5000 });
 }

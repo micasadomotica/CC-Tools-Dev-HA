@@ -1,4 +1,4 @@
-CC Tools Dev 1.0.22 — prueba local del check-in
+CC Tools Dev 1.0.22 — check-in, MakeNow y TitoTB 1.0.18
 
 El error BROWSER_BUSY podía aparecer al ejecutar una tarea mientras la
 sincronización automática de recompensas utilizaba el navegador de Dev.
@@ -27,3 +27,27 @@ navegador de TitoTB y el de Dev son independientes. Este ZIP actualiza Dev.
 
 Las pruebas locales usan datos y páginas simulados. Falta comprobar el
 flujo completo con tu sesión real de Creality Cloud en Home Assistant.
+
+
+MAKENOW
+Después de actualizar, refresca Historial de puntos para forzar la consulta.
+Si Use MakeNow indica 0/1 en Creality Cloud, Dev debe mostrar 0/1 aunque antes
+hubiera guardado 1/1. Añadir a la colección mantiene su contador independiente.
+Los puntos MakeNow recibidos por aprobación no prueban que se haya usado hoy.
+Si no se ha pulsado New Project hoy, se recupera la programación dentro de la
+franja configurada cuando se corrige el contador; fuera de ella queda para la
+próxima ventana. Puedes comprobarlo también con Ejecutar ahora.
+Si ya se intentó hoy, se conserva la protección contra crear otro proyecto.
+
+CAMBIOS DE TITOTB 1.0.18
+Base integrada: cf14762 (etiqueta v1.0.18).
+- Detección de impresoras con mayor espera y reintento al cargar el Banco de trabajo.
+- Los registros de seguimiento no consumen otro turno de impresión.
+- Mensaje de pedido disponible en Telegram con enlace al producto.
+- Recordatorio de reposición en la lotería y nuevas variantes de texto del aviso.
+Se mantiene la recuperación de Dev que marca la casilla, cierra el aviso,
+reintenta si hace falta y exige confirmación real del check-in.
+
+VALIDACIÓN
+322 pruebas automáticas y 18 pruebas del diálogo en navegador local con páginas
+simuladas. Prueba pendiente con tu cuenta real de Creality Cloud y Home Assistant.

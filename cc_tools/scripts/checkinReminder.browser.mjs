@@ -69,6 +69,9 @@ async function run(options, verify) {
     }
     if (options.hiddenInput) await scope.locator('input').evaluate(el => { el.style.display = 'none'; });
     if (options.missingCheckbox) await scope.locator('input').evaluate(el => el.remove());
+    if (options.reminderTitle) await scope.locator('h2').evaluate((el,text)=>el.textContent=text,options.reminderTitle);
+    if (options.doneLabel) await scope.locator('.base-confirm-btn').evaluate((el,text)=>el.textContent=text,options.doneLabel);
+    if (options.optionText) await scope.locator('label').evaluate((el,text)=>el.lastChild.textContent=text,options.optionText);
     // Keep real DOM interactions and locator waits, only shorten deliberate pauses.
     page.waitForTimeout = () => new Promise(resolve => setTimeout(resolve, 20));
     const result = await submitDailyCheckin(page, scope);
@@ -147,3 +150,13 @@ test('no acepta otros diálogos ni gasta tarjetas de reposición', async () => r
   assert.equal(result.status, 'confirmation_failed');
   assert.deepEqual(data.events, ['submit']);
 }));
+
+
+for (const reminderTitle of ['Replenish Reminder', 'Replenishment Reminder']) {
+  test(`admite ${reminderTitle} y Got it de TitoTB 1.0.18`,async()=>run({
+    language:'en',reminderTitle,doneLabel:'Got it',optionText:"Don't remind me again"
+  },(result,data)=>{
+    assert.equal(result.success,true);
+    assert.deepEqual(data.events,['submit','checked:true','done:true','submit']);
+  }));
+}

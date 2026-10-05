@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readIncentiveProgressBatch } from '../src/incentiveTasks.js';
+import { readIncentiveProgressBatch, readIncentiveProgress } from '../src/incentiveTasks.js';
 
 function fixture(records) {
   let requests = 0, navigations = 0;
@@ -35,4 +35,33 @@ test('una lista vacía produce un error de lectura, no tareas completadas ni pen
 test('rechaza contadores negativos y límites inválidos',async()=>{
   const f=fixture([{taskId:'download',taskName:'Download Models',doneTimes:-1,vaildTimes:30}]);
   await assert.rejects(readIncentiveProgressBatch(f.page,null,['Download Models']),{code:'INCENTIVE_PAGE_NOT_READY'});
+});
+
+
+function makeNowPageWithStaleApi() {
+  const f=fixture([{taskId:'make',taskName:'Use MakeNow',doneTimes:1,vaildTimes:1}]);
+  const original=f.page.locator;
+  const items=[{title:'Collection Models',done:1},{title:'Use MakeNow',done:0}];
+  f.page.locator=selector=>selector==='.task-item' ? {
+    count:async()=>items.length,
+    nth:index=>({isVisible:async()=>true,locator: selector=>({first(){return this;},
+      textContent:async()=> selector==='.done-times' ? String(items[index].done) : selector==='.vaild-times' ? '/1' : items[index].title
+    })})
+  } : original(selector);
+  return f;
+}
+
+test('MakeNow usa el 0/1 visible aunque la API conserve 1/1 y colecciones sea 1/1',async()=>{
+  const f=makeNowPageWithStaleApi();
+  const result=await readIncentiveProgressBatch(f.page,null,['Use MakeNow']);
+  assert.equal(result['Use MakeNow'].done,0);
+  assert.equal(result['Use MakeNow'].completed,false);
+  assert.equal(result['Use MakeNow'].taskResolution,'task-page');
+});
+
+test('la verificación manual de MakeNow también respeta el estado visible pendiente',async()=>{
+  const f=makeNowPageWithStaleApi();
+  const result=await readIncentiveProgress(f.page,null,'Use MakeNow',{includePoints:false});
+  assert.equal(result.done,0);
+  assert.equal(result.completed,false);
 });

@@ -25,7 +25,7 @@ export function applyRewardResult(config, taskId, result, now = new Date()) {
     if (Date.parse(observation.checkedAt) < (Date.parse(previous?.checkedAt) || 0)) return;
     const { found, done, valid, checkedAt, title } = observation;
     const sameDay = previous?.checkedAt && progressDay(config.timezone, new Date(previous.checkedAt)) === progressDay(config.timezone, new Date(checkedAt));
-    config.dailyProgress.tasks[key] = { found, done: sameDay ? Math.max(done, previous.done) : done, valid, checkedAt, title };
+    config.dailyProgress.tasks[key] = { found, done: sameDay && key !== 'makeNow' ? Math.max(done, previous.done) : done, valid, checkedAt, title };
   };
   const inspect = verification => { save(verification?.before); save(verification?.after); };
   inspect(details.rewardVerification);
@@ -44,6 +44,10 @@ export function dailyProgress(config, runs = [], now = new Date()) {
   const add = (key, observation) => {
     if (!observation?.found || !sameDay(observation.checkedAt) || !Number.isInteger(observation.done) || observation.done < 0 || !(observation.valid > 0)) return;
     const previous = observations[key];
+    if (key === 'makeNow') {
+      if (!previous || Date.parse(observation.checkedAt) >= Date.parse(previous.checkedAt)) observations[key] = { ...observation };
+      return;
+    }
     observations[key] = { ...observation, done: Math.max(observation.done, previous?.done || 0),
       valid: !previous || Date.parse(observation.checkedAt) >= Date.parse(previous.checkedAt) ? observation.valid : previous.valid };
   };
@@ -76,7 +80,8 @@ export function dailyProgress(config, runs = [], now = new Date()) {
     if (transaction.date !== today || !(transaction.amount > 0)) continue;
     const title = String(transaction.sourceType || '').toLowerCase();
     const key = Object.keys(REWARD_TITLES).find(id => REWARD_TITLES[id].toLowerCase() === title);
-    if (key) history[key] = (history[key] || 0) + 1;
+    // MakeNow credits can be issued after approval, on a different day from the action.
+    if (key && key !== 'makeNow') history[key] = (history[key] || 0) + 1;
     if (transaction.type === 'Check-in diario') history.creality = 1;
     if (transaction.type === 'Impulsos dados') history.modelBoosts = 1;
   }
@@ -84,6 +89,7 @@ export function dailyProgress(config, runs = [], now = new Date()) {
   const limits = {};
   for (const key of Object.keys(local)) {
     counters[key] = Math.max(local[key], observations[key]?.done || 0, history[key] || 0);
+    if (key === 'makeNow' && observations[key]) counters[key] = observations[key].done;
     if (singles.includes(key)) counters[key] = Math.min(1, counters[key]);
     limits[key] = observations[key]?.valid || ({ commentImage: 5, commentText: 1, modelDownloads: 30, finishPrint: 10 }[key] || 1);
   }
@@ -98,6 +104,18 @@ export function dailyProgress(config, runs = [], now = new Date()) {
   const remaining = Object.fromEntries(Object.keys(targets).map(key => [key, Math.max(0, targets[key] - (counters[key] || 0))]));
   remaining.comments = remaining.commentImage + remaining.commentText;
   return { date: today, counters, limits, remaining, observations };
+}
+
+export function reconcileMakeNowCorrection(config, previousCount, now = new Date()) {
+  const task = config.tasks?.makeNow;
+  const observation = config.dailyProgress?.tasks?.makeNow;
+  if (!task?.enabled || !(previousCount > 0) || !observation?.found || observation.done !== 0) return;
+  const today = progressDay(config.timezone, now);
+  if (progressDay(config.timezone, new Date(observation.checkedAt)) !== today) return;
+  if (task.lastAttemptAt && progressDay(config.timezone, new Date(task.lastAttemptAt)) === today) return;
+  if (!task.nextRunAt || progressDay(config.timezone, new Date(task.nextRunAt)) !== today) {
+    task.nextRunAt = scheduleNextRun(task, now);
+  }
 }
 
 export function reconcileDailyPlans(config, runs = [], now = new Date()) {

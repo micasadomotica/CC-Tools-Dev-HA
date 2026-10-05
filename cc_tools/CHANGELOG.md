@@ -1,11 +1,16 @@
 # Changelog
 
-## 1.0.22 — coordinación del check-in y la sincronización
+## 1.0.22 — check-in, progreso MakeNow y base TitoTB 1.0.18
 
 - Las tareas esperan a que termine una sincronización de recompensas en curso antes de utilizar el navegador.
 - Mientras una tarea espera o se ejecuta, se aplazan los nuevos refrescos de puntos y contadores.
 - La cancelación y el tiempo máximo también cubren la espera, sin ejecutar la tarea más tarde.
-- Se conserva el manejo del Recordatorio de reposición y el puerto externo 8088.
+- Se conserva el puerto externo 8088.
+- MakeNow utiliza el estado actual de la tarea: un 0/1 posterior corrige un 1/1 guardado y actualiza paneles, API y planificación.
+- El historial de puntos de MakeNow no da por completado el uso de hoy, ya que la recompensa puede acreditarse después de su aprobación.
+- Se prioriza el contador visible de Use MakeNow frente a respuestas antiguas de la API, conservando la protección para no repetir New Project el mismo día.
+- Integra TitoTB 1.0.18: detección de impresoras con espera y reintento, corrección del consumo de posiciones del plan de impresiones y nueva plantilla de pedidos disponibles en Telegram.
+- Incorpora el recordatorio en la lotería y las variantes Replenish/Replenishment Reminder y Got it, manteniendo la comprobación del check-in de Dev.
 
 ## 1.0.21 — Dev independiente y puerto 8088
 

@@ -21,12 +21,13 @@ export async function readIncentiveProgressBatch(page, observer, titles) {
     if (response?.body) payloads.push(response.body);
   }
   const result = {};
-  if (titles.some(title => !payloads.some(payload => findIncentiveTaskRecord(payload, title)))) {
+  if (titles.some(title => normalizeTaskTitle(title) === 'use makenow' || !payloads.some(payload => findIncentiveTaskRecord(payload, title)))) {
     await page.locator('.task-item-title').first().waitFor({ state: 'attached', timeout: 12000 }).catch(() => {});
   }
   for (const title of titles) {
     const match = payloads.map(payload => findIncentiveTaskRecord(payload, title)).find(Boolean);
     let progress = progressFromIncentiveTaskRecord(match?.record, title, { source: 'task-response' });
+    if (normalizeTaskTitle(title) === 'use makenow') progress = await readVisibleTaskProgress(page, title) || progress;
     if (!progress) {
       const lookup = await findTaskItem(page, title);
       if (lookup.item) {
@@ -67,6 +68,11 @@ export async function readIncentiveProgress(page, observer, title, options = {})
 
   const resolvedTask = await resolveIncentiveTask(page, title, taskContext);
   const apiProgress = progressFromIncentiveTaskRecord(resolvedTask.record, title, resolvedTask);
+  if (normalizeTaskTitle(title) === 'use makenow') {
+    await page.locator('.task-item-title').first().waitFor({ state: 'attached', timeout: 12000 }).catch(() => {});
+    const visibleProgress = await readVisibleTaskProgress(page, title);
+    if (visibleProgress) return attachPointsSummary(page, visibleProgress, options, fallbackTotal);
+  }
   if (apiProgress) {
     apiProgress.availableTasks = [];
     return attachPointsSummary(page, apiProgress, options, fallbackTotal);
@@ -216,6 +222,16 @@ export function analyzeActionTrace(trace = {}, actionKey = '', pageDiagnostic = 
 
 export function analyzeActionResponses(responses = [], actionKey = '') {
   return analyzeActionTrace({ responses, failedRequests: [] }, actionKey);
+}
+
+async function readVisibleTaskProgress(page, title) {
+  const lookup = await findTaskItem(page, title);
+  if (!lookup.item) return null;
+  const done = toCount(await lookup.item.locator('.done-times').textContent().catch(() => ''));
+  const valid = toCount(await lookup.item.locator('.vaild-times').textContent().catch(() => ''));
+  if (!Number.isInteger(done) || done < 0 || !Number.isInteger(valid) || valid <= 0) return null;
+  return { found: true, title: lookup.title, done, valid, completed: done >= valid,
+    taskResolution: 'task-page', checkedAt: new Date().toISOString() };
 }
 
 async function findTaskItem(page, expectedTitle) {

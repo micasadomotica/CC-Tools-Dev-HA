@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import { reconcileMakeNowCorrection } from '../src/dailyProgress.js';
 
 const source = name => fs.readFileSync(new URL(`../src/${name}.js`, import.meta.url), 'utf8')
   .replace(/^import[\s\S]*?;\r?$/gm, '').replace(/^export /gm, '');
@@ -27,7 +28,7 @@ function harness() {
     observeCrealityPage:()=>({stop(){}}), readIncentiveProgressBatch:async()=>({}),
     REWARD_TITLES:{}, readPointsSummary:async()=>({status:'current'}),
     mergePointsState:(_previous,incoming)=>incoming,
-    dailyProgress:()=>({counters:{},limits:{}}), reconcileDailyPlans:()=>false,
+    dailyProgress:()=>({counters:{},limits:{}}), reconcileDailyPlans:()=>false, reconcileMakeNowCorrection,
     cleanupOldScreenshots:async()=>{}, abortAutomationBrowser:async()=>{},
     executeFixture:async()=> {
       assert.equal(state.browserActive,false,'task must wait until the sync releases its browser');

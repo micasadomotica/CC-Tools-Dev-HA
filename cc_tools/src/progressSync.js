@@ -3,7 +3,7 @@ import { withAutomationBrowser, browserManagerState } from './browserManager.js'
 import { observeCrealityPage, inspectCrealityPage } from './crealityDiagnostics.js';
 import { readIncentiveProgressBatch } from './incentiveTasks.js';
 import { readPointsSummary, mergePointsState } from './pointsCounter.js';
-import { REWARD_TITLES, dailyProgress, reconcileDailyPlans, progressDay } from './dailyProgress.js';
+import { REWARD_TITLES, dailyProgress, reconcileDailyPlans, reconcileMakeNowCorrection, progressDay } from './dailyProgress.js';
 
 const MAX_AGE_MS = 5 * 60 * 1000;
 let pending = null;
@@ -97,6 +97,7 @@ async function sync(config, options) {
     tasks: mergeProgressObservations(previous.tasks, tasks, fresh.timezone)
   };
   if (points) fresh.points = mergePointsState(fresh.points, points, { replaceTransactions: options.fullHistory === true && points.historyComplete === true });
+  reconcileMakeNowCorrection(fresh, before.counters.makeNow);
   reconcileDailyPlans(fresh, runs);
   await writeConfig(fresh);
   const after = dailyProgress(fresh, runs);
@@ -121,7 +122,7 @@ export function mergeProgressObservations(current = {}, incoming = {}, timezone 
     if (Date.parse(value.checkedAt) >= (Date.parse(current[key]?.checkedAt) || 0)) {
       const previous = current[key];
       const sameDay = previous?.checkedAt && progressDay(timezone, new Date(previous.checkedAt)) === progressDay(timezone, new Date(value.checkedAt));
-      merged[key] = { ...value, done: sameDay ? Math.max(value.done, previous.done) : value.done };
+      merged[key] = { ...value, done: sameDay && key !== 'makeNow' ? Math.max(value.done, previous.done) : value.done };
     }
   }
   return merged;

@@ -1460,7 +1460,8 @@ function buildSchedulePreview(config, runs = []) {
     pendingLabel: (_runAt, index, cursor) => commentScheduleLabel(config.tasks.comments.commentKindPlan?.[cursor + index])
   });
 
-  addSingleScheduleItem(items, config.tasks.makeNow, 'makeNow', 'MakeNow', runs, countMakeNowRun);
+  const makeNowRuns = progress.observations.makeNow && progress.counters.makeNow === 0 ? [] : runs;
+  addSingleScheduleItem(items, config.tasks.makeNow, 'makeNow', 'MakeNow', makeNowRuns, countMakeNowRun);
   addSingleScheduleItem(items, config.tasks.modelBoosts, 'modelBoosts', 'Impulsar diseños', runs, countConsumedBoosts);
 
   addSingleScheduleItem(items, config.tasks.modelLikes, 'modelLikes', 'Dar me gusta', runs, countActedDesigns);

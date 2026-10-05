@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { dailyProgress, reconcileDailyPlans, applyRewardResult } from '../src/dailyProgress.js';
+import { dailyProgress, reconcileDailyPlans, reconcileMakeNowCorrection, applyRewardResult } from '../src/dailyProgress.js';
 import { mergeProgressObservations, progressSyncDue, readCheckinProgress } from '../src/progressSync.js';
 
 const now = new Date('2026-10-04T10:00:00Z');
@@ -175,4 +175,47 @@ test('una impresión pendiente conserva el siguiente hueco hasta resolver su ver
   reconcileDailyPlans(c,[],now);
   assert.equal(c.tasks.finishPrint.printerProfiles[0].printPlan.length,1);
   assert.equal(c.tasks.finishPrint.pendingVerification.printId,'pending');
+});
+
+
+test('MakeNow: una lectura nueva 0/1 corrige el 1/1 guardado y no arrastra el Log anterior',()=>{
+  const older={...observed(1,1,'2026-10-04T09:00:00Z'),title:'Use MakeNow'};
+  const current={...observed(0,1),title:'Use MakeNow'};
+  const c=config({makeNow:older,modelCollections:observed(1,1)});
+  c.dailyProgress.tasks=mergeProgressObservations(c.dailyProgress.tasks,{makeNow:current});
+  const oldRun={taskId:'makeNow',finishedAt:'2026-10-04T09:00:01Z',details:{rewardVerification:{status:'already_completed',before:older,after:older}}};
+  c.points.transactions=[{date,sourceType:'Use MakeNow',amount:1}];
+  const p=dailyProgress(c,[oldRun],now);
+  assert.equal(p.counters.makeNow,0);
+  assert.equal(p.remaining.makeNow,1);
+  assert.equal(p.counters.modelCollections,1);
+  applyRewardResult(c,'makeNow',{details:{rewardVerification:{before:older}}},now);
+  assert.equal(c.dailyProgress.tasks.makeNow.done,0);
+});
+
+test('MakeNow: un ingreso pendiente de aprobación no prueba el uso de hoy',()=>{
+  const c=config();
+  c.points.transactions=[{date,sourceType:'Use MakeNow',amount:1}];
+  assert.equal(dailyProgress(c,[],now).counters.makeNow,0);
+  c.tasks.makeNow.lastAttemptAt=now.toISOString();
+  assert.equal(dailyProgress(c,[],now).counters.makeNow,0);
+});
+
+test('MakeNow: corregir el contador recupera la ventana de hoy sin repetir un intento real',()=>{
+  const c=config({makeNow:observed(0,1)});
+  c.tasks.makeNow.nextRunAt='2026-10-05T12:00:00Z';
+  reconcileMakeNowCorrection(c,1,now);
+  assert.equal(c.tasks.makeNow.nextRunAt.slice(0,10),date);
+  c.tasks.makeNow.nextRunAt='2026-10-05T12:00:00Z';
+  c.tasks.makeNow.lastAttemptAt=now.toISOString();
+  reconcileMakeNowCorrection(c,1,now);
+  assert.equal(c.tasks.makeNow.nextRunAt,'2026-10-05T12:00:00Z');
+});
+
+test('MakeNow: una confirmación posterior vuelve a completar el contador',()=>{
+  const c=config({makeNow:observed(0,1,'2026-10-04T09:00:00Z')});
+  applyRewardResult(c,'makeNow',{details:{rewardVerification:{after:{...observed(1,1),title:'Use MakeNow'}}}},now);
+  assert.equal(dailyProgress(c,[],now).counters.makeNow,1);
+  applyRewardResult(c,'makeNow',{details:{rewardVerification:{after:{...observed(0,1,'2026-10-04T10:01:00Z'),title:'Use MakeNow'}}}},now);
+  assert.equal(dailyProgress(c,[],now).counters.makeNow,0);
 });

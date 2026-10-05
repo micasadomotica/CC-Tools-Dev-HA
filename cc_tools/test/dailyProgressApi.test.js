@@ -61,6 +61,18 @@ test('API: datos externos actualizan paneles, HA y planificación; una tarea com
     assert.equal(final.dailyCounters.modelDownloads,24);
     assert.equal(final.dailyLimits.modelDownloads,30);
     assert.equal(final.config.tasks.modelDownloads.nextRunAt,'');
+    // A corrected current snapshot must also clear stale completion in the panel and preview.
+    const persisted=JSON.parse(await fs.readFile(path.join(data,'config.json'),'utf8'));
+    const oldObservation={...observation(1,1),title:'Use MakeNow'};
+    persisted.dailyProgress.tasks.makeNow={...observation(0,1),title:'Use MakeNow',checkedAt:new Date().toISOString()};
+    persisted.tasks.makeNow.nextRunAt=new Date().toISOString();
+    await fs.writeFile(path.join(data,'config.json'),JSON.stringify(persisted));
+    await fs.writeFile(path.join(data,'runs.json'),JSON.stringify([{taskId:'makeNow',status:'skipped',finishedAt:timestamp,
+      details:{rewardVerification:{status:'already_completed',before:oldObservation,after:oldObservation}}}]));
+    assert.equal((await request('/api/status')).dailyCounters.makeNow,0);
+    const correctedPreview=await request('/api/schedule/preview');
+    assert.equal(correctedPreview.items.filter(item=>item.taskId==='makeNow'&&item.status==='done').length,0);
+    assert.equal(correctedPreview.items.filter(item=>item.taskId==='makeNow'&&item.status==='pending').length,1);
   } finally {
     if(server.exitCode===null){const exited=once(server,'exit');server.kill();await exited;}
     assert.equal(path.dirname(data),path.resolve(os.tmpdir()));
