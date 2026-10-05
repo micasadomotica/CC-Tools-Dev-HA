@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.22 — coordinación del check-in y la sincronización
+
+- Las tareas esperan a que termine una sincronización de recompensas en curso antes de utilizar el navegador.
+- Mientras una tarea espera o se ejecuta, se aplazan los nuevos refrescos de puntos y contadores.
+- La cancelación y el tiempo máximo también cubren la espera, sin ejecutar la tarea más tarde.
+- Se conserva el manejo del Recordatorio de reposición y el puerto externo 8088.
+
 ## 1.0.21 — Dev independiente y puerto 8088
 
 - Puerto web externo 8088 por defecto para convivir con CC Tools de TitoTB en el 8080.

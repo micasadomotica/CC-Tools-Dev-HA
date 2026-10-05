@@ -9,6 +9,29 @@ const MAX_AGE_MS = 5 * 60 * 1000;
 let pending = null;
 let pendingIncludesPoints = false;
 let pendingFullHistory = false;
+let taskReservations = 0;
+
+// Reserve before the task's first await; a sync reading config must also yield.
+export function pauseProgressSync() {
+  taskReservations += 1;
+  let released = false;
+  return () => {
+    if (!released) { released = true; taskReservations -= 1; }
+  };
+}
+
+export async function waitForProgressSync(signal) {
+  signal?.throwIfAborted();
+  const current = pending;
+  if (!current) return;
+  await new Promise((resolve, reject) => {
+    const abort = () => reject(signal.reason);
+    signal?.addEventListener('abort', abort, { once: true });
+    // Failed refreshes do not prevent an explicit task from trying its own page.
+    current.then(resolve, resolve).finally(() => signal?.removeEventListener('abort', abort));
+  });
+  signal?.throwIfAborted();
+}
 
 export function progressSyncDue(config, now = new Date()) {
   const previous = config.dailyProgress || {};
@@ -19,11 +42,13 @@ export function progressSyncDue(config, now = new Date()) {
 
 export async function synchronizeDailyProgress(options = {}) {
   options = { includePoints: true, ...options };
+  if (taskReservations) return { ok: false, busy: true };
   if (pending) {
     if ((!options.includePoints || pendingIncludesPoints) && (!options.fullHistory || pendingFullHistory)) return pending;
     await pending;
   }
   const config = await readConfig();
+  if (taskReservations) return { ok: false, busy: true };
   if (!options.force && !progressSyncDue(config)) return { ok: config.dailyProgress?.status === 'current', cached: true, error: config.dailyProgress?.error || '' };
   if (browserManagerState().mode !== 'idle') return { ok: false, busy: true, error: 'BROWSER_BUSY' };
   // No await between publishing the shared job and starting browser work.

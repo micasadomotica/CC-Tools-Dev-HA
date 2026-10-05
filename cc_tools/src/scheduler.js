@@ -1,5 +1,5 @@
 import { dailyProgress, reconcileDailyPlans, applyRewardResult } from './dailyProgress.js';
-import { synchronizeDailyProgress } from './progressSync.js';
+import { synchronizeDailyProgress, pauseProgressSync, waitForProgressSync } from './progressSync.js';
 import { runMakeNow } from './makeNowTask.js';
 import { appendRun, cleanupOldScreenshots, readConfig, readRuns, writeConfig } from './storage.js';
 import { runCrealityCheckin } from './crealityTask.js';
@@ -42,6 +42,7 @@ let runningSource = '';
 let runningStartedAt = '';
 let runningTimeoutAt = '';
 let cancellationRequest = null;
+let runningAbortController = null;
 let timer = null;
 
 export function startScheduler() {
@@ -61,6 +62,9 @@ export async function runTaskNow(taskId, source = 'manual', options = {}) {
     throw error;
   }
 
+  const releaseProgressSync = pauseProgressSync();
+  const executionAbort = new AbortController();
+  runningAbortController = executionAbort;
   running = true;
   runningTask = taskId;
   runningSource = source;
@@ -71,26 +75,34 @@ export async function runTaskNow(taskId, source = 'manual', options = {}) {
   console.log(`[scheduler] Inicio: ${taskDisplayName(taskId)} · ${source} · límite ${Math.round(timeoutMs / 1000)} s`);
 
   try {
-    const config = await readConfig();
-    const taskConfig = config.tasks[taskId];
-    if (taskId === 'finishPrint' && options.finishPrintProfileId) {
-      const profile = normalizeFinishPrintProfiles(taskConfig)
-        .find((item) => item.id === String(options.finishPrintProfileId));
-      if (!profile) {
-        const error = new Error('No se encontró la impresora configurada.');
-        error.code = 'FINISH_PRINT_PROFILE_NOT_FOUND';
-        throw error;
-      }
-      activateFinishPrintProfile(taskConfig, profile.id);
-      await writeConfig(config);
-    }
     const result = await executeWithTimeout(
-      executePendingTask(taskId, taskConfig, options, config),
+      (async () => {
+        await waitForProgressSync(executionAbort.signal);
+        const config = await readConfig();
+        executionAbort.signal.throwIfAborted();
+        const taskConfig = config.tasks[taskId];
+        if (taskId === 'finishPrint' && options.finishPrintProfileId) {
+          const profile = normalizeFinishPrintProfiles(taskConfig)
+            .find((item) => item.id === String(options.finishPrintProfileId));
+          if (!profile) {
+            const error = new Error('No se encontró la impresora configurada.');
+            error.code = 'FINISH_PRINT_PROFILE_NOT_FOUND';
+            throw error;
+          }
+          activateFinishPrintProfile(taskConfig, profile.id);
+          await writeConfig(config);
+        }
+        executionAbort.signal.throwIfAborted();
+        return executePendingTask(taskId, taskConfig, options, config);
+      })(),
       {
         timeoutMs,
         taskId,
         source,
-        onTimeout: abortAutomationBrowser
+        onTimeout: () => {
+          executionAbort.abort(new Error('Tiempo de ejecución agotado.'));
+          return abortAutomationBrowser();
+        }
       }
     );
     const status = result.skipped ? 'skipped' : result.success ? 'success' : 'failed';
@@ -240,6 +252,8 @@ export async function runTaskNow(taskId, source = 'manual', options = {}) {
     runningStartedAt = '';
     runningTimeoutAt = '';
     cancellationRequest = null;
+    runningAbortController = null;
+    releaseProgressSync();
   }
 }
 
@@ -261,6 +275,7 @@ export async function cancelRunningTask(reason = 'manual', timeoutMs = 10000) {
     reason: String(reason || 'manual'),
     requestedAt: new Date().toISOString()
   };
+  runningAbortController?.abort(new Error('Ejecución cancelada.'));
   await abortAutomationBrowser();
 
   const deadline = Date.now() + Math.max(1000, Number(timeoutMs) || 10000);
@@ -307,6 +322,7 @@ async function tick() {
     if (sync.busy) return;
     config = await readConfig();
   }
+  if (running) return;
   if (await refreshScheduledShopOrders(config)) return;
   if (await holdForAutomationHealth(config)) return;
   const runs = await readRuns();

@@ -1,0 +1,29 @@
+CC Tools Dev 1.0.22 — prueba local del check-in
+
+El error BROWSER_BUSY podía aparecer al ejecutar una tarea mientras la
+sincronización automática de recompensas utilizaba el navegador de Dev.
+Ahora la tarea espera a que termine esa consulta y reserva su turno. Los
+nuevos refrescos quedan aplazados mientras la tarea espera o se ejecuta.
+La espera se puede cancelar y está cubierta por el límite de ejecución.
+
+INSTALACIÓN
+Detén CC Tools Dev. Descomprime el ZIP y sustituye los archivos de
+/addons/cc_tools por los de la carpeta cc_tools incluida. Busca actualizaciones
+y pulsa Actualizar en tu instalación existente. Conserva el puerto externo
+8088 y la instalación para mantener la configuración, sesión e historial.
+
+PRUEBA
+1. Inicia Dev y abre su interfaz para que comience la sincronización automática.
+2. Si el check-in de hoy sigue pendiente, ejecútalo mientras se actualizan
+   los contadores. Debe esperar y continuar, sin fallar por esa sincronización.
+3. Revisa Log: solo debe indicar éxito si el check-in ya estaba registrado
+   o Creality Cloud confirma que se ha completado.
+4. Si aparece Recordatorio de reposición, Dev debe marcar No recordar de
+   nuevo en este ciclo, pulsar Hecho y comprobar o reintentar el check-in.
+   Cerrar el aviso por sí solo no se considera éxito.
+
+Activa check-in en una sola de tus instalaciones para esta prueba. El
+navegador de TitoTB y el de Dev son independientes. Este ZIP actualiza Dev.
+
+Las pruebas locales usan datos y páginas simulados. Falta comprobar el
+flujo completo con tu sesión real de Creality Cloud en Home Assistant.
