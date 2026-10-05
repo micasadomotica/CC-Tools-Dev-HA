@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.24 — integración de TitoTB 1.0.19
+
+- Integra los cambios de TitoTB 1.0.19 sobre Dev 1.0.23.
+- Los timeouts de tareas programadas se registran como reintentos aplazados, conservando el diagnóstico en Logs.
+- Un timeout aplazado no consume una posición del plan diario de impresiones y mantiene sincronizados los perfiles de impresora.
+- No envía alertas de Telegram ni penaliza el estado de la automatización por esos timeouts que se reprograman automáticamente; los errores manuales mantienen su tratamiento habitual.
+- Conserva la corrección del contador MakeNow validada en 1.0.23, el check-in, Añadir a la colección y el puerto externo 8088.
+
 ## 1.0.23 — lectura de MakeNow con el HTML actual
 
 - Evita esperar por encabezados opcionales que no existen en las tarjetas de Creality Cloud; la espera por cada tarjeta retenía el navegador y retrasaba la actualización de MakeNow.

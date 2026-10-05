@@ -1,0 +1,21 @@
+CC Tools Dev 1.0.24 — integración de TitoTB 1.0.19
+
+CAMBIOS
+Los timeouts de tareas programadas se aplazan con diagnóstico en Logs.
+No consumen posiciones del plan de impresiones ni generan alertas de Telegram
+cuando se reprograman automáticamente. Se sincronizan los perfiles de impresora.
+Se conservan las correcciones de MakeNow y check-in y el puerto externo 8088.
+
+INSTALACIÓN
+1. Detén CC Tools Dev.
+2. Descomprime el ZIP y sustituye los archivos de /addons/cc_tools por la
+   carpeta cc_tools incluida.
+3. Busca actualizaciones y pulsa Actualizar en la instalación existente.
+4. Confirma la versión 1.0.24 e inicia Dev.
+
+VALIDACIÓN
+Se comprueban el planificador, los reintentos, los perfiles y el recuento
+de impresiones, además de la coordinación con la sincronización de puntos.
+No es necesario provocar un timeout ni ejecutar impresiones reales para probarlo.
+Si se produce un timeout programado, Logs debe indicar que se reintentará
+automáticamente sin consumir una posición pendiente del plan.
