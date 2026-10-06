@@ -1,0 +1,112 @@
+name: Reportar un error
+description: Informa de un problema en CC Tools Dev para Home Assistant.
+title: "[Error]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Completa los campos obligatorios para que podamos reproducir y analizar el problema en CC Tools Dev.
+
+        Antes de publicar, elimina de los logs cualquier token, cookie, contraseña, dirección o dato personal.
+
+  - type: input
+    id: cc_tools_version
+    attributes:
+      label: Versión de CC Tools Dev
+      description: Puedes verla en la página del complemento de Home Assistant.
+      placeholder: "Ejemplo: 1.0.27"
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Entorno de Home Assistant
+      description: Indica la versión de Home Assistant, la arquitectura y dónde está instalado.
+      placeholder: |
+        Versión de Home Assistant: 2026.10.1
+        Arquitectura: amd64
+        Instalación: Home Assistant OS en una máquina virtual de Proxmox sobre un mini PC Intel N100
+    validations:
+      required: true
+
+  - type: textarea
+    id: resources
+    attributes:
+      label: Recursos de la instancia
+      description: Indica la memoria RAM y el almacenamiento asignado y disponible.
+      placeholder: |
+        RAM: 4 GB
+        Almacenamiento: 32 GB asignados, 12 GB disponibles
+    validations:
+      required: true
+
+  - type: dropdown
+    id: affected_area
+    attributes:
+      label: Apartado afectado
+      options:
+        - Instalación o actualización
+        - Asistente inicial o inicio de sesión
+        - Check-in diario
+        - Impresiones
+        - Descarga de diseños
+        - Me gusta
+        - Comentarios
+        - Boosts
+        - Añadir a la colección
+        - Crear un proyecto (MakeNow)
+        - Puntos, objetivos o pedidos
+        - Notificaciones
+        - Interfaz web
+        - Otro
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Descripción del error
+      description: Explica qué ocurrió, cuándo comenzó y si sucede siempre o de forma intermitente.
+      placeholder: Describe el problema con el mayor detalle posible.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproducción y resultado esperado
+      description: Enumera las acciones realizadas y explica qué debería haber ocurrido.
+      placeholder: |
+        1. Abrí...
+        2. Pulsé...
+        3. Apareció...
+        Resultado esperado: ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: application_logs
+    attributes:
+      label: Logs del error en CC Tools
+      description: Copia el registro completo desde el apartado Logs de la aplicación, incluidos el diagnóstico y los datos técnicos.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional_information
+    attributes:
+      label: Información adicional
+      description: Añade la fecha y hora del fallo, los logs del complemento, capturas de pantalla u otros datos útiles.
+      placeholder: |
+        Fecha y hora aproximadas: 06/10/2026 a las 10:35 (Europe/Madrid)
+        Logs del complemento y capturas: ...
+
+  - type: checkboxes
+    id: privacy
+    attributes:
+      label: Privacidad
+      options:
+        - label: He revisado el contenido y he eliminado cualquier dato privado o credencial.
+          required: true

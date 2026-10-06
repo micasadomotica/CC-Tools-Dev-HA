@@ -26,7 +26,7 @@ test('API: datos externos actualizan paneles, HA y planificación; una tarea com
   await fs.writeFile(path.join(data,'config.json'),JSON.stringify(config));
   await fs.writeFile(path.join(data,'runs.json'),JSON.stringify([{id:'download-local',taskId:'modelDownloads',source:'manual',status:'success',finishedAt:timestamp,details:{downloaded:[{rewardStatus:'credited'}]}}]));
   const server=spawn(process.execPath,['src/server.js'],{cwd:fileURLToPath(new URL('..',import.meta.url)),windowsHide:true,
-    env:{...process.env,CCTOOLS_HOST:'127.0.0.1',CCTOOLS_PORT:String(port),CCTOOLS_DATA_DIR:data},stdio:['ignore','pipe','pipe']});
+    env:{...process.env,TZ:config.timezone,CCTOOLS_HOST:'127.0.0.1',CCTOOLS_PORT:String(port),CCTOOLS_DATA_DIR:data},stdio:['ignore','pipe','pipe']});
   let logs=''; server.stdout.on('data',chunk=>logs+=chunk);server.stderr.on('data',chunk=>logs+=chunk);
   const request=async(url,method='GET',body)=>{
     const response=await fetch(base+url,{method,headers:{'content-type':'application/json'},body:body?JSON.stringify(body):undefined});

@@ -1,0 +1,19 @@
+CC Tools Dev 1.0.27 — integración de TitoTB 1.0.20
+
+CAMBIOS
+Reintenta la comprobación inicial de sesión si Creality Cloud tarda en
+responder. Si no responde, no considera caducada la sesión. En tareas
+programadas aplaza el turno diez minutos, sin consumirlo ni notificar
+una descarga fallida. Las ejecuciones manuales conservan su diagnóstico.
+Incorpora el formulario de errores de TitoTB, adaptado a los módulos Dev.
+
+INSTALACIÓN
+1. Detén CC Tools Dev y descomprime el ZIP.
+2. Copia la carpeta cc_tools dentro de /addons, sustituyendo los archivos
+   de /addons/cc_tools. Conserva la instalación existente y sus datos.
+3. Busca actualizaciones en la tienda de Home Assistant y pulsa Actualizar.
+4. Confirma la versión 1.0.27, inicia Dev y recarga la interfaz (puerto 8088).
+
+Se mantienen los cambios de 1.0.26: Crear un proyecto (MakeNow), cupos por
+herramienta, registro por perfil, Perfil CC en Telegram y un impulso diario.
+No es necesario provocar una caída de Creality para probar esta versión.

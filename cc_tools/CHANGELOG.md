@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.27 — integración de TitoTB 1.0.20
+
+- Integra los reintentos de la comprobación inicial de sesión de TitoTB 1.0.20 cuando Creality Cloud tarda en responder.
+- Una comprobación de sesión sin respuesta no se interpreta como sesión caducada. En ejecuciones programadas conserva el turno y lo aplaza diez minutos, sin registrarlo ni notificarlo como descarga fallida.
+- Incorpora el formulario de errores de TitoTB y lo adapta a Dev con los módulos Añadir a la colección y Crear un proyecto (MakeNow).
+- Corrige la zona horaria del servidor de una prueba de API: usaba UTC en GitHub pese a preparar los datos en Europe/Madrid y podía fallar después de medianoche en Madrid.
+- Conserva las funciones de Dev 1.0.26: puerto 8088, nombre CC Tools Dev, Perfil CC en Telegram, selección MakeNow por cupo y un impulso diario en Model Boost.
+
 ## 1.0.26 — restauración del límite diario de Model Boost
 
 - Restaura el comportamiento de «Impulsa un diseño» anterior a la prueba 1.0.25: un impulso diario, contador original y bloqueo manual al completar el día o no disponer de boletos.

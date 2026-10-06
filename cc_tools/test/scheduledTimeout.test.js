@@ -71,14 +71,44 @@ test('un timeout programado conserva el diagnóstico y aplaza la impresión sin 
   assert.equal(h.state.released, true);
 });
 
-for (const [source, code] of [['manual', 'TASK_EXECUTION_TIMEOUT'], ['schedule', 'TASK_EXECUTION_ERROR']]) {
+for (const [source, code] of [['manual', 'TASK_EXECUTION_TIMEOUT'], ['schedule', 'TASK_EXECUTION_ERROR'], ['manual', 'SESSION_CHECK_UNAVAILABLE']]) {
   test(`el error ${code} de origen ${source} conserva su registro y notificación`, async () => {
     const h = harness(code);
+    if (code === 'SESSION_CHECK_UNAVAILABLE') h.error.silentRetry = true;
     await assert.rejects(h.context.runTaskNow('finishPrint', source), { code });
     assert.equal(h.state.runs[0].status, 'error');
     assert.equal(h.config.tasks.finishPrint.lastStatus, 'error');
     assert.equal(h.state.notifications.length, 1);
     assert.equal(h.state.healthUpdates, 1);
     assert.equal(h.state.released, true);
+  });
+}
+
+for (const taskId of ['modelDownloads', 'makeNow']) {
+  test(`una sesión sin respuesta aplaza ${taskId} diez minutos sin consumir el turno ni avisar`, async () => {
+    const h = harness('SESSION_CHECK_UNAVAILABLE');
+    h.error.silentRetry = true;
+    h.error.message = 'Creality Cloud no respondió al comprobar la sesión.';
+    const plan = [h.now - 60000, h.now, h.now + 1200000].map(time => new Date(time).toISOString());
+    h.config.tasks[taskId] = { enabled: true, timezone: 'Europe/Madrid', nextRunAt: plan[1],
+      downloadPlan: [...plan], downloadPlanCursor: 1, lastAttemptAt: '', projectAccounts: {} };
+    const result = await h.context.runTaskNow(taskId, 'schedule');
+    assert.equal(result.status, 'skipped');
+    assert.match(result.message, /Se reintentará automáticamente/);
+    const task = h.config.tasks[taskId];
+    assert.ok(Date.parse(task.nextRunAt) >= h.now + 10 * 60000);
+    assert.equal(task.downloadPlanCursor, 1);
+    assert.equal(task.downloadPlan[0], plan[0]);
+    if (taskId === 'modelDownloads') {
+      assert.equal(task.downloadPlan[1], task.nextRunAt);
+      assert.equal(Date.parse(task.downloadPlan[2]) - Date.parse(task.downloadPlan[1]), 1200000);
+    }
+    assert.equal(task.lastAttemptAt, '');
+    assert.equal(Object.keys(task.projectAccounts).length, 0);
+    assert.equal(h.state.runs.length, 0);
+    assert.equal(h.state.notifications.length, 0);
+    assert.equal(h.state.healthUpdates, 0);
+    assert.equal(h.state.released, true);
+    assert.equal(h.context.schedulerState().running, false);
   });
 }
