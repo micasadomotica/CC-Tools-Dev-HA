@@ -51,8 +51,8 @@ export async function readIncentiveProgress(page, observer, title, options = {})
     await navigateToCrealityPage(page, INCENTIVE_POINTS_URL);
     await page.waitForTimeout(3000);
   } catch (error) {
-    if (isNavigationTimeout(error) || error.code === 'NAVIGATION_TARGET_MISMATCH') {
-      navigationError = incentivePageNotReadyError(error.message);
+    if (isNavigationTimeout(error) || error?.code === 'NAVIGATION_TARGET_MISMATCH') {
+      navigationError = incentivePageNotReadyError(error?.message || String(error));
     } else {
       throw error;
     }
@@ -137,7 +137,7 @@ export async function waitForIncentiveProgress(page, observer, title, before, de
       latest = await readIncentiveProgress(page, observer, title, { ...options, includePoints: false });
       verificationError = null;
     } catch (error) {
-      if (error.code !== 'INCENTIVE_PAGE_NOT_READY') throw error;
+      if (error?.code !== 'INCENTIVE_PAGE_NOT_READY') throw error;
       verificationError = error;
       continue;
     }

@@ -1,0 +1,18 @@
+CC Tools Dev 1.0.29 — integración de TitoTB 1.0.22
+
+CAMBIOS
+Evita que las excepciones vacías oculten el error original de una descarga.
+Amplía el diagnóstico con la fase y la pila del error.
+Conserva y reprograma las descargas ante páginas incompletas o errores vacíos.
+Distingue esos errores de una ejecución correcta sin incidencias.
+
+INSTALACIÓN
+1. Detén CC Tools Dev y descomprime el ZIP.
+2. Copia cc_tools dentro de /addons, sustituyendo /addons/cc_tools.
+3. Busca actualizaciones en la tienda de Home Assistant y pulsa Actualizar.
+4. Confirma la versión 1.0.29, inicia Dev y recarga la interfaz (puerto 8088).
+Conserva la instalación existente para mantener su configuración y datos.
+
+Se mantienen las funciones de Dev 1.0.28, incluyendo MakeNow por cupos,
+registro por perfil, Telegram con Perfil CC y un impulso diario.
+No es necesario provocar fallos en la cuenta para comprobar la actualización.

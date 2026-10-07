@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import { normalizeCaughtError } from '../src/crealityDiagnostics.js';
 import { activateFinishPrintProfile, activateNextFinishPrintProfile, normalizeFinishPrintProfiles, syncActiveFinishPrintProfile } from '../src/finishPrintProfiles.js';
 import { isFinishPrintStartRun } from '../src/finishPrintSelection.js';
 
@@ -21,7 +22,7 @@ function harness(code = 'TASK_EXECUTION_TIMEOUT') {
   const state = { runs: [], notifications: [], healthUpdates: 0, released: false };
   const error = Object.assign(new Error('Tiempo de ejecución agotado'), { code });
   const context = vm.createContext({
-    Date, Promise, AbortController, setTimeout, clearTimeout, process,
+    Date, Promise, AbortController, setTimeout, clearTimeout, process, normalizeCaughtError,
     console: { log() {}, error() {}, warn() {} },
     pauseProgressSync: () => () => { state.released = true; },
     waitForProgressSync: async () => {},
@@ -134,5 +135,28 @@ for (const taskId of ['modelDownloads', 'makeNow']) {
     assert.equal(h.state.healthUpdates, 0);
     assert.equal(h.state.released, true);
     assert.equal(h.context.schedulerState().running, false);
+  });
+}
+
+for (const failure of [null, undefined, { code: 'PAGE_INCOMPLETE', systemic: true }]) {
+  test(`una descarga con ${failure?.code || String(failure)} conserva y aplaza su turno`, async () => {
+    const h = harness();
+    const plan = [h.now - 60000, h.now, h.now + 1200000].map(time => new Date(time).toISOString());
+    h.config.tasks.modelDownloads = { timezone: 'Europe/Madrid', downloadPlan: [...plan], downloadPlanCursor: 1 };
+    h.context.executePendingTask = async () => {
+      if (failure) return { success: false, details: { incident: failure } };
+      throw failure;
+    };
+    const result = await h.context.runTaskNow('modelDownloads', 'schedule');
+    assert.equal(result.status, 'skipped');
+    const task = h.config.tasks.modelDownloads;
+    assert.equal(task.downloadPlanCursor, 1);
+    assert.equal(task.downloadPlan[0], plan[0]);
+    assert.ok(Date.parse(task.nextRunAt) >= h.now + 10 * 60000);
+    assert.equal(task.downloadPlan[1], task.nextRunAt);
+    assert.equal(Date.parse(task.downloadPlan[2]) - Date.parse(task.downloadPlan[1]), 1200000);
+    assert.equal(h.config.automationHealth.serviceFailureCount, 1);
+    assert.equal(h.state.notifications.length, 0);
+    assert.equal(h.state.released, true);
   });
 }

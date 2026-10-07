@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.29 — integración de TitoTB 1.0.22
+
+- Evita que las excepciones vacías oculten el error original de una descarga e incluye su fase y pila en el diagnóstico.
+- Conserva y reprograma las descargas ante páginas incompletas o excepciones sin información, con los reintentos progresivos de Dev.
+- Distingue una excepción vacía de un resultado correcto sin incidencias para no aplazar tareas ya completadas.
+- Mantiene las funciones de Dev, los mensajes CC Tools Dev y Perfil CC, el límite de un impulso diario y el puerto 8088.
+
 ## 1.0.28 — integración de TitoTB 1.0.21
 
 - Integra el tratamiento de timeouts de navegación y errores HTTP 502, 503 y 504 como indisponibilidades temporales de Creality Cloud.

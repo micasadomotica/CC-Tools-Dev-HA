@@ -2,12 +2,13 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import { normalizeCaughtError } from '../src/crealityDiagnostics.js';
 
 // Run the actual scheduling/notification functions with storage and Telegram mocked.
 test('MakeNow notifica una sola caída y recuperación con la identidad Dev', async () => {
   const config = { telegram: { enabled: true }, tasks: { makeNow: { timezone: 'Europe/Madrid' } }, automationHealth: {} };
   const messages = [];
-  const context = vm.createContext({ Date, process, console: { warn() {}, error() {} },
+  const context = vm.createContext({ Date, process, normalizeCaughtError, console: { warn() {}, error() {} },
     readConfig: async () => config, writeConfig: async () => {},
     sendTelegram: async (_config, text) => { messages.push(text); } });
   const source = fs.readFileSync(new URL('../src/scheduler.js', import.meta.url), 'utf8')
