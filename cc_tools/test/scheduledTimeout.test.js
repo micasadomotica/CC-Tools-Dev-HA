@@ -22,10 +22,10 @@ function harness(code = 'TASK_EXECUTION_TIMEOUT') {
   const error = Object.assign(new Error('Tiempo de ejecución agotado'), { code });
   const context = vm.createContext({
     Date, Promise, AbortController, setTimeout, clearTimeout, process,
-    console: { log() {}, error() {} },
+    console: { log() {}, error() {}, warn() {} },
     pauseProgressSync: () => () => { state.released = true; },
     waitForProgressSync: async () => {},
-    readConfig: async () => config, writeConfig: async () => {},
+    readConfig: async () => config, writeConfig: async () => { state.onWrite?.(); await state.writeGate; },
     appendRun: async run => state.runs.push(run),
     diagnoseTaskError: async (_error, _page, _observer, details) => details,
     activateFinishPrintProfile, activateNextFinishPrintProfile,
@@ -44,6 +44,30 @@ function harness(code = 'TASK_EXECUTION_TIMEOUT') {
     updateNextRunAfterExecution = () => {};
   `, context);
   return { context, config, state, error, now };
+}
+
+for (const returnedIncident of [false, true]) {
+  test(`guarda el reintento antes de liberar la ejecución (${returnedIncident ? 'resultado HTTP' : 'error de sesión'})`, async () => {
+    const h = harness('SESSION_CHECK_UNAVAILABLE');
+    if (returnedIncident) h.context.executePendingTask = async () => ({ success: false,
+      details: { incident: { code: 'CREALITY_HTTP_ERROR', httpStatus: 503, message: 'HTTP 503' } } });
+    let releaseWrite, enteredWrite;
+    h.state.writeGate = new Promise(resolve => { releaseWrite = resolve; });
+    const writing = new Promise(resolve => { enteredWrite = resolve; });
+    h.state.onWrite = enteredWrite;
+    const run = h.context.runTaskNow('finishPrint', 'schedule');
+    try {
+      await writing;
+      assert.equal(h.context.schedulerState().running, true);
+      assert.equal(h.state.released, false);
+      await assert.rejects(h.context.runTaskNow('makeNow', 'manual'), { code: 'TASK_ALREADY_RUNNING' });
+    } finally { releaseWrite(); }
+    assert.equal((await run).status, 'skipped');
+    assert.equal(h.config.tasks.finishPrint.printPlanCursor, 1);
+    assert.equal(h.config.tasks.finishPrint.printerProfiles[0].nextRunAt, h.config.tasks.finishPrint.nextRunAt);
+    assert.equal(h.context.schedulerState().running, false);
+    assert.equal(h.state.released, true);
+  });
 }
 
 test('un timeout programado conserva el diagnóstico y aplaza la impresión sin consumir el plan ni alertar', async () => {

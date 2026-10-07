@@ -105,6 +105,10 @@ export async function runTaskNow(taskId, source = 'manual', options = {}) {
         }
       }
     );
+    const serviceFailure = transientCrealityServiceFailure(result.details?.incident);
+    if (source === 'schedule' && serviceFailure) {
+      return await deferScheduledServiceFailure(taskId, serviceFailure);
+    }
     const status = result.skipped ? 'skipped' : result.success ? 'success' : 'failed';
     const message = formatRunMessage(taskId, status, result);
 
@@ -193,6 +197,11 @@ export async function runTaskNow(taskId, source = 'manual', options = {}) {
       return { status: 'skipped', message };
     }
 
+    const serviceFailure = transientCrealityServiceFailure(error);
+    if (source === 'schedule' && serviceFailure) {
+      return await deferScheduledServiceFailure(taskId, serviceFailure);
+    }
+
     if (source === 'schedule'
       && [
         'INCENTIVE_PAGE_NOT_READY',
@@ -275,6 +284,33 @@ export async function runTaskNow(taskId, source = 'manual', options = {}) {
     runningAbortController = null;
     releaseProgressSync();
   }
+}
+
+async function deferScheduledServiceFailure(taskId, failure) {
+  const freshConfig = await readConfig();
+  const event = recordCrealityServiceFailure(freshConfig, taskId, failure, new Date());
+  delayPendingTaskPlan(freshConfig.tasks[taskId], taskId, event.retryAt);
+  if (taskId === 'finishPrint') {
+    syncActiveFinishPrintProfile(freshConfig.tasks.finishPrint);
+    activateNextFinishPrintProfile(freshConfig.tasks.finishPrint);
+  }
+  await writeConfig(freshConfig);
+
+  console.warn(
+    `[scheduler] Creality Cloud no disponible · ${taskDisplayName(taskId)} · `
+    + `reintento en ${event.retryMinutes} min · fallo ${event.failureCount}`
+  );
+  if (event.notificationRequired && shouldNotifyIncident(freshConfig, taskId)) {
+    await sendTelegram(
+      freshConfig,
+      '⚠️ CC Tools Dev: Creality Cloud no está disponible. Las tareas se reintentarán automáticamente.'
+    ).catch((error) => console.error('[telegram]', error.message));
+  }
+
+  return {
+    status: 'skipped',
+    message: `${failure.message} Se reintentará automáticamente en ${event.retryMinutes} minutos.`
+  };
 }
 
 export function schedulerState() {
@@ -980,6 +1016,12 @@ async function notifyTaskResult(config, taskId, status, result, healthEvent = {}
     return;
   }
 
+  if (healthEvent.recovered && config.telegram.enabled) {
+    await sendTelegram(config, '✅ CC Tools Dev: Creality Cloud vuelve a estar disponible. Las automatizaciones se han reanudado.').catch((error) => {
+      console.error('[telegram]', error.message);
+    });
+  }
+
   if (taskId === 'makeNow') {
     const notify = status === 'success' ? config.telegram.notifyOnMakeNow : config.telegram.notifyOnMakeNowError;
     if (notify !== false) {
@@ -1019,14 +1061,6 @@ async function notifyTaskResult(config, taskId, status, result, healthEvent = {}
   }
 
   if (healthEvent.incidentActive) return;
-
-  if (healthEvent.recovered) {
-    if (config.telegram.enabled) {
-      await sendTelegram(config, '✅ CC Tools Dev: Automatizaciones reanudadas').catch((error) => {
-        console.error('[telegram]', error.message);
-      });
-    }
-  }
 
   if (taskId === 'creality') {
     if (shouldNotify(config, status)) {
@@ -1157,6 +1191,20 @@ async function holdForAutomationHealth(config) {
   const health = config.automationHealth || {};
   if (health.state !== 'paused') return false;
   const pausedUntil = Date.parse(health.pausedUntil || '');
+  if (health.reasonCode === 'CREALITY_SERVICE_UNAVAILABLE'
+    && Number.isFinite(pausedUntil)
+    && pausedUntil <= Date.now()) {
+    config.automationHealth = {
+      ...health,
+      state: 'active',
+      pausedAt: '',
+      pausedUntil: '',
+      pauseSource: '',
+      pauseTaskId: ''
+    };
+    await writeConfig(config);
+    return false;
+  }
   if (!isGlobalBlockingIncident(health) || (Number.isFinite(pausedUntil) && pausedUntil <= Date.now())) {
     config.automationHealth = {
       ...health,
@@ -1178,6 +1226,25 @@ export function updateAutomationHealth(config, taskId, status, result = {}) {
   const health = config.automationHealth || {};
   const incident = result.details?.incident;
   const wasPaused = health.state === 'paused';
+
+  if (status === 'success' && Math.max(0, Number(health.serviceFailureCount) || 0) > 0) {
+    const recovered = health.serviceUnavailableNotified === true;
+    config.automationHealth = {
+      ...health,
+      state: 'active',
+      reasonCode: '',
+      reason: '',
+      pausedAt: '',
+      pausedUntil: '',
+      lastRecoveredAt: new Date().toISOString(),
+      pauseSource: '',
+      pauseTaskId: '',
+      serviceFailureCount: 0,
+      serviceFailureAt: '',
+      serviceUnavailableNotified: false
+    };
+    return recovered ? { recovered: true } : { serviceRecovered: true };
+  }
 
   if (incident?.systemic && isGlobalBlockingIncident(incident)) {
     const now = new Date();
@@ -1251,12 +1318,77 @@ export function isGlobalBlockingIncident(incident = {}) {
   return new Set([
     'RATE_LIMITED',
     'RATE_LIMIT_CONFIRMED',
+    'CREALITY_SERVICE_UNAVAILABLE',
     'LOGIN_REQUIRED',
     'SECURITY_CHALLENGE',
     'SECURITY_CHALLENGE_DATADOME',
     'SECURITY_CHALLENGE_CLOUDFLARE',
     'CAPTCHA_REQUIRED'
   ]).has(code);
+}
+
+export function transientCrealityServiceFailure(error = {}) {
+  if (!error) return null;
+  const code = String(error.code || '');
+  const diagnostic = error.diagnostic || error;
+  const message = error.technical || error.message || diagnostic.message || String(error);
+  const httpStatus = Number(
+    error.httpStatus
+    || diagnostic.httpStatus
+    || String(message).match(/HTTP\s+(502|503|504)/i)?.[1]
+  );
+  const navigationTimeout = /page\.goto: Timeout \d+ms exceeded|Navigation timeout/i.test(message);
+  const unavailable = code === 'SESSION_CHECK_UNAVAILABLE'
+    || code === 'CREALITY_SERVICE_UNAVAILABLE'
+    || navigationTimeout
+    || (code === 'CREALITY_HTTP_ERROR' && [502, 503, 504].includes(httpStatus));
+  if (!unavailable) return null;
+
+  return {
+    code: 'CREALITY_SERVICE_UNAVAILABLE',
+    category: 'network',
+    systemic: true,
+    message: 'Creality Cloud no está disponible temporalmente.',
+    technical: String(message),
+    httpStatus: Number.isFinite(httpStatus) ? httpStatus : null,
+    detectedAt: new Date().toISOString()
+  };
+}
+
+export function recordCrealityServiceFailure(config, taskId, failure, now = new Date()) {
+  const health = config.automationHealth || {};
+  const previousFailureAt = Date.parse(health.serviceFailureAt || '');
+  const recent = Number.isFinite(previousFailureAt)
+    && now.getTime() - previousFailureAt <= 2 * 60 * 60 * 1000;
+  const previousCount = recent ? Math.max(0, Number(health.serviceFailureCount) || 0) : 0;
+  const failureCount = previousCount + 1;
+  const retryMinutes = Math.min(60, 10 * (2 ** Math.max(0, failureCount - 1)));
+  const confirmed = failureCount >= 2;
+  const alreadyNotified = recent && health.serviceUnavailableNotified === true;
+  const retryAt = new Date(now.getTime() + retryMinutes * 60 * 1000);
+
+  config.automationHealth = {
+    ...health,
+    state: confirmed ? 'paused' : 'active',
+    reasonCode: 'CREALITY_SERVICE_UNAVAILABLE',
+    reason: failure.message,
+    pausedAt: confirmed ? (health.pausedAt || now.toISOString()) : '',
+    pausedUntil: confirmed ? retryAt.toISOString() : '',
+    lastIncidentAt: now.toISOString(),
+    pauseSource: confirmed ? 'service-backoff' : '',
+    pauseTaskId: confirmed ? taskId : '',
+    serviceFailureCount: failureCount,
+    serviceFailureAt: now.toISOString(),
+    serviceUnavailableNotified: alreadyNotified || confirmed
+  };
+
+  return {
+    retryAt,
+    retryMinutes,
+    failureCount,
+    confirmed,
+    notificationRequired: confirmed && !alreadyNotified
+  };
 }
 
 function incidentPauseMilliseconds(incident, now = new Date()) {

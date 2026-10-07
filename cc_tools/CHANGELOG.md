@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.28 — integración de TitoTB 1.0.21
+
+- Integra el tratamiento de timeouts de navegación y errores HTTP 502, 503 y 504 como indisponibilidades temporales de Creality Cloud.
+- Conserva los turnos pendientes y aplica reintentos progresivos de 10, 20, 40 y hasta 60 minutos. Confirma la incidencia al segundo fallo y evita alertas repetidas por cada tarea.
+- Envía un aviso al confirmar la incidencia y otro al recuperarse, también si la primera tarea recuperada es MakeNow. Los mensajes mantienen CC Tools Dev y Perfil CC.
+- Adapta la integración para aceptar resultados sin incidencia y conservar el bloqueo de ejecución mientras se guarda el reintento.
+- Conserva MakeNow por cupos, registro por perfil, un impulso diario en Model Boost y el puerto 8088.
+
 ## 1.0.27 — integración de TitoTB 1.0.20
 
 - Integra los reintentos de la comprobación inicial de sesión de TitoTB 1.0.20 cuando Creality Cloud tarda en responder.

@@ -1,0 +1,20 @@
+CC Tools Dev 1.0.28 — integración de TitoTB 1.0.21
+
+CAMBIOS
+Los timeouts de navegación y errores HTTP 502, 503 y 504 se consideran
+indisponibilidades temporales de Creality Cloud. Las tareas programadas
+conservan su turno y reintentan tras 10, 20, 40 y hasta 60 minutos.
+Al segundo fallo se confirma la incidencia. Se envía un aviso al confirmar
+la caída y otro al recuperarse, según la configuración de Telegram.
+Se mantienen el nombre CC Tools Dev y Perfil CC en esos mensajes.
+
+INSTALACIÓN
+1. Detén CC Tools Dev y descomprime el ZIP.
+2. Copia cc_tools dentro de /addons, sustituyendo /addons/cc_tools.
+3. Busca actualizaciones en la tienda de Home Assistant y pulsa Actualizar.
+4. Confirma la versión 1.0.28, inicia Dev y recarga la interfaz (puerto 8088).
+Conserva la instalación existente para mantener su configuración y datos.
+
+Se mantienen las funciones de Dev 1.0.27, incluyendo MakeNow por cupos,
+registro por perfil y el límite de un impulso diario.
+No es necesario provocar fallos en la cuenta para comprobar la actualización.
