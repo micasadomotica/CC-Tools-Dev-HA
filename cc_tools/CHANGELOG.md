@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.30 — integración de TitoTB 1.0.23, 1.0.24 y 1.0.25
+
+- Aplica límites de tiempo a las consultas de boosts, pedidos y canjes, y recupera ejecuciones antiguas bloqueadas.
+- Coordina la recuperación con la sincronización de contadores de Dev y conserva el control de cada ejecución al liberar sus recursos.
+- Registra en Logs el código original, URL, HTTP, fallos consecutivos y próximo intento de los aplazamientos por indisponibilidad.
+- Evita que esos registros técnicos consuman posiciones de la planificación diaria.
+- Amplía la protección frente a pausas falsas por tareas correctas sin incidencias y mantiene la detección de excepciones vacías reales.
+- Conserva MakeNow por cupos y por perfil, Telegram con Perfil CC, un impulso diario y el puerto 8088.
+
 ## 1.0.29 — integración de TitoTB 1.0.22
 
 - Evita que las excepciones vacías oculten el error original de una descarga e incluye su fase y pila en el diagnóstico.

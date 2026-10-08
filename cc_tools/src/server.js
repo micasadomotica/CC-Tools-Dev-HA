@@ -1627,6 +1627,7 @@ function todayCommentEvents(runs, taskConfig) {
   const today = dayKey(timezone);
   return runs
     .filter((run) => run.taskId === 'comments'
+      && run.details?.deferredServiceFailure !== true
       && dayKey(timezone, new Date(run.finishedAt || run.createdAt)) === today)
     .map((run) => ({
       status: run.status,
@@ -1685,6 +1686,7 @@ function todayDownloadEvents(runs, taskConfig) {
 
   for (const run of runs) {
     if (run.taskId !== 'modelDownloads') continue;
+    if (run.details?.deferredServiceFailure === true) continue;
     const finishedAt = run.finishedAt || run.createdAt;
     if (!finishedAt || dayKey(timezone, new Date(finishedAt)) !== today) continue;
     if (run.source !== 'schedule' && creditedDownloads(run).length <= 0) continue;

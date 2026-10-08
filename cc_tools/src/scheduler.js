@@ -43,7 +43,10 @@ let runningStartedAt = '';
 let runningTimeoutAt = '';
 let cancellationRequest = null;
 let runningAbortController = null;
+let runningReleaseProgressSync = null;
 let timer = null;
+let activeRunToken = 0;
+let runTokenSequence = 0;
 
 export function startScheduler() {
   if (timer) clearInterval(timer);
@@ -55,6 +58,7 @@ export async function runTaskNow(taskId, source = 'manual', options = {}) {
   if (!TASK_IDS.includes(taskId)) {
     throw new Error(`Tarea desconocida: ${taskId}`);
   }
+  await recoverExpiredSchedulerRun();
   const startedAt = new Date().toISOString();
   if (running) {
     const error = new Error(`Ya hay una ejecución en curso${runningTask ? ` (${taskDisplayName(runningTask)})` : ''}. Inténtalo de nuevo cuando termine.`);
@@ -62,15 +66,9 @@ export async function runTaskNow(taskId, source = 'manual', options = {}) {
     throw error;
   }
 
-  const releaseProgressSync = pauseProgressSync();
-  const executionAbort = new AbortController();
-  runningAbortController = executionAbort;
-  running = true;
-  runningTask = taskId;
-  runningSource = source;
-  runningStartedAt = startedAt;
   const timeoutMs = taskExecutionTimeoutMs();
-  runningTimeoutAt = new Date(Date.now() + timeoutMs).toISOString();
+  const runToken = beginSchedulerRun(taskId, source, timeoutMs, new Date(startedAt));
+  const executionAbort = runningAbortController;
   cancellationRequest = null;
   console.log(`[scheduler] Inicio: ${taskDisplayName(taskId)} · ${source} · límite ${Math.round(timeoutMs / 1000)} s`);
 
@@ -100,14 +98,16 @@ export async function runTaskNow(taskId, source = 'manual', options = {}) {
         taskId,
         source,
         onTimeout: () => {
+          if (runToken !== activeRunToken) return;
           executionAbort.abort(new Error('Tiempo de ejecución agotado.'));
           return abortAutomationBrowser();
         }
       }
     );
+    if (runToken !== activeRunToken) return { status: 'skipped', message: 'Ejecución caducada liberada.' };
     const serviceFailure = transientCrealityServiceFailure(result.details?.incident);
     if (source === 'schedule' && serviceFailure) {
-      return await deferScheduledServiceFailure(taskId, serviceFailure);
+      return await deferScheduledServiceFailure(taskId, serviceFailure, startedAt);
     }
     const status = result.skipped ? 'skipped' : result.success ? 'success' : 'failed';
     const message = formatRunMessage(taskId, status, result);
@@ -161,6 +161,7 @@ export async function runTaskNow(taskId, source = 'manual', options = {}) {
 
     return { status, message };
   } catch (error) {
+    if (runToken !== activeRunToken) return { status: 'skipped', message: 'Ejecución caducada liberada.' };
     error = normalizeCaughtError(error, {
       code: 'EMPTY_TASK_ERROR',
       category: 'technical',
@@ -205,7 +206,7 @@ export async function runTaskNow(taskId, source = 'manual', options = {}) {
 
     const serviceFailure = transientCrealityServiceFailure(error);
     if (source === 'schedule' && serviceFailure) {
-      return await deferScheduledServiceFailure(taskId, serviceFailure);
+      return await deferScheduledServiceFailure(taskId, serviceFailure, startedAt);
     }
 
     if (source === 'schedule'
@@ -281,18 +282,11 @@ export async function runTaskNow(taskId, source = 'manual', options = {}) {
   } finally {
     const elapsedSeconds = Math.max(0, Math.round((Date.now() - Date.parse(startedAt)) / 1000));
     console.log(`[scheduler] Fin: ${taskDisplayName(taskId)} · ${source} · ${elapsedSeconds} s`);
-    running = false;
-    runningTask = '';
-    runningSource = '';
-    runningStartedAt = '';
-    runningTimeoutAt = '';
-    cancellationRequest = null;
-    runningAbortController = null;
-    releaseProgressSync();
+    releaseSchedulerRun(runToken);
   }
 }
 
-async function deferScheduledServiceFailure(taskId, failure) {
+async function deferScheduledServiceFailure(taskId, failure, startedAt = new Date().toISOString()) {
   const freshConfig = await readConfig();
   const event = recordCrealityServiceFailure(freshConfig, taskId, failure, new Date());
   delayPendingTaskPlan(freshConfig.tasks[taskId], taskId, event.retryAt);
@@ -301,6 +295,21 @@ async function deferScheduledServiceFailure(taskId, failure) {
     activateNextFinishPrintProfile(freshConfig.tasks.finishPrint);
   }
   await writeConfig(freshConfig);
+
+  const finishedAt = new Date().toISOString();
+  const details = serviceFailureLogDetails(taskId, failure, event);
+  await appendRun({
+    taskId,
+    source: 'schedule',
+    status: 'skipped',
+    message: `${failure.message} Reintento automático en ${event.retryMinutes} minutos.`,
+    startedAt,
+    finishedAt,
+    screenshots: [],
+    details
+  }).catch((error) => {
+    console.error('[scheduler] No se pudo registrar el aplazamiento:', error?.message || String(error));
+  });
 
   console.warn(
     `[scheduler] Creality Cloud no disponible · ${taskDisplayName(taskId)} · `
@@ -319,13 +328,58 @@ async function deferScheduledServiceFailure(taskId, failure) {
   };
 }
 
+export function serviceFailureLogDetails(taskId, failure = {}, event = {}) {
+  const retryAt = event.retryAt instanceof Date ? event.retryAt.toISOString() : String(event.retryAt || '');
+  const sourceCode = String(failure.sourceCode || failure.code || 'CREALITY_SERVICE_UNAVAILABLE');
+  const technical = [
+    `Tarea: ${taskDisplayName(taskId)}.`,
+    `Código original: ${sourceCode}.`,
+    failure.url ? `Página detectada: ${failure.url}.` : '',
+    failure.httpStatus ? `Estado HTTP: ${failure.httpStatus}.` : '',
+    `Fallos consecutivos: ${Math.max(1, Number(event.failureCount) || 1)}.`,
+    `Reintento en: ${Math.max(1, Number(event.retryMinutes) || 1)} minutos.`,
+    retryAt ? `Próximo intento: ${retryAt}.` : '',
+    event.confirmed ? 'Incidencia confirmada: automatizaciones pausadas temporalmente.' : 'Incidencia pendiente de confirmación.',
+    failure.technical ? `Detalle original: ${failure.technical}` : ''
+  ].filter(Boolean).join(' ');
+  const diagnostic = {
+    code: 'CREALITY_SERVICE_UNAVAILABLE',
+    category: 'network',
+    systemic: true,
+    message: failure.message || 'Creality Cloud no está disponible temporalmente.',
+    detectedAt: failure.detectedAt || new Date().toISOString(),
+    url: failure.url || '',
+    httpStatus: failure.httpStatus || null,
+    sourceCode,
+    technical
+  };
+  return {
+    deferredServiceFailure: true,
+    retryAt,
+    retryMinutes: Math.max(1, Number(event.retryMinutes) || 1),
+    failureCount: Math.max(1, Number(event.failureCount) || 1),
+    outageConfirmed: event.confirmed === true,
+    failures: [{
+      title: 'Creality Cloud',
+      code: diagnostic.code,
+      category: diagnostic.category,
+      systemic: true,
+      error: diagnostic.message,
+      diagnostic
+    }],
+    diagnostics: [diagnostic],
+    incident: diagnostic
+  };
+}
+
 export function schedulerState() {
   return {
     running,
     runningTask,
     runningSource,
     startedAt: runningStartedAt,
-    timeoutAt: runningTimeoutAt
+    timeoutAt: runningTimeoutAt,
+    stale: isSchedulerRunExpired({ running, startedAt: runningStartedAt, timeoutAt: runningTimeoutAt })
   };
 }
 
@@ -376,6 +430,7 @@ function taskExecutionTimeoutMs() {
 }
 
 async function tick() {
+  await recoverExpiredSchedulerRun();
   if (running) return;
 
   let config = await readConfig();
@@ -446,10 +501,14 @@ async function tick() {
 async function refreshScheduledShopOrders(config, now = new Date()) {
   if (config.setup?.assistantCompleted !== true) return false;
   if (!shopOrdersRefreshDue(config.shopOrders, now)) return false;
-  running = true;
-  runningTask = 'shopOrders';
+  const timeoutMs = taskExecutionTimeoutMs();
+  const runToken = beginSchedulerRun('shopOrders', 'schedule-maintenance', timeoutMs, now);
   try {
-    const orders = await readShopOrders();
+    const orders = await executeMaintenanceWithTimeout(() => readShopOrders(), {
+      timeoutMs,
+      taskId: 'shopOrders',
+      source: 'schedule-maintenance',
+    });
     const previousOrders = config.shopOrders;
     config.shopOrders = mergeShopOrdersState(previousOrders, orders, now);
     const shippedOrders = shippedShopOrderTransitions(previousOrders, config.shopOrders);
@@ -470,14 +529,14 @@ async function refreshScheduledShopOrders(config, now = new Date()) {
     await notifyShippedShopOrders(config, shippedOrders);
     return true;
   } catch (error) {
+    if (runToken !== activeRunToken) return true;
     if (['BROWSER_BUSY', 'REMOTE_BROWSER_OPEN'].includes(error.code)) return false;
     config.shopOrders = markShopOrdersRefreshError(config.shopOrders, error, now);
     await writeConfig(config);
     console.error('[shop-orders]', error.message);
     return true;
   } finally {
-    running = false;
-    runningTask = '';
+    releaseSchedulerRun(runToken);
   }
 }
 
@@ -488,12 +547,16 @@ async function redeemScheduledShopGoal(config, now = new Date()) {
   const lastAttempt = Date.parse(goal.lastAttemptAt || '');
   if (Number.isFinite(lastAttempt) && now.getTime() - lastAttempt < 30 * 60 * 1000) return false;
 
-  running = true;
-  runningTask = 'shopRedemption';
   const startedAt = now.toISOString();
+  const timeoutMs = taskExecutionTimeoutMs();
+  const runToken = beginSchedulerRun('shopRedemption', 'schedule-maintenance', timeoutMs, now);
   try {
     goal.lastAttemptAt = startedAt;
-    const result = await redeemShopGoal(goal);
+    const result = await executeMaintenanceWithTimeout(() => redeemShopGoal(goal), {
+      timeoutMs,
+      taskId: 'shopRedemption',
+      source: 'schedule-maintenance',
+    });
     goal.lastCheckedAt = new Date().toISOString();
     if (result.product) {
       goal.name = result.product.name;
@@ -539,6 +602,7 @@ async function redeemScheduledShopGoal(config, now = new Date()) {
     }
     return true;
   } catch (error) {
+    if (runToken !== activeRunToken) return true;
     if (['BROWSER_BUSY', 'REMOTE_BROWSER_OPEN'].includes(error.code)) return false;
     goal.lastAttemptAt = startedAt;
     goal.lastStatus = 'error';
@@ -567,8 +631,7 @@ async function redeemScheduledShopGoal(config, now = new Date()) {
     }
     return true;
   } finally {
-    running = false;
-    runningTask = '';
+    releaseSchedulerRun(runToken);
   }
 }
 
@@ -647,26 +710,120 @@ async function refreshDailyBoostAvailability(config, now = new Date()) {
   if (!boostAvailabilityRefreshDue(task, now)) return;
   const today = dayKey(task.timezone, now);
 
-  running = true;
-  runningTask = 'modelBoosts';
+  const timeoutMs = taskExecutionTimeoutMs();
+  const runToken = beginSchedulerRun('modelBoosts', 'availability-refresh', timeoutMs, now);
   try {
-    const availability = await checkModelBoostAvailability({
-      ...task,
-      ownUserId: config.crealityProfile?.userId || ''
-    });
+    const availability = await executeMaintenanceWithTimeout(
+      () => checkModelBoostAvailability({
+        ...task,
+        ownUserId: config.crealityProfile?.userId || ''
+      }),
+      {
+        timeoutMs,
+        taskId: 'modelBoosts',
+        source: 'availability-refresh',
+      }
+    );
     task.availableBoosts = Math.max(0, Number(availability.ticketsAvailable) || 0);
     task.availabilityCheckedAt = availability.checkedAt;
     task.availabilityDate = today;
     task.availabilityRetryAt = '';
     await writeConfig(config);
   } catch (error) {
+    if (runToken !== activeRunToken) return;
     task.availabilityRetryAt = new Date(now.getTime() + 15 * 60 * 1000).toISOString();
     await writeConfig(config);
-    console.error('[scheduler] No se pudo actualizar la disponibilidad de boosts:', error.message);
+    console.error('[scheduler] No se pudo actualizar la disponibilidad de boosts:', error?.message || String(error));
   } finally {
-    running = false;
-    runningTask = '';
+    releaseSchedulerRun(runToken);
   }
+}
+
+async function executeMaintenanceWithTimeout(operation, options) {
+  const controller = runningAbortController;
+  const runToken = activeRunToken;
+  const result = await executeWithTimeout((async () => {
+    await waitForProgressSync(controller.signal);
+    controller.signal.throwIfAborted();
+    return operation();
+  })(), {
+    ...options,
+    onTimeout: () => {
+      if (runToken !== activeRunToken) return;
+      controller.abort(new Error('Tiempo de ejecución agotado.'));
+      return abortAutomationBrowser();
+    }
+  });
+  controller.signal.throwIfAborted();
+  return result;
+}
+
+function beginSchedulerRun(taskId, source, timeoutMs, now = new Date()) {
+  if (running) {
+    const error = new Error('Ya hay una ejecución en curso.');
+    error.code = 'TASK_ALREADY_RUNNING';
+    throw error;
+  }
+  const token = ++runTokenSequence;
+  runningReleaseProgressSync = pauseProgressSync();
+  runningAbortController = new AbortController();
+  activeRunToken = token;
+  running = true;
+  runningTask = taskId;
+  runningSource = source;
+  runningStartedAt = now.toISOString();
+  runningTimeoutAt = new Date(now.getTime() + timeoutMs).toISOString();
+  return token;
+}
+
+function releaseSchedulerRun(token) {
+  if (token !== activeRunToken) return false;
+  runningReleaseProgressSync?.();
+  runningReleaseProgressSync = null;
+  runningAbortController = null;
+  activeRunToken = 0;
+  running = false;
+  runningTask = '';
+  runningSource = '';
+  runningStartedAt = '';
+  runningTimeoutAt = '';
+  cancellationRequest = null;
+  return true;
+}
+
+export function isSchedulerRunExpired(state = {}, now = new Date()) {
+  if (!state.running) return false;
+  const timeoutAt = Date.parse(state.timeoutAt || '');
+  if (Number.isFinite(timeoutAt)) return now.getTime() >= timeoutAt;
+  const startedAt = Date.parse(state.startedAt || '');
+  return Number.isFinite(startedAt)
+    && now.getTime() - startedAt >= taskExecutionTimeoutMs();
+}
+
+async function recoverExpiredSchedulerRun(now = new Date()) {
+  if (!isSchedulerRunExpired({
+    running,
+    startedAt: runningStartedAt,
+    timeoutAt: runningTimeoutAt
+  }, now)) return false;
+
+  const staleToken = activeRunToken;
+  const staleTask = runningTask;
+  const elapsedSeconds = Number.isFinite(Date.parse(runningStartedAt))
+    ? Math.max(0, Math.round((now.getTime() - Date.parse(runningStartedAt)) / 1000))
+    : 0;
+  console.warn(`[scheduler] Liberando ejecución bloqueada: ${taskDisplayName(staleTask)} · ${elapsedSeconds} s`);
+  runningAbortController?.abort(new Error('Tiempo de ejecución agotado.'));
+  await abortAutomationBrowser().catch((error) => {
+    console.error('[scheduler] No se pudo cerrar Chromium al liberar la ejecución bloqueada:', error?.message || String(error));
+  });
+
+  const deadline = Date.now() + 2000;
+  while (activeRunToken === staleToken && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  if (activeRunToken === staleToken) releaseSchedulerRun(staleToken);
+  return true;
 }
 
 export function boostAvailabilityRefreshDue(taskConfig = {}, now = new Date()) {
@@ -761,6 +918,7 @@ function countTodayDownloadAttempts(runs = [], taskConfig = {}) {
   const today = dayKey(timezone);
   return runs
     .filter((run) => run.taskId === 'modelDownloads'
+      && run.details?.deferredServiceFailure !== true
       && (run.source === 'schedule' || creditedDownloads(run).length > 0)
       && dayKey(timezone, new Date(run.finishedAt || run.createdAt)) === today)
     .length;
@@ -838,6 +996,7 @@ function ensureCommentPlan(taskConfig, runs = [], now = new Date()) {
   const counts = countTodayComments(runs, taskConfig.timezone, now);
   const creditedToday = counts.image + counts.text;
   const attemptsToday = runs.filter((run) => run.taskId === 'comments'
+    && run.details?.deferredServiceFailure !== true
     && run.source === 'schedule'
     && dayKey(taskConfig.timezone || 'Europe/Madrid', new Date(run.finishedAt || run.createdAt)) === today).length;
   const doneCount = Math.max(creditedToday, attemptsToday);
@@ -1340,8 +1499,10 @@ export function isGlobalBlockingIncident(incident = {}) {
 }
 
 export function transientCrealityServiceFailure(error) {
-  // A result without an incident is not an error. Thrown values are normalized in catch.
-  if (!error) return null;
+  if (error === null || error === undefined) return null;
+  if (typeof error === 'object'
+    && !(error instanceof Error)
+    && Object.keys(error).length === 0) return null;
   const normalized = normalizeCaughtError(error, {
     code: 'EMPTY_TASK_ERROR',
     message: 'La tarea terminó sin devolver información sobre el error.',
@@ -1374,6 +1535,8 @@ export function transientCrealityServiceFailure(error) {
     message: 'Creality Cloud no está disponible temporalmente.',
     technical: String(message),
     httpStatus: Number.isFinite(httpStatus) ? httpStatus : null,
+    sourceCode: code || 'UNKNOWN_SERVICE_FAILURE',
+    url: diagnostic.url || normalized.url || '',
     detectedAt: new Date().toISOString()
   };
 }

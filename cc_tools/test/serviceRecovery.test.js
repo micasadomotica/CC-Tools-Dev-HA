@@ -8,8 +8,10 @@ import { normalizeCaughtError } from '../src/crealityDiagnostics.js';
 test('MakeNow notifica una sola caída y recuperación con la identidad Dev', async () => {
   const config = { telegram: { enabled: true }, tasks: { makeNow: { timezone: 'Europe/Madrid' } }, automationHealth: {} };
   const messages = [];
+  const runs = [];
   const context = vm.createContext({ Date, process, normalizeCaughtError, console: { warn() {}, error() {} },
     readConfig: async () => config, writeConfig: async () => {},
+    appendRun: async run => runs.push(run),
     sendTelegram: async (_config, text) => { messages.push(text); } });
   const source = fs.readFileSync(new URL('../src/scheduler.js', import.meta.url), 'utf8')
     .replace(/^import[\s\S]*?;\r?$/gm, '').replace(/^export /gm, '');
@@ -28,6 +30,9 @@ test('MakeNow notifica una sola caída y recuperación con la identidad Dev', as
   assert.ok(Date.parse(config.tasks.makeNow.nextRunAt) >= before + 60 * 60000);
   assert.equal(messages.length, 1);
   config.automationHealth.pausedUntil = new Date(Date.now() - 1).toISOString();
+  assert.equal(runs.length, 4);
+  assert.deepEqual(runs.map(run => run.details.retryMinutes), [10, 20, 40, 60]);
+  assert.ok(runs.every(run => run.status === 'skipped' && run.details.deferredServiceFailure));
   assert.equal(await context.holdForAutomationHealth(config), false);
   assert.equal(config.automationHealth.serviceUnavailableNotified, true);
   const result = { success: true, message: 'MakeNow: recompensa diaria confirmada.', details: { incident: null } };

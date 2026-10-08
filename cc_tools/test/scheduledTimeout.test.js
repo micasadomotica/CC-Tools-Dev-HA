@@ -130,7 +130,10 @@ for (const taskId of ['modelDownloads', 'makeNow']) {
     }
     assert.equal(task.lastAttemptAt, '');
     assert.equal(Object.keys(task.projectAccounts).length, 0);
-    assert.equal(h.state.runs.length, 0);
+    assert.equal(h.state.runs.length, 1);
+    assert.equal(h.state.runs[0].status, 'skipped');
+    assert.equal(h.state.runs[0].details.deferredServiceFailure, true);
+    assert.equal(h.state.runs[0].details.diagnostics[0].sourceCode, 'SESSION_CHECK_UNAVAILABLE');
     assert.equal(h.state.notifications.length, 0);
     assert.equal(h.state.healthUpdates, 0);
     assert.equal(h.state.released, true);

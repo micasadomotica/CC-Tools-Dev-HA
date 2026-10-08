@@ -1,0 +1,19 @@
+CC Tools Dev 1.0.30 — integración de TitoTB 1.0.23, 1.0.24 y 1.0.25
+
+CAMBIOS
+Límite de tiempo para consultas de boosts, pedidos y canjes.
+Recuperación de ejecuciones caducadas y liberación de la sincronización de Dev.
+Logs de aplazamiento con código original, URL, HTTP y próximo intento.
+Esos Logs no consumen posiciones de la planificación diaria.
+Protección ante pausas falsas por resultados correctos sin incidencias.
+
+INSTALACIÓN
+1. Detén CC Tools Dev y descomprime el ZIP.
+2. Copia cc_tools dentro de /addons, sustituyendo /addons/cc_tools.
+3. Busca actualizaciones en la tienda de Home Assistant y pulsa Actualizar.
+4. Confirma la versión 1.0.30, inicia Dev y recarga la interfaz (puerto 8088).
+Conserva la instalación existente para mantener su configuración y datos.
+
+Se mantienen MakeNow por cupos y por perfil, Telegram con Perfil CC,
+la sincronización de contadores y un impulso diario en Model Boost.
+No es necesario provocar fallos en la cuenta para comprobar la actualización.

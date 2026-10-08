@@ -15,7 +15,7 @@ function harness() {
   const configGate = deferred();
   const state = { browserActive:false, launches:0, checkins:0, deferConfig:false, writes:0, failWrite:false, runs:[] };
   const config = { timezone:'Europe/Madrid', dailyProgress:{}, tasks:{creality:{retainDays:7}} };
-  const context = vm.createContext({ Date, Promise, AbortController, setTimeout, clearTimeout, process, normalizeCaughtError, console:{log(){},error(){}},
+  const context = vm.createContext({ Date, Promise, AbortController, setTimeout, clearTimeout, process, normalizeCaughtError, console:{log(){},error(){},warn(){}},
     readConfig:async()=> { if(state.deferConfig) await configGate.promise; return config; },
     writeConfig:async()=> { state.writes++; if(state.failWrite) throw new Error('storage unavailable'); },
     readRuns:async()=>[], appendRun:async run=>state.runs.push(run),
@@ -112,7 +112,7 @@ test('el límite de ejecución también cubre la espera y evita un check-in tard
 });
 
 for (const taskId of ['creality', 'makeNow']) {
-  for (const incident of [null, undefined]) {
+  for (const incident of [null, undefined, {}]) {
     test(`${taskId} programado sin incidencia (${String(incident)}) termina sin reintento`, async () => {
       const h = harness();
       h.config.tasks[taskId] = {};
