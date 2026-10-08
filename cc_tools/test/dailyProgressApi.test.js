@@ -40,6 +40,12 @@ test('API: datos externos actualizan paneles, HA y planificación; una tarea com
       await new Promise(resolve=>setTimeout(resolve,100));
     }
     assert.equal(status?.ok,true,logs);
+    for (const userId of ['7963944884', '8028760638']) {
+      assert.ok(status.config.crealityFavorites.some(profile => profile.userId === userId && profile.isDefault));
+      const removal = await request(`/api/creality/favorites/${userId}`, 'DELETE');
+      assert.equal(removal.ok, false);
+      assert.equal(removal.error, 'FAVORITE_PROFILE_DEFAULT');
+    }
     assert.equal(status.dailyCounters.modelDownloads,24);
     assert.equal(status.dailyLimits.modelDownloads,30);
     assert.equal(status.dailyCounters.comments,6);

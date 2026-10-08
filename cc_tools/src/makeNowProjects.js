@@ -36,13 +36,71 @@ export function projectIdentity(url, toolId) {
   } catch { return null; }
 }
 
-export async function inspectMakeNowTool(page, tool, { signal } = {}) {
+export async function acceptMakeNowFeatureNotice(page, { signal, record } = {}) {
+  const titlePattern = /^(?:AI Feature Notice|Aviso de (?:la )?funci[oó]n (?:de )?IA)$/i;
+  const controls = 'button, [role="button"], .el-button, .van-button, .ant-btn, .cus-button';
+  // The notice may belong to the wrapper or the MakeNow iframe. Never accept a generic dialog.
+  for (const root of [page, page.frameLocator('#makenowIframe')]) {
+    const titles = root.getByText(titlePattern, { exact: true });
+    for (let index = 0; index < await titles.count(); index++) {
+      const title = titles.nth(index);
+      if (!await title.isVisible()) continue;
+      signal?.throwIfAborted();
+      record?.('MakeNow: detectado el aviso de primer uso AI Feature Notice.');
+      let container = title;
+      try {
+        for (let depth = 0; depth < 6; depth++) {
+          container = container.locator('..');
+          const agree = container.locator(controls).filter({ hasText: /^\s*(?:Agree|Aceptar|Acepto)\s*$/i });
+          const refuse = container.locator(controls).filter({ hasText: /^\s*(?:Refuse|Rechazar)\s*$/i });
+          if (await agree.count() !== 1 || await refuse.count() !== 1) continue;
+          if (!await agree.isVisible() || !await refuse.isVisible()) continue;
+          signal?.throwIfAborted();
+          await agree.click({ timeout: 3000 });
+          await title.waitFor({ state: 'hidden', timeout: 5000 });
+          record?.('MakeNow: aceptado el aviso de primer uso con Agree.');
+          return true;
+        }
+      } catch (error) {
+        signal?.throwIfAborted();
+        throw Object.assign(projectError('MAKENOW_AI_NOTICE_BLOCKED', 'MakeNow: no se pudo cerrar el aviso AI Feature Notice. Revisa el aviso de primer uso en la web.'), { cause: error });
+      }
+      throw projectError('MAKENOW_AI_NOTICE_BLOCKED', 'MakeNow: el aviso AI Feature Notice no tiene los controles esperados. Revisa el aviso de primer uso en la web.');
+    }
+  }
+  return false;
+}
+
+async function enterMakeNowTool(page, frame, tool, options) {
+  const link = frame.getByText(tool.name, { exact: true });
+  await link.waitFor({ state: 'visible', timeout: 15000 });
+  const deadline = Date.now() + 15000;
+  let clicked = false;
+  while (Date.now() < deadline) {
+    options.signal?.throwIfAborted();
+    if (await acceptMakeNowFeatureNotice(page, options)) clicked = false;
+    if (await frame.locator('.project-num').isVisible()) return;
+    if (!clicked) {
+      try {
+        await link.click({ timeout: 750 });
+        clicked = true;
+      } catch (error) {
+        // A delayed notice can cover the catalogue before the click is dispatched.
+        if (error.name !== 'TimeoutError') throw error;
+      }
+    }
+    await page.waitForTimeout(200);
+  }
+  throw projectError('MAKENOW_CAPACITY_UNKNOWN', `No se pudo abrir la lista de proyectos de ${tool.name}.`);
+}
+
+export async function inspectMakeNowTool(page, tool, options = {}) {
+  const { signal } = options;
   signal?.throwIfAborted();
   // Direct wrapper URLs can leave the iframe at Home: enter through the catalogue.
   await navigateToCrealityPage(page, MAKENOW_HOME, { timeout: 20000, attempts: 1 });
   const frame = page.frameLocator('#makenowIframe');
-  await frame.getByText(tool.name, { exact: true }).click({ timeout: 15000 });
-  await frame.locator('.project-num').waitFor({ state: 'visible', timeout: 15000 });
+  await enterMakeNowTool(page, frame, tool, options);
   const contentFrame = page.frames().find(item => {
     try { return new URL(item.url()).pathname === `/makenow/ModelingTools/ProjectInfoManage/${tool.id}`; }
     catch { return false; }
@@ -66,6 +124,7 @@ export async function inspectMakeNowTool(page, tool, { signal } = {}) {
 
 export async function createMakeNowProject(page, tool, { reserveAttempt, updateAttempt, record, signal }) {
   signal?.throwIfAborted();
+  await acceptMakeNowFeatureNotice(page, { signal, record });
   const attempt = await reserveAttempt(tool);
   signal?.throwIfAborted();
   const button = page.frameLocator('#makenowIframe').getByRole('button', { name: /^(?:plus\s+|\+\s*)?(?:New Project|Nuevo proyecto)$/i });
@@ -98,7 +157,7 @@ export async function selectAndCreateMakeNowProject(page, options, dependencies 
       options.record(`${tool.name}: ${state.used === undefined ? 'acceso restringido' : `${state.used}/${state.limit} proyectos`}.`);
     } catch (error) {
       options.signal?.throwIfAborted();
-      if (error.systemic || error.silentRetry) throw error;
+      if (error.systemic || error.silentRetry || error.code === 'MAKENOW_AI_NOTICE_BLOCKED') throw error;
       inventory.push({ ...tool, status: 'unknown', checkedAt: new Date().toISOString() });
       options.record(`${tool.name}: no se pudo comprobar el cupo; se omite.`);
     }
@@ -110,7 +169,7 @@ export async function selectAndCreateMakeNowProject(page, options, dependencies 
     try { current = await inspect(page, candidate, options); }
     catch (error) {
       options.signal?.throwIfAborted();
-      if (error.systemic || error.silentRetry) throw error;
+      if (error.systemic || error.silentRetry || error.code === 'MAKENOW_AI_NOTICE_BLOCKED') throw error;
       current = { ...candidate, status: 'unknown' };
     }
     inventory[inventory.findIndex(tool => tool.id === candidate.id)] = current;

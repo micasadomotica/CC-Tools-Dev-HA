@@ -1,0 +1,20 @@
+CC Tools Dev 1.0.31
+
+CAMBIOS
+Gestiona el aviso AI Feature Notice que aparece al utilizar MakeNow por primera vez.
+Registra en Logs su detección y aceptación. Si queda bloqueado, muestra el motivo específico.
+Añade MiCasaDomotica a los perfiles favoritos, fijado después de Aguacatec.
+Conserva su índice previo al actualizar y evita duplicados.
+
+INSTALACIÓN
+1. Detén CC Tools Dev y descomprime el ZIP.
+2. Copia cc_tools dentro de /addons, sustituyendo /addons/cc_tools.
+3. Busca actualizaciones en la tienda de Home Assistant y pulsa Actualizar.
+4. Confirma la versión 1.0.31, inicia Dev y recarga la interfaz (puerto 8088).
+Conserva la instalación existente para mantener su configuración y datos.
+
+COMPROBACIÓN EN HOME ASSISTANT
+Comprueba que MiCasaDomotica aparece fijado en Perfiles favoritos.
+Si MakeNow muestra el aviso de primer uso, el módulo lo acepta y continúa consultando los cupos.
+El Log debe registrar el aviso y solo se confirma la recompensa cuando Creality Cloud lo acredita.
+No es necesario crear proyectos adicionales si la recompensa de hoy ya está completada.

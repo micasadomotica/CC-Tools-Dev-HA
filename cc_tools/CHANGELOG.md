@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.31
+
+- Gestiona el aviso de primer uso AI Feature Notice de MakeNow, tanto en la página como en su iframe, antes de consultar los cupos o crear un proyecto.
+- Registra en Logs la detección y aceptación del aviso. Si no se puede cerrar, muestra un diagnóstico específico sin confundirlo con falta de espacio.
+- Añade MiCasaDomotica (8028760638) a los perfiles favoritos predeterminados, fijado después de Aguacatec y protegido frente al borrado.
+- Al actualizar conserva el índice previo de ese perfil y evita duplicados.
+
 ## 1.0.30 — integración de TitoTB 1.0.23, 1.0.24 y 1.0.25
 
 - Aplica límites de tiempo a las consultas de boosts, pedidos y canjes, y recupera ejecuciones antiguas bloqueadas.

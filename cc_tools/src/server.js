@@ -40,7 +40,7 @@ import {
 import { readCrealityProfile } from './crealityProfile.js';
 import { startDesignMetadataRepair, stopDesignMetadataRepair } from './designMetadataRepair.js';
 import { readFavoriteProfile } from './crealityFavoriteProfile.js';
-import { DEFAULT_FAVORITE_PROFILE, normalizeFavoriteProfiles, parseFavoriteProfileUrl } from './favoriteProfiles.js';
+import { DEFAULT_FAVORITE_PROFILES, normalizeFavoriteProfiles, parseFavoriteProfileUrl } from './favoriteProfiles.js';
 import {
   favoriteProfilesRefreshRunning,
   queueFavoriteProfileSync,
@@ -382,7 +382,7 @@ app.delete('/api/creality/favorites/:userId', async (req, res) => {
   if (!/^\d+$/.test(userId)) {
     return res.status(400).json({ ok: false, error: 'FAVORITE_PROFILE_INVALID' });
   }
-  if (userId === DEFAULT_FAVORITE_PROFILE.userId) {
+  if (DEFAULT_FAVORITE_PROFILES.some(profile => profile.userId === userId)) {
     return res.status(400).json({ ok: false, error: 'FAVORITE_PROFILE_DEFAULT' });
   }
 

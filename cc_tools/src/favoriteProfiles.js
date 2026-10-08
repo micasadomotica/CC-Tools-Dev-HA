@@ -6,6 +6,17 @@ export const DEFAULT_FAVORITE_PROFILE = Object.freeze({
   isDefault: true
 });
 
+export const DEFAULT_FAVORITE_PROFILES = Object.freeze([
+  DEFAULT_FAVORITE_PROFILE,
+  Object.freeze({
+    userId: '8028760638',
+    name: 'MiCasaDomotica',
+    avatarUrl: 'https://pic2-cdn.creality.com/crealityCloud/upload/ac07935471f5d0eff2520da15632a9ed.webp?x-oss-process=image/resize,h_200,w_200,m_fill/format,webp/ignore-error,1',
+    profileUrl: 'https://www.crealitycloud.com/es/user/8028760638',
+    isDefault: true
+  })
+]);
+
 export function parseFavoriteProfileUrl(value) {
   let url;
   try {
@@ -28,22 +39,8 @@ export function parseFavoriteProfileUrl(value) {
 }
 
 export function normalizeFavoriteProfiles(profiles = []) {
-  const defaultInput = Array.isArray(profiles)
-    ? profiles.find((profile) => String(profile?.userId || '') === DEFAULT_FAVORITE_PROFILE.userId)
-    : null;
-  const normalizedDefault = { ...DEFAULT_FAVORITE_PROFILE };
-  if (defaultInput && ['pending', 'syncing', 'ready', 'error'].includes(defaultInput.indexStatus)) {
-    const indexedModelCount = Math.max(0, Math.floor(Number(defaultInput.indexedModelCount) || 0));
-    normalizedDefault.indexStatus = defaultInput.indexStatus === 'ready' && indexedModelCount === 0
-      ? 'pending'
-      : defaultInput.indexStatus;
-    normalizedDefault.indexedAt = validIsoDate(defaultInput.indexedAt);
-    normalizedDefault.fullIndexedAt = validIsoDate(defaultInput.fullIndexedAt);
-    normalizedDefault.lastModelIndexedAt = validIsoDate(defaultInput.lastModelIndexedAt);
-    normalizedDefault.indexedModelCount = indexedModelCount;
-  }
-  const normalized = [normalizedDefault];
-  const seen = new Set([DEFAULT_FAVORITE_PROFILE.userId]);
+  const normalized = DEFAULT_FAVORITE_PROFILES.map(profile => normalizeDefaultProfile(profile, profiles));
+  const seen = new Set(DEFAULT_FAVORITE_PROFILES.map(profile => profile.userId));
 
   for (const profile of Array.isArray(profiles) ? profiles : []) {
     const parsed = parseFavoriteProfileUrl(profile?.profileUrl || `https://www.crealitycloud.com/es/user/${profile?.userId || ''}`);
@@ -66,6 +63,25 @@ export function normalizeFavoriteProfiles(profiles = []) {
   }
 
   return normalized;
+}
+
+function normalizeDefaultProfile(defaultProfile, profiles) {
+  const defaultInput = Array.isArray(profiles)
+    ? profiles.find((profile) => String(profile?.userId || '') === defaultProfile.userId
+      || parseFavoriteProfileUrl(profile?.profileUrl)?.userId === defaultProfile.userId)
+    : null;
+  const normalizedDefault = { ...defaultProfile };
+  if (defaultInput && ['pending', 'syncing', 'ready', 'error'].includes(defaultInput.indexStatus)) {
+    const indexedModelCount = Math.max(0, Math.floor(Number(defaultInput.indexedModelCount) || 0));
+    normalizedDefault.indexStatus = defaultInput.indexStatus === 'ready' && indexedModelCount === 0
+      ? 'pending'
+      : defaultInput.indexStatus;
+    normalizedDefault.indexedAt = validIsoDate(defaultInput.indexedAt);
+    normalizedDefault.fullIndexedAt = validIsoDate(defaultInput.fullIndexedAt);
+    normalizedDefault.lastModelIndexedAt = validIsoDate(defaultInput.lastModelIndexedAt);
+    normalizedDefault.indexedModelCount = indexedModelCount;
+  }
+  return normalizedDefault;
 }
 
 function normalizeIndexStatus(value) {

@@ -56,6 +56,16 @@ test('un cupo ilegible no se confunde con lleno ni se usa para crear', async () 
   await assert.rejects(h.run(), { code: 'MAKENOW_NO_AVAILABLE_TOOL' });
   assert.ok(h.inventories[0].every(tool => tool.status === 'unknown'));
 });
+
+test('un aviso de primer uso bloqueado conserva el diagnóstico y no recorre todas las herramientas', async () => {
+  let inspections = 0;
+  const h = harness(async () => {
+    inspections++;
+    throw Object.assign(new Error('No se pudo cerrar AI Feature Notice'), { code: 'MAKENOW_AI_NOTICE_BLOCKED' });
+  }, async () => assert.fail('Must not create'));
+  await assert.rejects(h.run(), { code: 'MAKENOW_AI_NOTICE_BLOCKED' });
+  assert.equal(inspections, 1);
+});
 test('si el clic falla no prueba otra herramienta y evita duplicar proyectos', async () => {
   let calls = 0;
   const h = harness(async (_page, tool) => state(tool), async () => { calls++; throw new Error('uncertain click'); });

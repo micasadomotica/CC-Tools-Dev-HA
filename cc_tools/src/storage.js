@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { canonicalModelUrl, modelKeyFromUrl, modelSlugFromUrl, sameModelIdentity } from './modelIdentity.js';
-import { DEFAULT_FAVORITE_PROFILE, normalizeFavoriteProfiles } from './favoriteProfiles.js';
+import { DEFAULT_FAVORITE_PROFILES, normalizeFavoriteProfiles } from './favoriteProfiles.js';
 import { activateFinishPrintProfile, normalizeFinishPrintProfiles } from './finishPrintProfiles.js';
 import { normalizeShopOrdersState } from './shopOrdersState.js';
 import { mergePointTransactions } from './pointsCounter.js';
@@ -35,7 +35,7 @@ const DEFAULT_CONFIG = {
     avatarUrl: '',
     updatedAt: ''
   },
-  crealityFavorites: [{ ...DEFAULT_FAVORITE_PROFILE }],
+  crealityFavorites: DEFAULT_FAVORITE_PROFILES.map(profile => ({ ...profile })),
   automationHealth: {
     state: 'active',
     reasonCode: '',
