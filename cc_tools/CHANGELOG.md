@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.32 — integración de TitoTB 1.0.26
+
+- Limita los comentarios a diseños cuya descarga esté verificada y que no sean meramente indexados desde favoritos o el catálogo.
+- Omite la tarea sin abrir el navegador ni publicar comentarios si no quedan descargas válidas pendientes.
+- Conserva los contadores sincronizados de Dev y todas las funciones de 1.0.31, incluido el aviso de primer uso de MakeNow y MiCasaDomotica fijado en favoritos.
+
 ## 1.0.31
 
 - Gestiona el aviso de primer uso AI Feature Notice de MakeNow, tanto en la página como en su iframe, antes de consultar los cupos o crear un proyecto.

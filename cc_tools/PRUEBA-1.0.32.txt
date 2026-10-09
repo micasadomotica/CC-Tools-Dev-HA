@@ -1,0 +1,17 @@
+CC Tools Dev 1.0.32 — integración de TitoTB 1.0.26
+
+CAMBIOS
+Los comentarios solo utilizan diseños cuya descarga esté verificada.
+Los modelos únicamente indexados desde favoritos o el catálogo quedan excluidos.
+Si no quedan descargas válidas pendientes, la tarea se omite sin abrir el navegador.
+Se conservan los contadores sincronizados y las funciones de Dev 1.0.31.
+
+INSTALACIÓN
+1. Detén CC Tools Dev y descomprime el ZIP.
+2. Copia cc_tools dentro de /addons, sustituyendo /addons/cc_tools.
+3. Busca actualizaciones en la tienda de Home Assistant y pulsa Actualizar.
+4. Confirma la versión 1.0.32, inicia Dev y recarga la interfaz (puerto 8088).
+Conserva la instalación existente para mantener su configuración y datos.
+
+Para usar comentarios deben existir descargas verificadas pendientes en esta instalación.
+No es necesario publicar comentarios adicionales para comprobar la actualización.
