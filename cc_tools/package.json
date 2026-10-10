@@ -1,12 +1,14 @@
 {
   "name": "cc-tools",
-  "version": "1.0.32",
+  "version": "1.0.35",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "test": "node --test",
+    "test:shop:browser": "node --test scripts/shopRedemption.browser.mjs",
+    "test:favorites:browser": "node --test scripts/favoriteEmpty.browser.mjs",
     "test:incentives:browser": "node --test scripts/incentiveProgress.browser.mjs",
     "test:checkin:browser": "node --test scripts/checkinReminder.browser.mjs",
     "test:makenow:browser": "node --test scripts/makeNowProjects.browser.mjs",

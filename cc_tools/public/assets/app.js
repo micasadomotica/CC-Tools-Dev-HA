@@ -1825,6 +1825,7 @@ function finishPrinterProfileMarkup(profile) {
         <label class="inline-setting-field time-control-field"><span>Impresiones por día</span><input data-finish-profile-field="dailyLimit" type="number" min="0" max="10" value="${Math.min(10, Math.max(0, Number(profile.dailyLimit) || 0))}"></label>
         <label class="inline-setting-field time-control-field"><span>Intervalo mínimo (min)</span><input data-finish-profile-field="minIntervalMinutes" type="number" min="10" value="${Math.max(10, Number(profile.minIntervalMinutes) || 10)}"></label>
       </div>
+      <p class="muted">Objetivo total diario. Se descuentan las impresiones ya recompensadas hoy en tu cuenta de Creality Cloud.</p>
     </div>
   </article>`;
 }
@@ -1981,10 +1982,15 @@ async function saveFinishPrinterProfiles() {
     return false;
   }
   state.config = result.config;
+  state.nextExecutions = result.nextExecutions || {};
   state.finishPrintDraftProfiles = finishPrintProfilesFromConfig();
   render();
   renderFinishPrinterProfiles();
-  toast('Cambios guardados correctamente.');
+  const pending = state.finishPrintDraftProfiles.reduce((total, profile) =>
+    total + Math.max(0, (profile.printPlan || []).length - (Number(profile.printPlanCursor) || 0)), 0);
+  toast(pending
+    ? `Programación guardada: ${pending} ${pending === 1 ? 'impresión pendiente' : 'impresiones pendientes'} hoy.`
+    : 'Programación guardada sin ejecuciones pendientes hoy. Revisa el cupo diario y la ventana horaria.');
   return true;
 }
 
@@ -2933,6 +2939,8 @@ function setShopRegionMenu(open) {
 
 function shopGoalStatusText(goal) {
   if (goal.lastStatus === 'success') return `Canje completado el ${formatDate(goal.redeemedAt)}.`;
+  if (goal.lastStatus === 'submitting') return 'Canje iniciado. Si se interrumpió, revisa los pedidos de Creality Cloud antes de volver a pulsar Programar.';
+  if (goal.lastStatus === 'paused') return goal.lastMessage || 'Canje pausado. Revisa los pedidos antes de volver a pulsar Programar.';
   if (goal.lastStatus === 'unavailable') return 'Objetivo no disponible temporalmente. Se volverá a comprobar.';
   if (goal.lastStatus === 'error') return `Último intento: ${goal.lastMessage || 'no se pudo completar el canje'}`;
   if (goal.enabled) return '';
@@ -3005,6 +3013,7 @@ function favoriteIndexStatus(value) {
     pending: { key: 'pending', label: 'Pendiente' },
     syncing: { key: 'syncing', label: 'Indexando' },
     ready: { key: 'ready', label: 'Actualizado' },
+    empty: { key: 'ready', label: 'Sin diseños' },
     error: { key: 'error', label: 'Error' }
   })[value] || { key: 'pending', label: 'Pendiente' };
 }
@@ -3344,7 +3353,7 @@ function renderDailyCounters() {
   if (!state.config) return;
   const tasks = state.config.tasks;
   renderDailyBadge(fields.crealityDailyBadge, state.dailyCounters.creality, 1);
-  renderDailyBadge(fields.finishPrintDailyBadge, state.dailyCounters.finishPrint, state.dailyLimits.finishPrint || tasks.finishPrint.totalDailyLimit || tasks.finishPrint.dailyLimit || 10);
+  renderDailyBadge(fields.finishPrintDailyBadge, state.dailyCounters.finishPrint, tasks.finishPrint.totalDailyLimit ?? tasks.finishPrint.dailyLimit ?? 10);
   renderDailyBadge(fields.modelsDailyBadge, state.dailyCounters.modelDownloads, state.dailyLimits.modelDownloads || tasks.modelDownloads.dailyLimit);
   renderDailyBadge(fields.commentsDailyBadge, state.dailyCounters.comments, state.dailyLimits.comments || tasks.comments.dailyLimit || 0);
   renderDailyBadge(fields.boostsDailyBadge, state.dailyCounters.modelBoosts, tasks.modelBoosts.availableBoosts || 0);
@@ -3353,7 +3362,7 @@ function renderDailyCounters() {
   renderDailyBadge(fields.collectionsDailyBadge, state.dailyCounters.modelCollections, tasks.modelCollections.dailyLimit || 1);
   fields.modelsDailyBadge.title = `Descargas recompensadas hoy. Objetivo programado: ${tasks.modelDownloads.dailyLimit}.`;
   fields.commentsDailyBadge.title = `Comentarios recompensados hoy. Objetivo programado: ${tasks.comments.dailyLimit}.`;
-  fields.finishPrintDailyBadge.title = `Impresiones recompensadas de la cuenta. Objetivo programado: ${tasks.finishPrint.totalDailyLimit || tasks.finishPrint.dailyLimit || 10}.`;
+  fields.finishPrintDailyBadge.title = `Impresiones recompensadas hoy / objetivo total diario. Cupo de Creality Cloud: ${state.dailyLimits.finishPrint || 10}.`;
 }
 
 function renderDailyBadge(node, count, max) {

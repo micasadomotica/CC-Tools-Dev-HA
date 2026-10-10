@@ -1,0 +1,35 @@
+CC Tools Dev 1.0.35 - canje automático y perfiles favoritos sin diseños
+
+CAMBIOS
+Los perfiles que Creality confirma sin diseños muestran «Sin diseños» y cero diseños, sin marcar Error ni volver a indexarse cada cinco minutos. Se revisan con la frecuencia normal de seis horas, o al pulsar Actualizar.
+El estado se conserva al reiniciar. Una página incompleta no se considera vacía y no elimina el índice anterior. Los errores reales siguen admitiendo reintentos.
+Los perfiles que ya aparecían con Error se corrigen al completar la siguiente revisión; puedes pulsar Actualizar para iniciarla.
+Completa la confirmación final del gasto de puntos. Abre el producto por su identificador, comprueba su nombre, precio y cantidad, y espera una respuesta de Creality Cloud con número de pedido.
+Admite cupones digitales y productos físicos con una dirección ya guardada en la región de la tienda. No rellena direcciones ni completa la compra posterior en la tienda de Creality al utilizar un cupón.
+Corrige el precio de primer canje cuando la promoción no está activa y reconoce los estados de falta de existencias y límites de canje.
+Conserva los cambios locales de Dev 1.0.34, incluida la planificación de impresiones y las fotos de perfiles favoritos.
+
+REINTENTOS Y RESULTADOS INCIERTOS
+Antes de abrir el navegador, guarda el intento con el objetivo desactivado. Si se interrumpe o no se puede confirmar el resultado, no vuelve a gastar puntos automáticamente tras media hora ni después de reiniciar.
+Los errores dejan un mensaje de pausa. Comprueba primero los pedidos de Creality Cloud; si no se creó el pedido y has corregido la causa, pulsa Programar para reactivar el objetivo.
+La falta de saldo o existencias mantiene el objetivo en espera automática.
+Si Creality confirma el pedido, su número aparece en el registro de éxito. No se toma un texto de éxito aislado ni una reducción de saldo como prueba suficiente.
+
+INSTALACIÓN LOCAL
+1. En la versión anterior, elimina temporalmente la programación del objetivo y comprueba que no exista ya un pedido para él en Creality Cloud.
+2. Detén CC Tools Dev cuando no haya una tarea o impresión en curso.
+3. Sustituye el código de /addons/cc_tools por el contenido de la carpeta cc_tools de este ZIP. Conserva los datos y la configuración; no desinstales el complemento.
+4. Recarga o busca actualizaciones en la tienda de complementos de Home Assistant. Actualiza CC Tools Dev a 1.0.35 o usa Reconstruir en la instalación local para generar la imagen nueva.
+5. Inicia Dev, recarga la interfaz y comprueba que muestra 1.0.35.
+6. En Ajustes > Historial de puntos, elige la región y el objetivo y pulsa Programar. Con saldo suficiente, el planificador intentará el canje cuando el navegador esté disponible. Esta acción sí puede gastar los puntos del objetivo.
+7. Comprueba el resultado en Logs y en los pedidos de Creality Cloud. Si se trata de un cupón DTC, después debes usar el cupón según sus condiciones para tramitar el filamento.
+Copiar los archivos e iniciar sin actualizar o reconstruir sigue utilizando la imagen anterior.
+
+VERIFICACIÓN
+406 pruebas generales superadas.
+9 escenarios de navegador verifican perfiles vacíos, páginas incompletas, errores, identificadores distintos y mensajes vacíos de otras secciones.
+Comprobación pública de solo lectura: raidptn (1485232057) y Antonio Lopez Urda (6990220821) se reconocen como perfiles confirmados sin diseños.
+Se conservan las 13 pruebas de navegador del canje de la primera entrega 1.0.35, cuyo código de canje no cambia en esta revisión.
+Las pruebas de navegador usan una tienda simulada con peticiones interceptadas: confirmación de cupón y producto físico, carga tardía de ficha y dirección, dirección ausente, precio o producto distinto, cantidad incorrecta, botón deshabilitado, rechazo de API, ausencia de pedido, respuesta perdida y respuesta ajena.
+No se ha realizado ningún canje real, gastado puntos ni instalado esta versión en Home Assistant durante las pruebas.
+Distribución de CC Tools Dev 1.0.35. Incluye los cambios acumulados desde 1.0.32 y se publica como versión previa de la rama dev.

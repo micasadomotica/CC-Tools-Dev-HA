@@ -45,9 +45,13 @@ for (const name of ['refreshDailyBoostAvailability', 'refreshScheduledShopOrders
       assert.equal(h.state.aborts, 1);
       assert.equal(h.state.reservations, 0);
       assert.equal(h.context.schedulerState().running, false);
-      assert.equal(h.state.writes, 1);
+      assert.equal(h.state.writes, name === 'redeemScheduledShopGoal' ? 2 : 1);
       if (name === 'refreshDailyBoostAvailability') assert.ok(Date.parse(h.config.tasks.modelBoosts.availabilityRetryAt) > Date.now());
-      if (name === 'redeemScheduledShopGoal') assert.equal(h.state.runs[0].details.diagnostics[0].code, 'TASK_EXECUTION_TIMEOUT');
+      if (name === 'redeemScheduledShopGoal') {
+        assert.equal(h.state.runs[0].details.diagnostics[0].code, 'TASK_EXECUTION_TIMEOUT');
+        assert.equal(h.config.shopGoal.enabled, false);
+        assert.equal(h.config.shopGoal.lastStatus, 'paused');
+      }
     });
   }
 }

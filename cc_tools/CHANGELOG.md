@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.0.35 — canje automático y perfiles favoritos
+
+- Los perfiles favoritos con el estado vacío de Creality confirmado muestran «Sin diseños». Conservan ese estado al reiniciar y se comprueban cada seis horas, sin forzar un indexado cada cinco minutos por tener cero diseños.
+- Las páginas incompletas o los errores de carga conservan el índice anterior. Al publicar un nuevo diseño, el perfil vuelve a «Actualizado» en la siguiente revisión o al pulsar Actualizar.
+- Abre el objetivo por su identificador y completa la confirmación final de cupones y productos con dirección guardada.
+- Verifica la respuesta de canje y exige un número de pedido; un texto de éxito o un cambio de saldo no bastan para confirmar el resultado.
+- Pausa el objetivo antes de iniciar el intento para evitar duplicados después de reinicios, errores o respuestas inciertas. Los errores requieren revisar los pedidos y volver a pulsar Programar.
+- Comprueba región, cantidad y precio; aplica el precio de primer canje solo con la promoción activa y reconoce los estados de falta de existencias y límites de la tienda.
+- Incluye todos los cambios acumulados desde Dev 1.0.32, con la planificación de impresiones de 1.0.34 y la renovación de avatares de favoritos.
+
+## 1.0.34
+
+- La tarjeta de impresión muestra el objetivo diario configurado: con dos impresiones recompensadas y un objetivo de tres, muestra 2/3 y programa una pendiente.
+- Los inicios manuales no avanzan el cursor automático; el progreso diario se basa en impresiones recompensadas. Al guardar, se actualiza la próxima ejecución.
+- Conserva la corrección de las fotos de perfiles favoritos y el límite diario de Creality Cloud.
+- Incrementa la versión para que Home Assistant detecte la actualización local.
+
+## 1.0.33 — avatares y asociación del historial de impresión
+
+- Actualiza la foto pública al sincronizar cada favorito, incluidos los perfiles predeterminados. Conserva la última foto válida si falla su lectura.
+- Asocia el historial a la impresora correspondiente y separa los inicios manuales de las ejecuciones de la agenda automática.
+- El comportamiento definitivo del objetivo diario es el descrito en 1.0.34.
+
 ## 1.0.32 — integración de TitoTB 1.0.26
 
 - Limita los comentarios a diseños cuya descarga esté verificada y que no sean meramente indexados desde favoritos o el catálogo.

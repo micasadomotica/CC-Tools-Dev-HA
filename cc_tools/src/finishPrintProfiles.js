@@ -58,6 +58,17 @@ export function finishPrintProfileForPending(task = {}, pending = task.pendingVe
     || profiles[0];
 }
 
+export function finishPrintRunMatchesProfile(run = {}, profile = {}, includeLegacyRuns = false) {
+  const details = run.details || {};
+  const printerName = String(details.printerName || '').trim();
+  const profileId = String(details.printerProfileId || '').trim();
+  // Manual selections can carry the active schedule's id even when another printer was chosen.
+  if (details.manualSelection === true && printerName) return printerName === profile.printerName;
+  if (profileId) return profileId === profile.id;
+  if (printerName) return printerName === profile.printerName;
+  return includeLegacyRuns;
+}
+
 export function totalFinishPrintDailyLimit(task = {}) {
   return normalizeFinishPrintProfiles(task)
     .reduce((total, profile) => total + profile.dailyLimit, 0);

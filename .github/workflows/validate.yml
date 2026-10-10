@@ -39,6 +39,10 @@ jobs:
         run: npm run test:makenow:browser
       - name: Test setup and download defaults in browser
         run: npm run test:setup:browser
+      - name: Test shop redemption confirmation in browser
+        run: npm run test:shop:browser
+      - name: Test confirmed empty favorite profiles in browser
+        run: npm run test:favorites:browser
 
   build:
     runs-on: ubuntu-latest

@@ -51,6 +51,7 @@ import {
 import { finishPrintSlotMinutes, requiredFinishPrintWindowMinutes } from './finishPrintSchedule.js';
 import {
   activateNextFinishPrintProfile,
+  finishPrintRunMatchesProfile,
   normalizeFinishPrintProfiles,
   syncActiveFinishPrintProfile,
   totalFinishPrintDailyLimit
@@ -1604,8 +1605,8 @@ function effectivePendingPlan(taskConfig, plan, cursor) {
 function countTodayFinishPrintStarts(runs, taskConfig, profileId = '', includeLegacyRuns = true) {
   const timezone = taskConfig?.timezone || 'Europe/Madrid';
   const today = dayKey(timezone);
-  return runs.filter((run) => isFinishPrintStartRun(run)
-    && (!profileId || run.details?.printerProfileId === profileId || (includeLegacyRuns && !run.details?.printerProfileId))
+  return runs.filter((run) => run.source === 'schedule' && isFinishPrintStartRun(run)
+    && (!profileId || finishPrintRunMatchesProfile(run, { ...taskConfig, id: profileId }, includeLegacyRuns))
     && dayKey(timezone, new Date(run.finishedAt || run.createdAt)) === today).length;
 }
 
@@ -1613,8 +1614,8 @@ function todayFinishPrintEvents(runs, taskConfig, includeLegacyRuns = false) {
   const timezone = taskConfig?.timezone || 'Europe/Madrid';
   const today = dayKey(timezone);
   return runs
-    .filter((run) => isFinishPrintStartRun(run)
-      && (run.details?.printerProfileId === taskConfig.id || (includeLegacyRuns && !run.details?.printerProfileId))
+    .filter((run) => run.source === 'schedule' && isFinishPrintStartRun(run)
+      && finishPrintRunMatchesProfile(run, taskConfig, includeLegacyRuns)
       && dayKey(timezone, new Date(run.finishedAt || run.createdAt)) === today)
     .map((run) => ({
       status: run.status,
