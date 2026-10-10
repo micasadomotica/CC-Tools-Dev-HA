@@ -6,6 +6,7 @@
     <title>CC Tools Dev</title>
     <link rel="icon" type="image/png" href="/assets/app-icon.png">
     <link rel="stylesheet" href="/assets/styles.css?v=20260930-01">
+    <link rel="stylesheet" href="/assets/upload-designs.css?v=1.0.41">
   </head>
   <body>
     <header class="topbar">
@@ -54,6 +55,8 @@
     <main class="layout">
       <section id="view-home" class="view is-visible">
         <div class="tools-grid">
+
+
         <article class="tool-card">
           <div class="tool-card-content">
             <h2 class="tool-title"><svg class="tool-title-icon" viewBox="0 0 448 512" aria-hidden="true"><path d="M152 64V24c0-13.3 10.7-24 24-24h16c13.3 0 24 10.7 24 24v40h80V24c0-13.3 10.7-24 24-24h16c13.3 0 24 10.7 24 24v40h16c35.3 0 64 28.7 64 64v320c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V128c0-35.3 28.7-64 64-64h88zM64 192v256h320V192H64zm232 84-96 96-48-48 34-34 14 14 62-62 34 34z"></path></svg><span>Check-in diario</span></h2>
@@ -220,6 +223,16 @@
           <button id="open-makenow-config" class="corner-config" type="button" title="Configurar creación de proyectos" aria-label="Configurar creación de proyectos">
             <svg viewBox="0 0 512 512" aria-hidden="true"><path d="M495.9 166.6c3.2 8.7 .5 18.4-6.4 24.6l-43.3 39.4c1.1 8.3 1.7 16.8 1.7 25.4s-.6 17.1-1.7 25.4l43.3 39.4c6.9 6.2 9.6 15.9 6.4 24.6c-4.4 11.9-9.7 23.3-15.8 34.3l-4.7 8.1c-6.6 11-14 21.4-22.1 31.2c-5.9 7.2-15.7 9.6-24.5 6.8l-55.7-17.7c-13.4 10.3-28.2 18.9-44 25.4l-12.5 57.1c-2 9.1-9 16.3-18.2 17.8c-13.8 2.3-28 3.5-42.5 3.5s-28.7-1.2-42.5-3.5c-9.2-1.5-16.2-8.7-18.2-17.8l-12.5-57.1c-15.8-6.5-30.6-15.1-44-25.4L83.1 425.9c-8.8 2.8-18.6 .3-24.5-6.8c-8.1-9.8-15.5-20.2-22.1-31.2l-4.7-8.1c-6.1-11-11.4-22.4-15.8-34.3c-3.2-8.7-.5-18.4 6.4-24.6l43.3-39.4C64.6 273.1 64 264.6 64 256s.6-17.1 1.7-25.4L22.4 191.2c-6.9-6.2-9.6-15.9-6.4-24.6c4.4-11.9 9.7-23.3 15.8-34.3l4.7-8.1c6.6-11 14-21.4 22.1-31.2c5.9-7.2 15.7-9.6 24.5-6.8l55.7 17.7c13.4-10.3 28.2-18.9 44-25.4l12.5-57.1c2-9.1 9-16.3 18.2-17.8C227.3 1.2 241.5 0 256 0s28.7 1.2 42.5 3.5c9.2 1.5 16.2 8.7 18.2 17.8l12.5 57.1c15.8 6.5 30.6 15.1 44 25.4l55.7-17.7c8.8-2.8 18.6-.3 24.5 6.8c8.1 9.8 15.5 20.2 22.1 31.2l4.7 8.1c6.1 11 11.4 22.4 15.8 34.3zM256 336a80 80 0 1 0 0-160 80 80 0 1 0 0 160z"/></svg>
           </button>
+        </article>
+        <article id="uploads-card" class="tool-card">
+          <div class="tool-card-content">
+            <h2 class="tool-title"><svg class="tool-title-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M11 15h2V7l3 3 1.4-1.4L12 3.2 6.6 8.6 8 10l3-3v8zM4 14H2v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6h-2v6H4v-6z"/></svg><span>Subir diseños</span></h2>
+            <p>Sube tus diseños a Creality Cloud o programa su publicación diaria.</p>
+            <div class="tool-meta"><span>Última ejecución:</span><strong id="uploads-last-run">-</strong><span>Próxima ejecución:</span><strong id="uploads-next-run">-</strong></div>
+          </div>
+          <label class="switch tool-switch" title="Preparar programación de Subir diseños"><input id="uploads-enabled" type="checkbox" aria-label="Activar programación de Subir diseños" disabled><span></span></label>
+          <span id="uploads-daily-badge" class="daily-badge" title="Progreso confirmado en Upload Models">0/5</span>
+          <button id="open-uploads-config" class="corner-config" type="button" title="Configuración de Subir diseños" aria-label="Configuración de Subir diseños"><svg viewBox="0 0 512 512" aria-hidden="true"><path d="M495.9 166.6c3.2 8.7 .5 18.4-6.4 24.6l-43.3 39.4c1.1 8.3 1.7 16.8 1.7 25.4s-.6 17.1-1.7 25.4l43.3 39.4c6.9 6.2 9.6 15.9 6.4 24.6c-4.4 11.9-9.7 23.3-15.8 34.3l-4.7 8.1c-6.6 11-14 21.4-22.1 31.2c-5.9 7.2-15.7 9.6-24.5 6.8l-55.7-17.7c-13.4 10.3-28.2 18.9-44 25.4l-12.5 57.1c-2 9.1-9 16.3-18.2 17.8c-13.8 2.3-28 3.5-42.5 3.5s-28.7-1.2-42.5-3.5c-9.2-1.5-16.2-8.7-18.2-17.8l-12.5-57.1c-15.8-6.5-30.6-15.1-44-25.4L83.1 425.9c-8.8 2.8-18.6 .3-24.5-6.8c-8.1-9.8-15.5-20.2-22.1-31.2l-4.7-8.1c-6.1-11-11.4-22.4-15.8-34.3c-3.2-8.7-.5-18.4 6.4-24.6l43.3-39.4C64.6 273.1 64 264.6 64 256s.6-17.1 1.7-25.4L22.4 191.2c-6.9-6.2-9.6-15.9-6.4-24.6c4.4-11.9 9.7-23.3 15.8-34.3l4.7-8.1c6.6-11 14-21.4 22.1-31.2c5.9-7.2 15.7-9.6 24.5-6.8l55.7 17.7c13.4-10.3 28.2-18.9 44-25.4l12.5-57.1c2-9.1 9-16.3 18.2-17.8C227.3 1.2 241.5 0 256 0s28.7 1.2 42.5 3.5c9.2 1.5 16.2 8.7 18.2 17.8l12.5 57.1c15.8 6.5 30.6 15.1 44 25.4l55.7-17.7c8.8-2.8 18.6-.3 24.5 6.8c8.1 9.8 15.5 20.2 22.1 31.2l4.7 8.1c6.1 11 11.4 22.4 15.8 34.3zM256 336a80 80 0 1 0 0-160 80 80 0 1 0 0 160z"/></svg></button>
         </article>
         </div>
       </section>
@@ -1098,6 +1111,52 @@
     </div>
 
     <div id="toast" class="toast" hidden></div>
-    <script src="/assets/app.js?v=1.0.18" type="module"></script>
+
+    <div id="uploads-modal" class="modal" hidden>
+      <div class="modal-card guided-config-card upload-modal-card" role="dialog" aria-modal="true" aria-labelledby="uploads-title">
+        <div class="panel-heading"><div><p class="eyebrow">Creality Cloud</p><h2 id="uploads-title">Configuración Subir diseños</h2></div><button id="close-uploads" class="icon-button" type="button" aria-label="Cerrar">×</button></div>
+        <section class="setup-step">
+          <div class="setup-step-heading"><h3>Consulta los requisitos previos</h3><div class="setup-step-actions"><button id="uploads-help-toggle" class="setup-help-button" type="button" title="Mostrar requisitos previos" aria-label="Mostrar requisitos previos"><svg viewBox="0 0 512 512" aria-hidden="true"><path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM216 336h24V248H216c-13.3 0-24-10.7-24-24s10.7-24 24-24h48c13.3 0 24 10.7 24 24V336h8c13.3 0 24 10.7 24 24s-10.7 24-24 24H216c-13.3 0-24-10.7-24-24s10.7-24 24-24zm40-208a32 32 0 1 1 0 64 32 32 0 1 1 0-64z"/></svg></button></div></div>
+          <div id="uploads-help" class="setup-step-config setup-requirements" hidden>
+            <p>Prepara un archivo <b>.3mf con configuración de Creality Print o Bambu Studio</b>, un <b>info.txt</b> y una <b>portada JPG, PNG o WebP estática con proporción 4:3</b>. Opcionalmente, añade <b>portada2</b> para la App con proporción <b>3:4</b> y hasta nueve <b>imágenes del modelo</b>, llamadas <b>imagen1, imagen2… imagen9</b>, con proporción <b>4:3</b>. Todas las imágenes pueden ser JPG, PNG o WebP.</p>
+            <p>El botón de carpeta de <b>Mis diseños</b> crea <code>/media/cctools_3d_models</code> si todavía no existe y abre el explorador para seleccionar los archivos obligatorios y las imágenes opcionales de un diseño. También puedes copiar una subcarpeta por diseño en esa ruta y pulsar el icono de escaneo.</p>
+            <p>Formato de <b>info.txt</b> (UTF-8):</p><pre>ETIQUETAS: caja, organizador [Añade etiquetas separadas por coma]
+DESCRIPCION: Descripción del modelo [Añade una breve descripción]</pre>
+            <p>Los textos entre corchetes son indicaciones; no los incluyas en info.txt. Hasta 20 etiquetas de 30 caracteres. Límites por archivo: 3MF 256 MB, cada imagen 20 MB e info.txt 32 KB.</p>
+            <p>Los diseños se entregan como <b>Original, Gratis y Público</b>, con el nombre del archivo, categoría <b>Impresoras 3D / Otro</b> y licencia <b>CC BY-NC</b> (permite adaptaciones y prohíbe el uso comercial), sin recomendación de filamento. La selección de otras categorías se deja para futuras versiones. Al subir o programar autorizas aceptar la declaración de derechos de autor de Creality para estos diseños.</p>
+            <p>El contador muestra las confirmaciones de <b>Upload Models</b> frente a la cantidad diaria programada. Entregar un diseño no confirma todavía la recompensa; Creality debe aprobarlo.</p>
+          </div>
+        </section>
+        <section class="setup-step">
+          <div class="setup-step-heading"><h3>Mis diseños</h3><div class="setup-step-actions"><button id="uploads-scan" class="secondary icon-action-button" type="button" title="Escanear carpeta" aria-label="Escanear carpeta"><svg viewBox="0 0 512 512" aria-hidden="true"><path d="M105.1 202.6c7.7-21.8 20.2-42.3 37.8-59.8c62.5-62.5 163.8-62.5 226.3 0L386.3 160 352 160c-17.7 0-32 14.3-32 32s14.3 32 32 32l111.5 0 .4 0c17.7 0 32-14.3 32-32l0-112c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 35.2L414.4 97.6c-87.5-87.5-229.3-87.5-316.8 0C73.2 122 55.6 150.7 44.8 181.4c-5.9 16.7 2.9 34.9 19.5 40.8s34.9-2.9 40.8-19.5zM39 289.3c-5 1.5-9.8 4.2-13.7 8.2c-4 4-6.7 8.8-8.1 14c-.3 1.2-.6 2.5-.8 3.8c-.3 1.7-.4 3.4-.4 5.1L16 432c0 17.7 14.3 32 32 32s32-14.3 32-32l0-35.1 17.6 17.5c87.5 87.4 229.3 87.4 316.7 0c24.4-24.4 42.1-53.1 52.9-83.8c5.9-16.7-2.9-34.9-19.5-40.8s-34.9 2.9-40.8 19.5c-7.7 21.8-20.2 42.3-37.8 59.8c-62.5 62.5-163.8 62.5-226.3 0l-.1-.1L125.6 352l34.4 0c17.7 0 32-14.3 32-32s-14.3-32-32-32L48.4 288c-1.6 0-3.2 .1-4.8 .3s-3.1 .5-4.6 1z"/></svg></button><button id="uploads-import" class="secondary icon-action-button" type="button" title="Subir diseños carpeta media HA" aria-label="Subir diseños carpeta media HA"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 4H2v16h20V6H12l-2-2zm10 14H4V8h16v10z"/></svg></button></div></div>
+          <div class="setup-step-config">
+            <code id="uploads-root" class="upload-root">/media/cctools_3d_models</code><small id="uploads-scanned" class="muted"></small>
+            <input id="uploads-files" type="file" accept=".3mf,.txt,.jpg,.jpeg,.png,.webp" multiple hidden>
+            <p id="uploads-library-error" class="upload-error" role="alert" hidden></p>
+            <div id="uploads-list" class="upload-list"></div>
+            <div class="upload-toolbar"><strong id="uploads-manual-count">Seleccionados: 0/5</strong><button id="uploads-run" type="button" disabled>Subir seleccionados</button></div>
+          </div>
+        </section>
+        <section class="setup-step">
+          <div class="setup-step-heading"><h3>Programar subida de diseños</h3><div class="setup-step-actions"><button id="uploads-plan-toggle" class="setup-help-button" type="button" title="Programar subida de diseños" aria-label="Programar subida de diseños"><svg class="setup-clock-icon" viewBox="0 0 512 512" aria-hidden="true"><path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM232 120c0-13.3 10.7-24 24-24s24 10.7 24 24V243.2l71.1 47.4c11 7.4 14 22.3 6.7 33.3s-22.3 14-33.3 6.7l-81.8-54.5c-6.7-4.5-10.7-12-10.7-20V120z"/></svg></button></div></div>
+          <div id="uploads-plan" class="setup-step-config" hidden>
+            <div class="form-grid upload-schedule-grid"><label><span>Desde las</span><input id="uploads-start" type="time" value="08:00"></label><label><span>Hasta las</span><input id="uploads-end" type="time" value="12:00"></label><label><span>Diseños por día</span><input id="uploads-limit" type="number" min="1" max="5" step="1" value="5"></label></div>
+            <div class="setup-control-heading"><strong>Diseños de la primera ejecución</strong><button id="uploads-plan-scan" class="secondary icon-action-button" type="button" title="Escanear carpeta" aria-label="Escanear carpeta"><svg viewBox="0 0 512 512" aria-hidden="true"><path d="M105.1 202.6c7.7-21.8 20.2-42.3 37.8-59.8c62.5-62.5 163.8-62.5 226.3 0L386.3 160 352 160c-17.7 0-32 14.3-32 32s14.3 32 32 32l111.5 0 .4 0c17.7 0 32-14.3 32-32l0-112c0-17.7-14.3-32-32-32s-32 14.3-32 32l0 35.2L414.4 97.6c-87.5-87.5-229.3-87.5-316.8 0C73.2 122 55.6 150.7 44.8 181.4c-5.9 16.7 2.9 34.9 19.5 40.8s34.9-2.9 40.8-19.5zM39 289.3c-5 1.5-9.8 4.2-13.7 8.2c-4 4-6.7 8.8-8.1 14c-.3 1.2-.6 2.5-.8 3.8c-.3 1.7-.4 3.4-.4 5.1L16 432c0 17.7 14.3 32 32 32s32-14.3 32-32l0-35.1 17.6 17.5c87.5 87.4 229.3 87.4 316.7 0c24.4-24.4 42.1-53.1 52.9-83.8c5.9-16.7-2.9-34.9-19.5-40.8s-34.9 2.9-40.8 19.5c-7.7 21.8-20.2 42.3-37.8 59.8c-62.5 62.5-163.8 62.5-226.3 0l-.1-.1L125.6 352l34.4 0c17.7 0 32-14.3 32-32s-14.3-32-32-32L48.4 288c-1.6 0-3.2 .1-4.8 .3s-3.1 .5-4.6 1z"/></svg></button></div>
+            <div id="uploads-plan-list" class="upload-plan-list"></div><p id="uploads-plan-count" class="muted"></p>
+            <p class="muted">Selecciona tantos diseños como indique la cantidad diaria. Cada día se volverá a escanear la carpeta y se elegirán nuevos diseños. Si faltan modelos se subirán los disponibles y se enviará un aviso por Telegram, si está configurado.</p>
+            <div class="form-grid models-schedule-grid models-storage-grid uploads-storage-grid">
+              <label class="inline-setting-field time-control-field models-downloads-path-field"><span>Diseños</span><input type="text" value="/media/cctools_3d_models" readonly aria-label="Carpeta de diseños"></label>
+              <label class="inline-setting-field time-control-field" title="Se eliminarán los diseños automáticamente de la carpeta una vez validada su subida por CC."><span>Limpiar diseños</span><input id="uploads-cleanup" type="checkbox" aria-label="Limpiar diseños" aria-describedby="uploads-cleanup-help"></label>
+            </div>
+            <p id="uploads-cleanup-help" class="muted">Si activas la limpieza, a partir del día siguiente se comprobarán los modelos públicos de tu perfil. Solo se eliminarán los archivos de diseños entregados y confirmados, si no han cambiado.</p>
+            <p id="uploads-next" class="muted"></p><div class="button-row modal-actions"><button id="uploads-program" type="button" disabled>Programar</button></div>
+          </div>
+        </section>
+        <p id="uploads-message" class="upload-message" role="status" aria-live="polite"></p>
+      </div>
+    </div>
+
+    <script src="/assets/upload-designs.js?v=1.0.41" type="module"></script>
+    <script src="/assets/app.js?v=1.0.41" type="module"></script>
   </body>
 </html>

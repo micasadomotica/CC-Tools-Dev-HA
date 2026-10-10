@@ -1,5 +1,54 @@
 # Changelog
 
+## 1.0.41 — imágenes opcionales y publicación en Dev
+
+- Admite portada2 para la App en 3:4 y hasta nueve imágenes del modelo, imagen1 a imagen9, en 4:3. Acepta JPG, JPEG, PNG y WebP, con validación de nombres, duplicados, tamaño y proporción al escanear o importar desde el PC.
+- Después de confirmar la portada web, sube y confirma la portada App si existe, y carga las imágenes del modelo por orden. Comprueba su presencia en la entrega final.
+- Incluye los archivos opcionales en la detección de cambios y en la limpieza posterior a la confirmación pública.
+- Actualiza los requisitos y el ejemplo de info.txt. Mantiene Impresoras 3D / Otro; otras categorías quedan para futuras versiones.
+- El ZIP excluye todos los TXT de PRUEBA y los LEEME anteriores. LEEME-1.0.41 resume las novedades acumuladas desde 1.0.35: biblioteca en /media, importación, publicación manual y programada, recompensas, Logs, Telegram y limpieza opcional.
+
+## 1.0.40 — confirmación de derechos de autor y descripción
+
+- Abre la declaración de derechos de autor, pulsa Confirmar en su popup y verifica que la casilla queda marcada antes de Entregar, tanto en manual como en programación.
+- Distingue este popup del recorte de portada y bloquea la entrega si la confirmación no queda aceptada.
+- Excluye de la descripción el apartado final «Recomendaciones de impresión:» y su contenido. Conserva intacto el archivo info.txt y actualiza el ejemplo incluido en el ZIP.
+- Añade pruebas para el popup abierto, la aceptación ya realizada, una confirmación fallida y la preparación de la descripción sin recomendaciones.
+
+## 1.0.39 — selector de categoría sin desplazamiento
+
+- Pasa el ratón sobre la fila completa de Impresoras 3D y pulsa Otro en la segunda columna, sin hacer clic en la categoría principal.
+- Elimina el desplazamiento explícito, el hover sobre el texto y la reapertura del desplegable durante su cierre. Evita seleccionar la categoría principal por accidente.
+- La prueba del formulario reproduce la etiqueta superpuesta y el cierre con transición que causaba el nuevo timeout.
+- Mantiene vacíos los archivos de instrucciones y la descripción del ajuste de impresión. Conserva los cambios de tarjeta y formulario de 1.0.38.
+
+## 1.0.38 — corrección de la subida de diseños
+
+- Abre Impresoras 3D pulsando la fila del selector y selecciona Otros con desplazamiento. Evita el bloqueo del texto cubierto por la etiqueta de selección.
+- Marca Sí en adaptaciones y No en uso comercial; marca No en la tercera pregunta cuando esté visible. Comprueba la licencia CC BY-NC antes de entregar.
+- Desactiva la recomendación de filamento y comprueba la aceptación de la declaración de derechos antes del envío.
+- Muestra última y próxima ejecución sin segundos, colorea los fallos manuales en rojo y utiliza la cantidad programada en el contador (por ejemplo, 0/1).
+- Actualiza la tarjeta también cuando el ejecutor devuelve un error HTTP. Simplifica el inicio de los requisitos a «Prepara un archivo…».
+
+## 1.0.37 — publicación de diseños e importación desde el PC
+
+- Mueve Subir diseños al final. La tarjeta muestra última y próxima ejecución. Su configuración sigue el formato de impresiones, con requisitos, Mis diseños y programación.
+- Escanea al abrir y permite importar un 3MF, info.txt y portada JPG, PNG o WebP. El botón de carpeta crea /media/cctools_3d_models; el complemento monta /media con escritura.
+- Publica manualmente o en lotes diarios de hasta cinco diseños, con categoría Impresoras 3D / Otro, Original, Gratis, Público y licencia CC BY-NC. Completa la declaración de derechos y Entregar.
+- Registra entregas, errores y avisos de biblioteca agotada en Logs y Telegram. Conserva por cuenta las entregas y los resultados inciertos para evitar duplicados.
+- Añade Upload Models al recuento de recompensas existente. Las entregas esperan aprobación y no se cuentan como puntos acreditados.
+- Añade la limpieza opcional, desmarcada por defecto. A partir del día siguiente comprueba el ID y la presencia en el perfil público antes de eliminar los tres archivos y su carpeta. Conserva contenido adicional o modificado.
+- Las programaciones de preparación de 1.0.36 permanecen desactivadas hasta pulsar Programar en esta versión.
+
+## 1.0.36 — biblioteca local de Subir diseño
+
+- Añade el módulo Subir diseño con interruptor, rueda de configuración y pestañas Manual y Programación.
+- Monta /media en solo lectura. Escanea /media/cctools_3d_models y valida un 3MF, una portada 4:3 y un info.txt por carpeta.
+- Detecta duplicados por contenido y cambios de archivos antes de guardar. Conserva selecciones y configuración tras reiniciar.
+- Permite preparar entre 1 y 5 diseños diarios y simular el escaneo del siguiente día, incluidos lotes incompletos y biblioteca agotada.
+- Esta prueba local no publica diseños, no envía avisos ni añade tareas al planificador. Mantiene el resto de funciones de Dev 1.0.35.
+
+
 ## 1.0.35 — canje automático y perfiles favoritos
 
 - Los perfiles favoritos con el estado vacío de Creality confirmado muestran «Sin diseños». Conservan ese estado al reiniciar y se comprueban cada seis horas, sin forzar un indexado cada cinco minutos por tener cero diseños.

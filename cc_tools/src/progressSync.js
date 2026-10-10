@@ -1,3 +1,4 @@
+import { sendTelegram } from './telegram.js';
 import { readConfig, writeConfig, readRuns, appendRun } from './storage.js';
 import { withAutomationBrowser, browserManagerState } from './browserManager.js';
 import { observeCrealityPage, inspectCrealityPage } from './crealityDiagnostics.js';
@@ -103,6 +104,9 @@ async function sync(config, options) {
   const after = dailyProgress(fresh, runs);
   const changes = Object.keys(after.counters).filter(key => !key.startsWith('comment') && after.counters[key] !== before.counters[key]);
   if (after.counters.comments !== before.counters.comments) changes.push('comments');
+  if (tasks.uploadDesigns?.found && after.counters.uploadDesigns > before.counters.uploadDesigns) {
+    await sendTelegram(fresh, 'CC Tools Dev · Upload Models: ' + after.counters.uploadDesigns + '/' + after.limits.uploadDesigns + ' confirmados en el contador de Creality Cloud.').catch(error => console.error('[telegram]', error.message));
+  }
   if (changes.length) {
     await appendRun({ taskId: 'rewardSync', source: 'sync', status: 'success', startedAt,
       finishedAt: new Date().toISOString(), message: 'Progreso diario sincronizado con Creality Cloud.',

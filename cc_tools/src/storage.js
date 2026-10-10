@@ -91,6 +91,7 @@ const DEFAULT_CONFIG = {
     notifyOnShopOrderShipped: true
   },
   tasks: {
+    uploadDesigns: { enabled: false, cleanupEnabled: false, cleanupCheckedDay: '', dailyLimit: 5, windowStart: '08:00', windowEnd: '12:00', timezone: 'Europe/Madrid', accountId: '', nextRunAt: '', lastRunAt: '', lastStatus: 'never', lastMessage: '' },
     creality: {
       enabled: false,
       windowStart: '08:00',

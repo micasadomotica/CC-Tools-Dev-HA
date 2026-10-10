@@ -1,5 +1,7 @@
-import { dailyProgress, reconcileDailyPlans, applyRewardResult } from './dailyProgress.js';
+import { dailyProgress, reconcileDailyPlans, applyRewardResult, progressDay } from './dailyProgress.js';
+import { uploadLibrary } from './uploadDesignLibrary.js';
 import { synchronizeDailyProgress, pauseProgressSync, waitForProgressSync } from './progressSync.js';
+import { runUploadDesigns } from './uploadDesignTask.js';
 import { runMakeNow } from './makeNowTask.js';
 import { appendRun, cleanupOldScreenshots, readConfig, readRuns, writeConfig } from './storage.js';
 import { runCrealityCheckin } from './crealityTask.js';
@@ -32,7 +34,7 @@ import {
 } from './shopOrdersState.js';
 import { abortAutomationBrowser } from './browserManager.js';
 
-const TASK_IDS = ['creality', 'finishPrint', 'modelDownloads', 'comments', 'modelBoosts', 'modelLikes', 'modelCollections', 'makeNow'];
+const TASK_IDS = ['creality', 'finishPrint', 'modelDownloads', 'comments', 'modelBoosts', 'modelLikes', 'modelCollections', 'makeNow', 'uploadDesigns'];
 const MIN_AUTOMATION_GAP_MINUTES = 10;
 const SILENT_RETRY_MINUTES = 10;
 const DEFAULT_TASK_TIMEOUT_MS = 8 * 60 * 1000;
@@ -92,7 +94,7 @@ export async function runTaskNow(taskId, source = 'manual', options = {}) {
           await writeConfig(config);
         }
         executionAbort.signal.throwIfAborted();
-        return executePendingTask(taskId, taskConfig, { ...options, signal: executionAbort.signal }, config);
+        return executePendingTask(taskId, taskConfig, { ...options, source, signal: executionAbort.signal }, config);
       })(),
       {
         timeoutMs,
@@ -446,6 +448,14 @@ async function tick() {
   const runs = await readRuns();
   if (await redeemScheduledShopGoal(config)) return;
   await refreshDailyBoostAvailability(config);
+  const uploads = config.tasks.uploadDesigns;
+  const today = progressDay(config.timezone);
+  if (uploads?.enabled && uploads.cleanupEnabled && uploads.cleanupCheckedDay !== today) {
+    const candidates = await uploadLibrary.cleanupCandidates(config.crealityProfile?.userId, today).catch(() => [null]);
+    if (candidates.length) await runTaskNow('uploadDesigns', 'cleanup', { cleanupOnly: true }).catch(error => console.error('[upload-cleanup]', error.message));
+    const fresh = await readConfig(); fresh.tasks.uploadDesigns.cleanupCheckedDay = today; await writeConfig(fresh);
+    if (candidates.length) return;
+  }
   for (const taskId of TASK_IDS) {
     const task = config.tasks[taskId];
     if (!task?.enabled) continue;
@@ -658,6 +668,10 @@ async function redeemScheduledShopGoal(config, now = new Date()) {
 }
 
 export function updateNextRunAfterExecution(taskConfig, taskId, source, result, now = new Date()) {
+  if (taskId === 'uploadDesigns') {
+    if (source === 'schedule') taskConfig.nextRunAt = scheduleNextRun(taskConfig, now, { forceNextWindow: true });
+    return;
+  }
   if (taskId === 'modelDownloads') {
     if (source === 'schedule') {
       advanceDownloadPlan(taskConfig);
@@ -902,6 +916,7 @@ function taskDisplayName(taskId) {
     comments: 'Comentarios',
     modelBoosts: 'Impulsar diseños',
     modelLikes: 'Dar me gusta',
+    uploadDesigns: 'Subir diseños',
     makeNow: 'Crear un proyecto',
     modelCollections: 'Añadir a la colección',
     shopOrders: 'Seguimiento de pedidos',
@@ -1138,7 +1153,7 @@ export function delayPendingTaskPlan(taskConfig, taskId, delayedRunAt) {
 async function executePendingTask(taskId, taskConfig, options, config) {
   const runs = await readRuns();
   const progress = dailyProgress(config, runs);
-  if (progress.counters[taskId] > 0 && progress.remaining[taskId] === 0) {
+  if (!options.cleanupOnly && progress.counters[taskId] > 0 && progress.remaining[taskId] === 0) {
     return { success: true, skipped: true, message: 'El objetivo diario ya está completado según el progreso sincronizado.',
       details: { synchronized: true, dailyCount: progress.counters[taskId] } };
   }
@@ -1155,6 +1170,7 @@ async function executePendingTask(taskId, taskConfig, options, config) {
 
 function executeTask(taskId, taskConfig, options, config) {
   const ownershipOptions = { ...options, ownUserId: config.crealityProfile?.userId || '' };
+  if (taskId === 'uploadDesigns') return runUploadDesigns(taskConfig, ownershipOptions);
   if (taskId === 'makeNow') return runMakeNow(taskConfig, options);
   if (taskId === 'creality') return runCrealityCheckin({ ...options, timezone: taskConfig.timezone });
   if (taskId === 'finishPrint') {
@@ -1195,6 +1211,12 @@ function formatRunMessage(taskId, status, result) {
 
 async function notifyTaskResult(config, taskId, status, result, healthEvent = {}) {
   if (status === 'skipped') return;
+  if (taskId === 'uploadDesigns') {
+    await sendTelegram(config, 'CC Tools Dev · Subir diseños\n' + (result.message || 'La subida ha fallado. Revisa el Log.') +
+      (result.details?.uploaded || []).map(item => '\n' + item.name + ': ' + item.url).join(''))
+      .catch(error => console.error('[telegram]', error.message));
+    return;
+  }
 
   if (healthEvent.paused) {
     if (shouldNotifyIncident(config, taskId)) {

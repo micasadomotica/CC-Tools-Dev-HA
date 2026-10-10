@@ -1,6 +1,6 @@
 {
   "name": "cc-tools",
-  "version": "1.0.35",
+  "version": "1.0.41",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,7 +12,8 @@
     "test:incentives:browser": "node --test scripts/incentiveProgress.browser.mjs",
     "test:checkin:browser": "node --test scripts/checkinReminder.browser.mjs",
     "test:makenow:browser": "node --test scripts/makeNowProjects.browser.mjs",
-    "test:setup:browser": "node --test scripts/setup.browser.mjs"
+    "test:setup:browser": "node --test scripts/setup.browser.mjs",
+    "test:uploads:browser": "node --test scripts/uploadDesigns.browser.mjs scripts/uploadDesignForm.browser.mjs"
   },
   "dependencies": {
     "dotenv": "^16.4.7",

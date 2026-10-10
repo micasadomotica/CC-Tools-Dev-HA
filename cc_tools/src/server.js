@@ -1,8 +1,10 @@
 import { dailyProgress, reconcileDailyPlans } from './dailyProgress.js';
 import { synchronizeDailyProgress } from './progressSync.js';
 import { countMakeNowRun } from './makeNowTask.js';
+import { uploadScheduleItems } from './uploadDesignSchedule.js';
 import 'dotenv/config';
 import express from 'express';
+import { uploadDesignRoutes } from './uploadDesignRoutes.js';
 import path from 'path';
 import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
@@ -101,6 +103,8 @@ app.use('/api', (_req, res, next) => {
   });
   next();
 });
+
+app.use('/api/upload-designs', uploadDesignRoutes());
 
 app.use('/assets', express.static(path.join(publicDir, 'assets')));
 
@@ -1462,6 +1466,7 @@ function buildSchedulePreview(config, runs = []) {
   });
 
   const makeNowRuns = progress.observations.makeNow && progress.counters.makeNow === 0 ? [] : runs;
+  items.push(...uploadScheduleItems(config.tasks.uploadDesigns, runs));
   addSingleScheduleItem(items, config.tasks.makeNow, 'makeNow', 'Crear un proyecto', makeNowRuns, countMakeNowRun);
   addSingleScheduleItem(items, config.tasks.modelBoosts, 'modelBoosts', 'Impulsar diseños', runs, countConsumedBoosts);
 
@@ -1471,7 +1476,7 @@ function buildSchedulePreview(config, runs = []) {
     if (taskId === 'commentImage' || taskId === 'commentText' || !config.tasks[taskId]?.enabled || !done) continue;
     const observation = progress.observations[taskId];
     if (!observation) continue;
-    items.push({ taskId, label: taskId === 'comments' ? 'Comentarios' : ({ modelDownloads: 'Descarga de diseños', finishPrint: 'Enviar una impresión', creality: 'Check-in diario', modelLikes: 'Dar me gusta', modelCollections: 'Añadir a la colección', makeNow: 'Crear un proyecto' })[taskId] || 'Impulsar diseños',
+    items.push({ taskId, label: taskId === 'comments' ? 'Comentarios' : ({ modelDownloads: 'Descarga de diseños', finishPrint: 'Enviar una impresión', creality: 'Check-in diario', modelLikes: 'Dar me gusta', modelCollections: 'Añadir a la colección', makeNow: 'Crear un proyecto', uploadDesigns: 'Subir diseños' })[taskId] || 'Impulsar diseños',
       detail: 'Progreso de Creality Cloud: ' + done + '/' + progress.limits[taskId], runAt: observation.checkedAt, status: 'done' });
   }
   return applyPreviewAutomationGap(items
@@ -1532,7 +1537,7 @@ function buildNextExecutions(config, runs = []) {
   if (!next.creality && checkin?.enabled && checkinCompletedToday && checkin.nextRunAt) {
     next.creality = checkin.nextRunAt;
   }
-  for (const id of ['creality', 'makeNow', 'modelLikes', 'modelCollections', 'modelBoosts']) {
+  for (const id of ['creality', 'makeNow', 'modelLikes', 'modelCollections', 'modelBoosts', 'uploadDesigns']) {
     if (!next[id] && config.tasks[id]?.enabled) next[id] = config.tasks[id].nextRunAt;
   }
   return next;
@@ -1746,6 +1751,8 @@ async function rebuildSchedulesForTimezone(config) {
 
   const makeNow = config.tasks.makeNow;
   makeNow.nextRunAt = makeNow.enabled ? scheduleNextRun(makeNow) : '';
+  const uploads = config.tasks.uploadDesigns;
+  uploads.nextRunAt = uploads.enabled ? scheduleNextRun(uploads) : '';
 
   const boosts = config.tasks.modelBoosts;
   boosts.nextRunAt = boosts.enabled ? scheduleNextRun(boosts) : '';

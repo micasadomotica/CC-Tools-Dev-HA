@@ -3,6 +3,7 @@ import { normalizeFinishPrintProfiles, syncActiveFinishPrintProfile, activateNex
 import { countCreditedFinishPrintRun } from './finishPrintSelection.js';
 
 export const REWARD_TITLES = {
+  uploadDesigns: 'Upload Models',
   modelDownloads: 'Download Models', modelLikes: 'Like 3D Model',
   modelCollections: 'Collection Models', finishPrint: 'Finish a Print',
   commentImage: 'Image comments', commentText: 'Comment on models', makeNow: 'Use MakeNow'
@@ -53,7 +54,7 @@ export function dailyProgress(config, runs = [], now = new Date()) {
   };
   // The account snapshot is separate from the execution log: remote work is never fabricated as a local execution.
   for (const [key, value] of Object.entries(config.dailyProgress?.tasks || {})) add(key, value);
-  const local = { creality: 0, modelDownloads: 0, modelLikes: 0, modelCollections: 0, finishPrint: 0, makeNow: 0, modelBoosts: 0, commentImage: 0, commentText: 0 };
+  const local = { uploadDesigns: 0, creality: 0, modelDownloads: 0, modelLikes: 0, modelCollections: 0, finishPrint: 0, makeNow: 0, modelBoosts: 0, commentImage: 0, commentText: 0 };
   for (const run of runs) {
     if (!sameDay(run.finishedAt || run.createdAt)) continue;
     const details = run.details || {};
@@ -81,7 +82,7 @@ export function dailyProgress(config, runs = [], now = new Date()) {
     const title = String(transaction.sourceType || '').toLowerCase();
     const key = Object.keys(REWARD_TITLES).find(id => REWARD_TITLES[id].toLowerCase() === title);
     // MakeNow credits can be issued after approval, on a different day from the action.
-    if (key && key !== 'makeNow') history[key] = (history[key] || 0) + 1;
+    if (key && !['makeNow', 'uploadDesigns'].includes(key)) history[key] = (history[key] || 0) + 1;
     if (transaction.type === 'Check-in diario') history.creality = 1;
     if (transaction.type === 'Impulsos dados') history.modelBoosts = 1;
   }
@@ -91,7 +92,7 @@ export function dailyProgress(config, runs = [], now = new Date()) {
     counters[key] = Math.max(local[key], observations[key]?.done || 0, history[key] || 0);
     if (key === 'makeNow' && observations[key]) counters[key] = observations[key].done;
     if (singles.includes(key)) counters[key] = Math.min(1, counters[key]);
-    limits[key] = observations[key]?.valid || ({ commentImage: 5, commentText: 1, modelDownloads: 30, finishPrint: 10 }[key] || 1);
+    limits[key] = observations[key]?.valid || ({ uploadDesigns: 5, commentImage: 5, commentText: 1, modelDownloads: 30, finishPrint: 10 }[key] || 1);
   }
   counters.comments = counters.commentImage + counters.commentText;
   limits.comments = limits.commentImage + limits.commentText;

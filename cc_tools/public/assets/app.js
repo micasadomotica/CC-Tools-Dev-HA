@@ -2399,6 +2399,7 @@ function scheduleTaskTypeText(taskId, fallback = 'Tarea') {
     modelBoosts: 'Impulsar diseños',
     modelLikes: 'Dar me gusta',
     rewardSync: 'Sincronización de recompensas',
+    uploadDesigns: 'Subir diseños',
     makeNow: 'Crear un proyecto',
     modelCollections: 'Añadir a la colección'
   })[taskId] || fallback || 'Tarea';
@@ -3641,8 +3642,8 @@ function renderRunDetails(run) {
   const items = [];
 
   for (const failure of failures) {
-    const title = escapeHtml(failure.title || 'Diseño desconocido');
-    const error = escapeHtml(failure.error || 'Error desconocido');
+    const title = escapeHtml(failure.title || failure.name || 'Diseño desconocido');
+    const error = escapeHtml(failure.error || failure.message || 'Error desconocido');
     const linkLabel = run.taskId === 'favoriteProfiles' ? 'Abrir perfil' : 'Abrir modelo';
     const url = failure.url ? ` · <a href="${escapeHtml(failure.url)}" target="_blank" rel="noreferrer">${linkLabel}</a>` : '';
     items.push(`<li><strong>${title}</strong>: ${error}${url}</li>`);
@@ -3672,6 +3673,11 @@ function renderRunDetails(run) {
     items.push(`<li><strong>${title}</strong>: ya tenía el me gusta aplicado; se omitió${url}</li>`);
   }
 
+  if (run.taskId === 'uploadDesigns') {
+    for (const design of run.details?.cleaned || []) items.push('<li><strong>' + escapeHtml(design.name) + '</strong>: archivos eliminados tras confirmar el modelo público.</li>');
+    for (const design of run.details?.uploaded || []) items.push('<li><strong>' + escapeHtml(design.name) + '</strong>: entregado · <a href="' + escapeHtml(design.url) + '" target="_blank" rel="noreferrer">Abrir modelo</a></li>');
+    if (run.details?.rewardPending) items.push('<li>Recompensa pendiente de aprobación. Se comprobará con el contador Upload Models.</li>');
+  }
   if (run.taskId === 'rewardSync') {
     for (const [key, value] of Object.entries(run.details?.dailyProgress || {})) {
       items.push('<li>' + escapeHtml(scheduleTaskTypeText(key)) + ': ' + escapeHtml(value.done + '/' + value.valid) + '</li>');
@@ -3872,6 +3878,7 @@ function taskLabel(taskId) {
     modelBoosts: 'Impulsar diseños',
     modelLikes: 'Dar me gusta',
     rewardSync: 'Sincronización de recompensas',
+    uploadDesigns: 'Subir diseños',
     makeNow: 'Crear un proyecto',
     modelCollections: 'Añadir a la colección',
     favoriteProfiles: 'Perfiles favoritos',
@@ -4018,3 +4025,5 @@ function escapeHtml(value) {
     "'": '&#039;'
   })[char]);
 }
+
+window.addEventListener('uploads-changed', () => refresh());

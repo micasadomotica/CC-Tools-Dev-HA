@@ -1,4 +1,5 @@
 const TRACKED_TASKS = new Set([
+  'uploadDesigns',
   'creality',
   'finishPrint',
   'modelDownloads',

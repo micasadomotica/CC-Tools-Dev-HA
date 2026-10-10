@@ -1,0 +1,57 @@
+CC Tools Dev 1.0.41
+
+CAMBIOS DESDE LA ÚLTIMA RELEASE 1.0.35
+- Nuevo módulo Subir diseños: biblioteca en /media/cctools_3d_models, escaneo y validación, importación desde el PC y selección de modelos.
+- Publicación manual y programación diaria de hasta cinco diseños, con registro de entregas para evitar duplicados, Logs y avisos por Telegram.
+- Recuento de Upload Models integrado y limpieza opcional desde el día siguiente, solo después de confirmar la publicación en el perfil público.
+- Formulario completo con categoría Impresoras 3D / Otro, etiquetas y descripción de info.txt, portadas, licencia, declaración de derechos y entrega.
+- Portada App opcional portada2 (3:4) e imágenes del modelo imagen1 a imagen9 (4:3), en JPG, JPEG, PNG o WebP.
+- Tarjeta con fechas sin segundos, fallos en rojo y contador según la cantidad programada. ZIP sin documentos de prueba ni LEEME de versiones anteriores.
+
+INSTALACIÓN Y ACTUALIZACIÓN
+1. Detén CC Tools Dev cuando no haya una tarea en curso.
+2. Copia el contenido de cc_tools del ZIP en /addons/cc_tools, conservando la instalación y sus datos.
+3. Recarga la tienda de aplicaciones de Home Assistant y actualiza a 1.0.41 o utiliza Reconstruir en tu instalación local.
+4. Inicia el complemento y recarga la interfaz. Conserva el slug cc_tools y el puerto externo 8088.
+El montaje de /media requiere escritura; viene incluido en config.yaml. Copiar archivos sin actualizar o reconstruir no actualiza la imagen ni sus permisos.
+Los TXT antiguos que ya estén en la carpeta de instalación pueden permanecer al sobrescribirla; no forman parte de este ZIP.
+
+ARCHIVOS POR DISEÑO
+Una subcarpeta dentro de /media/cctools_3d_models con:
+- Un .3mf con configuración de Creality Print o Bambu Studio.
+- info.txt en UTF-8.
+- Una portada web 4:3, por ejemplo portada.png (1200 × 900).
+Opcionales:
+- portada2.jpg, .jpeg, .png o .webp para la App, con proporción 3:4 (900 × 1200).
+- imagen1 a imagen9 con extensión .jpg, .jpeg, .png o .webp, con proporción 4:3. Se suben en orden numérico; puedes incluir solo las que necesites.
+No repitas un nombre opcional con extensiones distintas. Todas las imágenes deben ser estáticas. El escaneo detecta imágenes con nombres duplicados, proporciones incorrectas o archivos cambiados.
+Límites por archivo: 3MF 256 MB, cada imagen 20 MB, info.txt 32 KB. Hasta 500 carpetas; sin enlaces simbólicos ni copias duplicadas del mismo 3MF.
+
+FORMATO DE info.txt
+ETIQUETAS: caja, organizador [Añade etiquetas separadas por coma]
+DESCRIPCION: Descripción del modelo [Añade una breve descripción]
+Los textos entre corchetes son indicaciones: no se incluyen en el archivo. El ejemplo adjunto está listo para editar.
+Se acepta DESCRIPCIÓN con tilde, descripciones con varias líneas y etiquetas separadas por comas, punto y coma o saltos de línea. Máximo 20 etiquetas de 30 caracteres.
+Se omite el apartado final «Recomendaciones de impresión:» de las plantillas antiguas al preparar la publicación, sin modificar info.txt.
+
+MIS DISEÑOS Y SUBIDA
+Al abrir la rueda se escanea automáticamente la biblioteca. El icono de actualizar repite el escaneo.
+El botón de carpeta crea /media/cctools_3d_models si falta y permite seleccionar juntos los archivos obligatorios y opcionales de un diseño desde el PC. Cada importación crea una subcarpeta independiente.
+También puedes copiar una carpeta por diseño directamente en esa ruta.
+Elige modelos y pulsa Subir seleccionados. Se mantiene Original, Gratis, Público, nombre del archivo y categoría Impresoras 3D / Otro. La selección de otras categorías se deja para futuras versiones.
+Después de la portada web se añade portada2, si existe, confirmando ambos recortes; a continuación se suben las imágenes del modelo.
+Licencia CC BY-NC: Sí a las adaptaciones y No al uso comercial; No en la tercera pregunta cuando sea visible. Recomendación de filamento: No.
+Al subir o programar autorizas aceptar la declaración de derechos de autor para esos modelos. Se pulsa Confirmar en ese popup y se comprueba la casilla antes de Entregar.
+No se añaden archivos de instrucciones ni se rellena la descripción del ajuste de impresión.
+Solo se marca Entregado cuando Creality devuelve un identificador. Un resultado incierto bloquea nuevos intentos del archivo para evitar duplicados.
+
+PROGRAMACIÓN, RECOMPENSAS Y LIMPIEZA
+Elige horario, cantidad diaria y esa misma cantidad de diseños para el primer lote; pulsa Programar. La tarea aparece en Planificación.
+En los días siguientes se vuelve a escanear y se eligen diseños nuevos. Si faltan diseños se suben los disponibles; si no hay nuevos se registra el aviso. Telegram utiliza la configuración existente.
+El límite de cinco entregas diarias por cuenta se comparte entre manual y programación. Los envíos manuales no aplazan la próxima ejecución.
+El recuento periódico consulta Upload Models. La tarjeta refleja la recompensa confirmada frente al objetivo diario; una entrega todavía pendiente de aprobación no suma por sí sola.
+Limpiar diseños está desmarcado por defecto. Desde el día siguiente se verifica el identificador y su presencia en el perfil público. Solo se eliminan los archivos del envío, incluidas las imágenes opcionales, si no han cambiado y no hay archivos ajenos.
+El historial permanece en los datos del complemento aunque se limpien las carpetas. Los modelos inciertos, modificados o sin confirmación pública se conservan.
+
+VERIFICACIÓN
+El usuario confirmó la publicación real y el incremento de puntos con 1.0.40. Las imágenes opcionales de 1.0.41 se han probado con formularios y respuestas locales controlados; falta validarlas en Creality con una publicación real.
