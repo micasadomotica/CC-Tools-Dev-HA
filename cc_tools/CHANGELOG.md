@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.42 — integración de TitoTB 1.0.27
+
+- Integra los cambios de main de TitoTB 1.0.27 conservando las funciones de Dev 1.0.41.
+- Expone a Home Assistant la planificación pendiente con identificadores y revisión estables.
+- Añade el origen, inicio, límite de tiempo y estado de bloqueo de la ejecución activa a la API.
+- Proporciona los datos necesarios para el reinicio automático gestionado por la integración de Home Assistant; no añade un reinicio automático independiente dentro del complemento.
+- Mantiene la biblioteca, subida manual y programada de diseños, imágenes opcionales, recompensas y limpieza verificada.
+
 ## 1.0.41 — imágenes opcionales y publicación en Dev
 
 - Admite portada2 para la App en 3:4 y hasta nueve imágenes del modelo, imagen1 a imagen9, en 4:3. Acepta JPG, JPEG, PNG y WebP, con validación de nombres, duplicados, tamaño y proporción al escanear o importar desde el PC.

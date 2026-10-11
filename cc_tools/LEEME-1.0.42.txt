@@ -1,6 +1,12 @@
-CC Tools Dev 1.0.41
+CC Tools Dev 1.0.42
 
-CAMBIOS DESDE LA ÚLTIMA RELEASE 1.0.35
+CAMBIOS DE 1.0.42
+- Integración de TitoTB 1.0.27: planificación pendiente y revisión estable en la API de Home Assistant.
+- Estado detallado del planificador: origen, inicio, vencimiento y detección de bloqueo (stale).
+- Estos datos permiten a la integración compatible gestionar el reinicio automático. Esta versión no añade un reinicio independiente dentro del complemento.
+- Conserva las funciones de Dev 1.0.41 y el montaje /media con escritura.
+
+FUNCIONES INCORPORADAS DESDE 1.0.35
 - Nuevo módulo Subir diseños: biblioteca en /media/cctools_3d_models, escaneo y validación, importación desde el PC y selección de modelos.
 - Publicación manual y programación diaria de hasta cinco diseños, con registro de entregas para evitar duplicados, Logs y avisos por Telegram.
 - Recuento de Upload Models integrado y limpieza opcional desde el día siguiente, solo después de confirmar la publicación en el perfil público.
@@ -11,7 +17,7 @@ CAMBIOS DESDE LA ÚLTIMA RELEASE 1.0.35
 INSTALACIÓN Y ACTUALIZACIÓN
 1. Detén CC Tools Dev cuando no haya una tarea en curso.
 2. Copia el contenido de cc_tools del ZIP en /addons/cc_tools, conservando la instalación y sus datos.
-3. Recarga la tienda de aplicaciones de Home Assistant y actualiza a 1.0.41 o utiliza Reconstruir en tu instalación local.
+3. Recarga la tienda de aplicaciones de Home Assistant y actualiza a 1.0.42 o utiliza Reconstruir en tu instalación local.
 4. Inicia el complemento y recarga la interfaz. Conserva el slug cc_tools y el puerto externo 8088.
 El montaje de /media requiere escritura; viene incluido en config.yaml. Copiar archivos sin actualizar o reconstruir no actualiza la imagen ni sus permisos.
 Los TXT antiguos que ya estén en la carpeta de instalación pueden permanecer al sobrescribirla; no forman parte de este ZIP.
@@ -54,4 +60,4 @@ Limpiar diseños está desmarcado por defecto. Desde el día siguiente se verifi
 El historial permanece en los datos del complemento aunque se limpien las carpetas. Los modelos inciertos, modificados o sin confirmación pública se conservan.
 
 VERIFICACIÓN
-El usuario confirmó la publicación real y el incremento de puntos con 1.0.40. Las imágenes opcionales de 1.0.41 se han probado con formularios y respuestas locales controlados; falta validarlas en Creality con una publicación real.
+El usuario confirmó la publicación real y el incremento de puntos con 1.0.40. Las imágenes opcionales incorporadas en 1.0.41 se han probado con formularios y respuestas locales controlados; falta validarlas en Creality con una publicación real.

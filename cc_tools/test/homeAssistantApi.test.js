@@ -19,10 +19,40 @@ test('crea una instantánea estable para Home Assistant', () => {
   const state = buildHomeAssistantState({
     config,
     runs,
-    scheduler: { running: true, runningTask: 'modelDownloads' },
+    scheduler: {
+      running: true,
+      runningTask: 'modelDownloads',
+      runningSource: 'schedule',
+      startedAt: '2026-09-27T09:58:00.000Z',
+      timeoutAt: '2026-09-27T10:08:00.000Z',
+      stale: false
+    },
     browser: { active: true, mode: 'automation' },
     dailyCounters: { finishPrint: 1, modelDownloads: 2 },
     nextExecutions: { modelDownloads: '2026-09-27T10:00:00.000Z' },
+    schedule: [
+      {
+        taskId: 'modelDownloads',
+        label: 'Descarga de diseños',
+        detail: 'Diseño 3 de 30',
+        runAt: '2026-09-27T10:00:00.000Z',
+        status: 'pending'
+      },
+      {
+        taskId: 'comments',
+        label: 'Comentarios',
+        detail: 'Comentario 1 de 6',
+        runAt: '2026-09-27T10:20:00.000Z',
+        status: 'pending'
+      },
+      {
+        taskId: 'modelLikes',
+        label: 'Dar me gusta',
+        detail: 'Ejecución de hoy',
+        runAt: '2026-09-27T09:00:00.000Z',
+        status: 'done'
+      }
+    ],
     health: { state: 'active', successRate: 100 }
   });
 
@@ -30,10 +60,55 @@ test('crea una instantánea estable para Home Assistant', () => {
   assert.equal(state.account.name, 'Aguacatec');
   assert.equal(state.tasks.downloads.dailyCount, 2);
   assert.equal(state.scheduler.runningTask, 'downloads');
+  assert.equal(state.scheduler.runningSource, 'schedule');
+  assert.equal(state.scheduler.startedAt, '2026-09-27T09:58:00.000Z');
+  assert.equal(state.scheduler.stale, false);
+  assert.deepEqual(state.schedule.pending.map((item) => item.task), ['downloads', 'comments']);
+  assert.equal(state.schedule.pending[0].plannedAt, '2026-09-27T10:00:00.000Z');
+  assert.match(state.schedule.revision, /^[a-f0-9]{16}$/);
   assert.equal(state.printers[0].lastGcode, 'pieza.gcode');
   assert.equal(state.orders.pending, 1);
   assert.equal(state.orders.latest.status, 'Pendiente');
   assert.equal(state.orders.latest.title, 'Producto');
+});
+
+test('mantiene la revisión de planificación al consultar de nuevo o cambiar la ejecución activa', () => {
+  const config = fixtureConfig();
+  const schedule = [{ taskId: 'uploadDesigns', label: 'Subir diseños', detail: 'Un diseño', runAt: '2026-10-12T10:00:00.000Z', status: 'pending' }];
+  const first = buildHomeAssistantState({ config, schedule });
+  const active = buildHomeAssistantState({ config, schedule, scheduler: {
+    running: true, runningTask: 'uploadDesigns', runningSource: 'manual',
+    startedAt: '2026-10-11T10:00:00.000Z', timeoutAt: '2026-10-11T10:10:00.000Z', stale: true
+  } });
+  assert.deepEqual(first.schedule, active.schedule);
+  assert.equal(active.schedule.pending[0].task, 'uploadDesigns');
+  assert.equal(active.scheduler.runningTask, 'uploadDesigns');
+  assert.equal(active.scheduler.stale, true);
+  assert.equal(active.scheduler.timeoutAt, '2026-10-11T10:10:00.000Z');
+  assert.equal(active.scheduler.runningSource, 'manual');
+});
+
+test('actualiza la revisión al reprogramar o completar una tarea', () => {
+  const config = fixtureConfig();
+  const item = { taskId: 'modelDownloads', detail: 'Diseño 1', runAt: '2026-10-12T10:00:00.000Z', status: 'pending' };
+  const initial = buildHomeAssistantState({ config, schedule: [item] }).schedule;
+  const moved = buildHomeAssistantState({ config, schedule: [{ ...item, runAt: '2026-10-12T11:00:00.000Z' }] }).schedule;
+  const completed = buildHomeAssistantState({ config, schedule: [{ ...item, status: 'done' }] }).schedule;
+  assert.notEqual(initial.revision, moved.revision);
+  assert.notEqual(initial.pending[0].id, moved.pending[0].id);
+  assert.notEqual(initial.revision, completed.revision);
+  assert.deepEqual(completed.pending, []);
+});
+
+test('expone valores seguros sin ejecución ni planificación válida', () => {
+  const config = fixtureConfig();
+  const empty = buildHomeAssistantState({ config });
+  assert.equal(empty.scheduler.stale, false);
+  assert.equal(empty.scheduler.startedAt, '');
+  assert.equal(empty.scheduler.timeoutAt, '');
+  assert.deepEqual(empty.schedule.pending, []);
+  assert.deepEqual(buildHomeAssistantState({ config, schedule: null }).schedule, empty.schedule);
+  assert.deepEqual(buildHomeAssistantState({ config, schedule: [null, { status: 'pending' }] }).schedule, empty.schedule);
 });
 
 test('convierte ejecuciones en eventos deduplicables', () => {
