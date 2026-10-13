@@ -6,7 +6,7 @@
     <title>CC Tools Dev</title>
     <link rel="icon" type="image/png" href="/assets/app-icon.png">
     <link rel="stylesheet" href="/assets/styles.css?v=20260930-01">
-    <link rel="stylesheet" href="/assets/upload-designs.css?v=1.0.42">
+    <link rel="stylesheet" href="/assets/upload-designs.css?v=1.0.43">
   </head>
   <body>
     <header class="topbar">
@@ -505,9 +505,18 @@
               <p class="eyebrow">Logs</p>
               <h2>Últimas ejecuciones</h2>
             </div>
+            <button id="download-visible-logs" class="secondary logs-download-button" type="button">
+              <svg viewBox="0 0 512 512" aria-hidden="true"><path d="M256 0c17.7 0 32 14.3 32 32v218.7l73.4-73.3c12.5-12.5 32.8-12.5 45.3 0s12.5 32.8 0 45.3l-128 128c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l73.3 73.3V32c0-17.7 14.3-32 32-32zM64 352h96c17.7 0 32 14.3 32 32s-14.3 32-32 32H64v32h384v-32h-96c-17.7 0-32-14.3-32-32s14.3-32 32-32h96c35.3 0 64 28.7 64 64v32c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64v-32c0-35.3 28.7-64 64-64z"></path></svg>
+              <span>Descargar logs</span>
+            </button>
           </div>
           <div id="health-summary" class="health-summary" aria-live="polite"></div>
           <div id="runs" class="runs"></div>
+          <div class="pagination logs-pagination" aria-label="Paginación de logs">
+            <button id="logs-prev" class="secondary" type="button">Anterior</button>
+            <span id="logs-page">Página 1 de 1</span>
+            <button id="logs-next" class="secondary" type="button">Siguiente</button>
+          </div>
         </section>
       </section>
     </main>
@@ -1156,7 +1165,7 @@ DESCRIPCION: Descripción del modelo [Añade una breve descripción]</pre>
       </div>
     </div>
 
-    <script src="/assets/upload-designs.js?v=1.0.42" type="module"></script>
-    <script src="/assets/app.js?v=1.0.42" type="module"></script>
+    <script src="/assets/upload-designs.js?v=1.0.43" type="module"></script>
+    <script src="/assets/app.js?v=1.0.43" type="module"></script>
   </body>
 </html>

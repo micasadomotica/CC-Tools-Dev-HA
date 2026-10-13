@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import { pauseForExpiredSession } from '../src/sessionHealth.js';
 
 function harness(outcome) {
   const source = fs.readFileSync(new URL('../src/scheduler.js', import.meta.url), 'utf8');
@@ -10,7 +11,7 @@ function harness(outcome) {
   const writes = [], messages = [], runs = [];
   let attempts = 0;
   const context = vm.createContext({ Date, Number, Error, console,
-    activeRunToken: 1, taskExecutionTimeoutMs: () => 60000,
+    pauseForExpiredSession, activeRunToken: 1, taskExecutionTimeoutMs: () => 60000,
     beginSchedulerRun: () => 1, releaseSchedulerRun: () => {},
     executeMaintenanceWithTimeout: operation => operation(),
     writeConfig: async config => { writes.push(structuredClone(config)); },
@@ -75,4 +76,20 @@ test('un navegador ocupado conserva el objetivo sin notificar un error de canje'
   assert.equal(c.shopGoal.enabled, true);
   assert.equal(c.shopGoal.lastStatus, 'scheduled');
   assert.equal(h.messages.length, 0);
+});
+
+
+test('una sesión caducada conserva el objetivo y emite un único aviso', async () => {
+  const error = Object.assign(new Error('Sesión cerrada'), { code: 'LOGIN_REQUIRED' });
+  const h = harness(error), c = config();
+  c.shopGoal.lastMessage = 'Objetivo programado';
+  await h.run(c, new Date('2026-10-13T10:00:00Z'));
+  assert.equal(c.shopGoal.enabled, true);
+  assert.equal(c.shopGoal.lastStatus, 'scheduled');
+  assert.equal(c.shopGoal.lastMessage, 'Objetivo programado');
+  assert.equal(c.automationHealth.reasonCode, 'LOGIN_REQUIRED');
+  assert.equal(c.automationHealth.pausedUntil, '');
+  assert.match(h.messages[0], /Sesión de Creality Cloud cerrada/);
+  await h.run(c, new Date('2026-10-13T11:00:00Z'));
+  assert.equal(h.messages.length, 1);
 });

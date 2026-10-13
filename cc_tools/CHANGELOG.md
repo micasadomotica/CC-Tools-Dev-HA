@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.43 — integración de TitoTB 1.0.28
+
+- Integra TitoTB 1.0.28 y su corrección de instalación de Chromium en las pruebas, conservando las funciones de Dev 1.0.42.
+- Detecta sesiones caducadas, pausa las automatizaciones y confirma el nuevo inicio de sesión antes de reanudarlas.
+- Añade paginación y descarga de Logs, clasificación de la última ejecución y más diagnóstico del navegador y las impresoras.
+- Valida que los nuevos favoritos tengan diseños publicados y conserva ambos perfiles predeterminados y sus avatares actualizados.
+- Mejora la selección de región en los canjes y conserva la confirmación por número de pedido, las pausas ante resultados inciertos y la coordinación de tareas de Dev.
+- Mantiene Subir diseños, MakeNow, colecciones, contadores, Telegram con Perfil CC, el puerto 8088 y /media con escritura.
+
 ## 1.0.42 — integración de TitoTB 1.0.27
 
 - Integra los cambios de main de TitoTB 1.0.27 conservando las funciones de Dev 1.0.41.

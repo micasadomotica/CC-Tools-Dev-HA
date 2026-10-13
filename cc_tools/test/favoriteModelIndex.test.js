@@ -26,6 +26,17 @@ test('pospone la indexación inicial hasta completar el asistente', () => {
   assert.equal(shouldSyncConfiguredFavorites({ setup: { assistantCompleted: true } }), true);
 });
 
+test('un perfil vacío confirmado usa el intervalo normal de revisión', () => {
+  const now = Date.parse('2026-10-12T12:00:00.000Z');
+  const recent = {
+    indexStatus: 'empty',
+    indexedAt: '2026-10-12T10:00:00.000Z',
+    fullIndexedAt: '2026-10-12T10:00:00.000Z'
+  };
+  assert.equal(favoriteSyncPlan(recent, now).due, false);
+  assert.equal(favoriteSyncPlan({ ...recent, indexedAt: '2026-10-12T05:00:00.000Z' }, now).due, true);
+});
+
 test('alterna candidatos entre perfiles favoritos para repartir las tareas', () => {
   const candidates = selectFavoriteCandidates([
     design('a1', 'a', '2026-09-25T10:00:00Z'),

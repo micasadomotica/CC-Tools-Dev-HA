@@ -27,10 +27,10 @@ jobs:
           cache-dependency-path: cc_tools/package-lock.json
       - name: Install dependencies
         run: npm ci
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
       - name: Run tests
         run: npm test
-      - name: Install Chromium for check-in regression tests
-        run: npx playwright install --with-deps chromium
       - name: Test check-in reminder in browser
         run: npm run test:checkin:browser
       - name: Test reward counters with the real task-card structure
@@ -43,6 +43,10 @@ jobs:
         run: npm run test:shop:browser
       - name: Test confirmed empty favorite profiles in browser
         run: npm run test:favorites:browser
+      - name: Test log pagination and downloads in browser
+        run: npm run test:logs:browser
+      - name: Test design uploads in browser
+        run: npm run test:uploads:browser
 
   build:
     runs-on: ubuntu-latest

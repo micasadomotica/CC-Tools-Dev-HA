@@ -26,7 +26,7 @@ export async function redeemShopGoal(goal) {
     const page = context.pages()[0] || await context.newPage();
     let session = await openShopSession(page);
     const site = normalizeShopRegion(goal.region);
-    await selectShopRegion(page, site);
+    await selectShopRegion(page, site, goal.regionName);
     const catalogProduct = (await readCatalogProducts(page, session, site))
       .find((item) => item.id === goal.productId);
     if (!catalogProduct) {
@@ -38,7 +38,6 @@ export async function redeemShopGoal(goal) {
       };
     }
 
-    // Open the exact product, including products outside the first catalog page.
     session = await openShopSession(page, goal.productId);
     const detail = await shopRequest(page, SHOP_DETAIL_ENDPOINT, { id: goal.productId }, session.headers);
     const product = normalizeProduct(detail);
@@ -53,6 +52,7 @@ export async function redeemShopGoal(goal) {
     if (availablePoints < product.points) {
       return { success: false, insufficient: true, product, availablePoints };
     }
+
     if (Number(detail?.payMethod) === 2 || Number(detail?.minQuantity || 1) !== 1) {
       throw shopError('SHOP_GOAL_UNSUPPORTED', 'Este objetivo requiere otra moneda o una cantidad mínima distinta de una unidad. Revísalo en Creality Cloud.');
     }
@@ -84,27 +84,38 @@ async function readCatalogProducts(page, session, site) {
   return products;
 }
 
-async function selectShopRegion(page, site) {
+async function selectShopRegion(page, site, regionName = '') {
   const selector = page.locator('.site-select-header');
   if (!await selector.waitFor({ state: 'visible', timeout: 15000 }).then(() => true, () => false)) {
     throw shopError('SHOP_REGION_REQUIRED', 'Selecciona primero la región de la tienda en Creality Cloud y vuelve a programar el objetivo.');
   }
-  if ((await selector.innerText()).trim() === site) return;
+  const labels = [...new Set([String(regionName || '').trim(), site].filter(Boolean))];
+  const selectedSite = String(await selector.getAttribute('data-site').catch(() => '') || '').trim();
+  const selectedLabel = String(await selector.innerText().catch(() => '')).trim();
+  if (selectedSite.toUpperCase() === site || labels.includes(selectedLabel)) return;
+
   await selector.click();
-  const option = page.locator('.el-select-dropdown:visible').getByRole('option').filter({ has: page.getByText(site, { exact: true }) });
-  await option.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {});
-  if (await option.count() !== 1) {
+  let option = null;
+  for (const label of labels) {
+    const candidate = page.locator('.el-select-dropdown:visible [role="option"]')
+      .filter({ has: page.getByText(label, { exact: true }) });
+    if (await candidate.count() === 1) {
+      option = candidate;
+      break;
+    }
+  }
+  if (!option) {
     throw shopError('SHOP_REGION_UNVERIFIED', `No se pudo seleccionar la región ${site} de la tienda.`);
   }
-  const saved = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/rest/lottery/eshop/dtc/saveUserSite', { timeout: 15000 }).catch(() => null);
+  const saved = page.waitForResponse(
+    (response) => new URL(response.url()).pathname === '/api/rest/lottery/eshop/dtc/saveUserSite',
+    { timeout: 15000 }
+  ).catch(() => null);
   await option.click();
-  // Region changes can ask for confirmation when the profile country differs.
-  // Do not accept that mismatch automatically.
   const response = await saved;
   const result = await response?.json().catch(() => null);
-  const selected = response?.ok() && result?.code != null && Number(result.code) === 0
-    && await selector.getByText(site, { exact: true }).waitFor({ state: 'visible', timeout: 10000 }).then(() => true, () => false);
-  if (!selected) {
+  const accepted = response?.ok() && result?.code != null && Number(result.code) === 0;
+  if (!accepted) {
     throw shopError('SHOP_REGION_UNVERIFIED', `Confirma manualmente la región ${site} en la tienda de Creality Cloud antes de programar el canje.`);
   }
 }
@@ -143,7 +154,9 @@ export function normalizeProduct(value) {
     points,
     regularPoints,
     type: Number(value?.type),
-    available: ![0, 2].includes(Number(value?.stockStatus)) && ![1, 2, 3, 5, 6].includes(Number(value?.goodsStatus)) && (!Number.isFinite(stock) || stock > 0),
+    available: ![0, 2].includes(Number(value?.stockStatus))
+      && ![1, 2, 3, 5, 6].includes(Number(value?.goodsStatus))
+      && (!Number.isFinite(stock) || stock > 0),
     stock: Number.isFinite(stock) ? stock : null
   };
 }
@@ -261,7 +274,8 @@ export async function confirmShopRedemption(page, product, { timeoutMs = 15000, 
   } else {
     confirmation = page.locator('.el-dialog:visible').filter({ has: page.locator('.top-address') });
     await confirmation.waitFor({ state: 'visible', timeout: timeoutMs });
-    const hasAddress = await confirmation.locator('.top-address .address').waitFor({ state: 'visible', timeout: timeoutMs }).then(() => true, () => false);
+    const hasAddress = await confirmation.locator('.top-address .address')
+      .waitFor({ state: 'visible', timeout: timeoutMs }).then(() => true, () => false);
     if (!hasAddress) {
       throw shopError('SHOP_ADDRESS_REQUIRED', 'Añade una dirección de envío válida para la región de la tienda en Creality Cloud y vuelve a programar el objetivo.');
     }
@@ -272,7 +286,6 @@ export async function confirmShopRedemption(page, product, { timeoutMs = 15000, 
   if (await submit.count() !== 1 || !await submit.isVisible() || !await submit.isEnabled()) {
     throw shopError('SHOP_REDEEM_CONFIRMATION_NOT_FOUND', 'No se encontró una confirmación final válida para el canje.');
   }
-  // Observe the one final submission; never click it again after an uncertain result.
   const responsePromise = page.waitForResponse((response) => {
     if (!BUY_ENDPOINTS.includes(new URL(response.url()).pathname)) return false;
     const request = response.request();
@@ -280,7 +293,9 @@ export async function confirmShopRedemption(page, product, { timeoutMs = 15000, 
     try {
       const body = request.postDataJSON();
       return String(body?.id) === product.id && Number(body?.buyNum) === 1;
-    } catch { return false; }
+    } catch {
+      return false;
+    }
   }, { timeout: responseTimeoutMs }).catch(() => null);
   await submit.click();
   const response = await responsePromise;
@@ -289,7 +304,8 @@ export async function confirmShopRedemption(page, product, { timeoutMs = 15000, 
     throw shopError('SHOP_REDEEM_UNVERIFIED', 'No se pudo verificar la respuesta del canje. Comprueba el historial de pedidos de Creality Cloud antes de volver a programarlo.');
   }
   if (!response.ok() || Number(body.code) !== 0) {
-    const message = String(body.msg || body.message || 'Canje rechazado por Creality Cloud.').replace(/[\r\n]+/g, ' ').slice(0, 400);
+    const message = String(body.msg || body.message || 'Canje rechazado por Creality Cloud.')
+      .replace(/[\r\n]+/g, ' ').slice(0, 400);
     throw shopError('SHOP_REDEEM_REJECTED', `${message} (HTTP ${response.status()}, código ${body.code}).`);
   }
   const orderNumber = String(body.result?.orderNo || '').trim();

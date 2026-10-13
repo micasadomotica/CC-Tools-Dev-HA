@@ -103,3 +103,19 @@ test('MiCasaDomotica queda fijado al actualizar, sin duplicarse ni perder su ín
   assert.deepEqual(normalizeFavoriteProfiles(profiles), profiles);
   assert.deepEqual(normalizeFavoriteProfiles([]), DEFAULT_FAVORITE_PROFILES);
 });
+
+test('conserva el estado vacío confirmado de un perfil ya configurado', () => {
+  const profiles = normalizeFavoriteProfiles([{
+    userId: '123456789',
+    name: 'Maker',
+    profileUrl: 'https://www.crealitycloud.com/es/user/123456789',
+    indexStatus: 'empty',
+    indexedAt: '2026-10-12T08:00:00.000Z',
+    fullIndexedAt: '2026-10-12T08:00:00.000Z',
+    indexedModelCount: 0
+  }]);
+
+  const profile = profiles.find(item => item.userId === '123456789');
+  assert.equal(profile.indexStatus, 'empty');
+  assert.equal(profile.indexedModelCount, 0);
+});
