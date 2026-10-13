@@ -61,6 +61,31 @@ Al repartir módulos, ten en cuenta sus dependencias: **likes y colecciones requ
 
 La convivencia descrita utiliza la principal instalada desde el repositorio de TitoTB y Dev como aplicación local. Si ya tienes otra aplicación local ocupando `/addons/cc_tools`, no la sobrescribas para crear una segunda instalación: esa carpeta identifica tu aplicación local existente.
 
+## Usar Dev junto a Creality Cloud HA
+
+[Creality Cloud HA de TitoTB](https://github.com/TitoTB/Creality-Cloud-HA) · [Versión adaptada para reiniciar Dev](https://github.com/micasadomotica/Creality-Cloud-HA/releases/tag/v1.0.4-dev.1)
+
+Esta integración permite consultar en Home Assistant los datos que proporciona CC Tools. Para conectarla con **CC Tools Dev**, debes indicar su dirección en el puerto **8088**.
+
+Si todavía no tienes Creality Cloud HA instalada, sigue las instrucciones de su repositorio. Si ya la tienes, sigue estos pasos:
+
+1. **Detén temporalmente CC Tools de TitoTB** y mantén **CC Tools Dev** iniciado, con la sesión de Creality Cloud abierta.
+2. En Home Assistant, entra en **Ajustes > Dispositivos y servicios > Integraciones**, pulsa **Añadir integración** y busca **Creality Cloud**.
+3. Al estar detenida la aplicación de TitoTB, el asistente no podrá detectarla automáticamente y solicitará una URL. Introduce `http://IP_DE_HOME_ASSISTANT:8088`, sustituyendo `IP_DE_HOME_ASSISTANT` por la IP de tu equipo.
+4. Completa la configuración y comprueba que aparecen los datos de Dev. Después puedes volver a iniciar CC Tools de TitoTB y mantener el reparto de tareas descrito en el apartado anterior.
+
+Si ya habías añadido la misma cuenta de Creality Cloud, el asistente actualiza la URL de su entrada existente; no crea una segunda entrada para esa cuenta. El fork adaptado también recarga la conexión al cambiar la URL.
+
+**Reinicio automático:** la versión 1.0.3 de TitoTB sigue apuntando a su aplicación aunque configures la URL de Dev. Para reiniciar Dev, instala desde HACS el [fork adaptado de Creality Cloud HA](https://github.com/micasadomotica/Creality-Cloud-HA), sustituyendo la integración de TitoTB, y selecciona la versión beta **1.0.4-dev.1**. Ambas usan la misma integración y no se instalan en paralelo. Reinicia Home Assistant tras actualizarla.
+
+Con el fork instalado y conectado a Dev, activa **Reinicio automático** y comprueba que el atributo `restart_app` del interruptor indique `local_cc_tools`. La integración consulta a Supervisor para identificar la aplicación por su dirección y puerto reales; si no puede determinar el destino, bloquea el reinicio. Requiere una URL HTTP local directa. Esta versión ha superado las pruebas automáticas y está pendiente de validación real en Home Assistant.
+
+## Añadir a la colección (Collection Models)
+
+Guarda un diseño pendiente en **Default Collections** de tu cuenta y comprueba la recompensa diaria **Collection Models**. Requiere una sesión de Creality Cloud iniciada y **Descubrir diseños** activado en la misma instalación para su programación. Omite los diseños propios, los que ya están guardados y la acción si la recompensa diaria ya está completada.
+
+El guardado en colecciones fallaba desde los navegadores de PC y solo funcionaba desde la app móvil de Creality Cloud. Dev incorpora una vía de guardado directa para resolver ese problema. Dev obtiene el identificador del modelo de los datos de su ficha y envía el guardado directamente a la API de Creality Cloud con la sesión autenticada. Después recarga la ficha y consulta la recompensa. El punto solo se cuenta cuando Creality Cloud lo confirma; si el resultado es incierto, no vuelve a enviar el mismo modelo automáticamente.
+
 ## Crear un proyecto (MakeNow)
 
 El módulo consulta primero la recompensa diaria. Si está pendiente, revisa los cupos de Lampshade Generator, FrameStudio, ClickerMaker, FlexiWeave, CubeMe, SnapForm, MagicRelief y SignForge. Cada herramienta admite 30 proyectos. Elige la que tenga menos proyectos y espacio disponible, y pulsa **New Project** sin generar ni finalizar el proyecto. Quedan excluidos AI Create Lab, Fanforge-Football y FlexiToys.
@@ -68,6 +93,34 @@ El módulo consulta primero la recompensa diaria. Si está pendiente, revisa los
 En la configuración del módulo puedes consultar los últimos cupos leídos. Dev registra cada intento por perfil CC y guarda el identificador del proyecto cuando la web lo muestra. Si hay un corte después del clic, no repite la creación ese día; vuelve a consultar la recompensa. El contador diario solo se completa cuando Creality Cloud confirma la recompensa.
 
 Dev no elimina proyectos. Si todos los cupos están llenos, lo registra en el Log y avisa por Telegram si tienes activadas las notificaciones de error del módulo. Libera espacio manualmente en alguna herramienta y vuelve a ejecutar el módulo. Los proyectos que ya existían se incluyen en el cupo, pero no se atribuyen a Dev.
+
+## Subir diseños (Upload Models)
+
+Publica diseños desde una biblioteca local de Home Assistant, de forma manual o con una programación de **1 a 5 diseños diarios**. Requiere una sesión de Creality Cloud iniciada y el perfil de la cuenta actualizado en Dev.
+
+En la configuración del módulo, abre **Mis diseños** y pulsa el botón de carpeta para importar desde el PC los archivos de un diseño. Dev crea la biblioteca en `/media/cctools_3d_models`. También puedes copiar allí una subcarpeta por diseño y pulsar **Escanear carpeta**.
+
+Prepara estos archivos para cada diseño:
+
+| Archivo | Requisitos |
+|---|---|
+| Un `.3mf` | Con configuración de Creality Print o Bambu Studio; máximo 256 MB. Su nombre, sin extensión, se usa como título. |
+| Una portada web | JPG, JPEG, PNG o WebP estática, proporción **4:3**; máximo 20 MB. Por ejemplo, `portada.jpg`. |
+| `info.txt` | Texto UTF-8 con etiquetas y descripción; máximo 32 KB. Hasta 20 etiquetas de 30 caracteres cada una. |
+| Imágenes opcionales | `portada2` para la app en **3:4** e `imagen1` a `imagen9` en **4:3**, con cualquiera de las extensiones de imagen anteriores; máximo 20 MB por archivo. |
+
+Ejemplo de `info.txt`:
+
+```text
+ETIQUETAS: caja, organizador
+DESCRIPCION: Caja organizadora con compartimentos para piezas pequeñas.
+```
+
+Dev valida los archivos y detecta duplicados por su contenido. Selecciona los diseños y pulsa **Subir seleccionados**, o configura la cantidad diaria, la franja horaria y los diseños de la primera ejecución y pulsa **Programar**.
+
+La subida automatiza el formulario web de Creality Cloud: carga los archivos, completa las etiquetas y la descripción y entrega el diseño como **Original, Gratis y Público**, en **Impresoras 3D / Otro**, con licencia **CC BY-NC**. Al subir o programar autorizas que acepte la declaración de derechos de autor para esos diseños.
+
+La entrega queda registrada por cuenta para evitar duplicados. Si el resultado es incierto, revisa el **Banco de trabajo** de Creality antes de repetirla. Entregar un diseño no confirma la recompensa **Upload Models**: queda pendiente de aprobación. La limpieza local es opcional y está desactivada por defecto; desde el día siguiente comprueba que el diseño esté publicado antes de eliminar sus archivos, conservando los adicionales o modificados.
 
 ## Organización del fork
 
