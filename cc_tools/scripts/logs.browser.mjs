@@ -139,7 +139,8 @@ test('el indicador del avatar y la API de HA coinciden al abrir y perder la sesi
       await page.waitForFunction(expected => document.querySelector('#creality-session-indicator').title === expected, label);
       const indicator = page.locator('#creality-session-indicator');
       assert.equal(await indicator.evaluate(element => element.classList.contains('is-open')), scenario.open);
-      assert.equal(await indicator.evaluate(element => getComputedStyle(element).backgroundColor), scenario.open ? 'rgb(34, 180, 85)' : 'rgb(211, 58, 73)');
+      assert.equal(await indicator.evaluate(element => getComputedStyle(element).backgroundColor), scenario.open ? 'rgb(46, 232, 107)' : 'rgb(255, 64, 87)');
+      assert.equal(await indicator.evaluate(element => element.parentElement.id === 'creality-user-avatar'), false);
       assert.match(await page.locator('#creality-user-avatar').getAttribute('aria-label'), scenario.open ? /Sesión abierta/ : /Sesión cerrada/);
     }
     assert.deepEqual(errors, []);

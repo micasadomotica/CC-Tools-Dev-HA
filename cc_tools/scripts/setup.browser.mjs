@@ -85,6 +85,16 @@ test('Telegram conserva el paso del asistente y las descargas parten de 30', asy
     await page.locator('#close-models-config').click();
     await page.locator('#open-collections-config svg').click();
     assert.equal(await page.locator('#run-collections-now').isVisible(), true);
+    await page.locator('#close-collections-config').click();
+    await page.locator('#creality-user-avatar').click();
+    await page.locator('#creality-menu-settings').click();
+    assert.equal(await page.locator('#session-auto-login').isChecked(), false);
+    await page.locator('#session-auto-login').check();
+    const savedSession = page.waitForResponse(response => response.url().endsWith('/api/config') && response.request().method() === 'PATCH');
+    await page.locator('#save-session').click();
+    assert.equal((await savedSession).ok(), true);
+    await page.reload();
+    await page.waitForFunction(() => document.querySelector('#session-auto-login').checked === true);
     assert.deepEqual(errors, []);
   } finally { await page.close(); }
 });

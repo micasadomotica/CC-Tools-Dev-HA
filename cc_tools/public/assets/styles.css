@@ -212,6 +212,23 @@ label span {
   font-size: 0.76rem;
 }
 
+.session-auto-login-option {
+  margin-top: 18px;
+  align-items: flex-start;
+}
+
+.session-auto-login-option span {
+  display: grid;
+  gap: 4px;
+}
+
+.session-auto-login-option small {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 400;
+  line-height: 1.45;
+}
+
 .session-save-button {
   display: inline-flex;
   align-items: center;
@@ -316,19 +333,26 @@ label span {
 
 .creality-session-indicator {
   position: absolute;
+  z-index: 2;
   top: 2px;
   right: 2px;
-  width: 10px;
-  height: 10px;
-  border: 2px solid #151a20;
+  width: 11px;
+  height: 11px;
   border-radius: 50%;
-  background: #d33a49;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.38);
+  background: #ff4057;
+  box-shadow:
+    0 0 4px rgba(255, 64, 87, 0.95),
+    0 0 9px rgba(255, 64, 87, 0.72),
+    inset 0 1px 1px rgba(255, 255, 255, 0.8);
   pointer-events: none;
 }
 
 .creality-session-indicator.is-open {
-  background: #22b455;
+  background: #2ee86b;
+  box-shadow:
+    0 0 4px rgba(46, 232, 107, 0.98),
+    0 0 9px rgba(46, 232, 107, 0.75),
+    inset 0 1px 1px rgba(255, 255, 255, 0.8);
 }
 
 .creality-user-avatar:hover,

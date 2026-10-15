@@ -65,9 +65,9 @@ async function withCatalogue(full, callback, notice = null) {
 }
 
 test('espera la carga real del cupo, elige la menor ocupación y registra un único proyecto', async () => withCatalogue(false, async page => {
-  const reservations = [], updates = [];
+  const reservations = [], updates = [], records = [];
   const result = await selectAndCreateMakeNowProject(page, {
-    record: () => {},
+    record: message => records.push(message),
     reserveAttempt: async tool => { reservations.push(tool); return { attemptId: 'attempt-1' }; },
     updateAttempt: async (_attempt, patch) => updates.push(patch)
   });
@@ -78,6 +78,8 @@ test('espera la carga real del cupo, elige la menor ocupación y registra un ún
   assert.equal(reservations.length, 1);
   assert.equal(result.project.projectId, 'fixture-project');
   assert.ok(updates.some(patch => patch.status === 'created'));
+  assert.ok(records.some(message => message.includes('Editor abierto con identificador fixture-project') && message.includes('recompensa todavía no está confirmada')));
+  assert.equal(records.some(message => message.includes('Proyecto registrado')), false);
 }));
 
 test('con ocho cupos de 30/30 y botones deshabilitados avisa sin reservar ni pulsar', async () => withCatalogue(true, async page => {

@@ -1,12 +1,15 @@
-CC Tools Dev 1.0.44
+CC Tools Dev 1.0.45
 
-CAMBIOS DE 1.0.44
-- Integra TitoTB 1.0.29 conservando las funciones de Dev 1.0.43.
-- Indicador verde o rojo junto al avatar según el último estado conocido de la sesión. Se actualiza al confirmar el acceso y al refrescar el perfil o los contadores.
-- Detecta la redirección al centro de cuentas de Creality como sesión cerrada y mantiene ese diagnóstico aunque también haya errores de descarga.
-- La API de Home Assistant incluye el estado de sesión, la fecha de comprobación y el motivo.
-- Conserva Subir diseños, MakeNow, colecciones, Logs, canjes, ambos perfiles favoritos fijados, Telegram con Perfil CC, el puerto 8088 y /media con escritura.
-- Versión previa pendiente de validación en Home Assistant; Dev 1.0.43 queda como estable.
+CAMBIOS DE 1.0.45
+- Permite reintentar MakeNow manualmente el mismo día cuando una consulta nueva confirma 0/1. Mantiene el bloqueo de duplicados automáticos y el historial por perfil CC.
+- Distingue en el registro la apertura del editor, la recompensa pendiente y la recompensa confirmada. El identificador del editor no acredita el punto.
+- Integra todos los cambios de TitoTB desde 1.0.29 hasta 1.0.33 (etiqueta v1.0.33): indicador LED de sesión, comprobación antes de cada tarea, recuperación de sesión y aviso de cupones disponibles.
+- Añade Inicio de sesión automático, desactivado por defecto, con los datos recordados por el navegador y un intervalo de 30 minutos entre intentos automáticos fallidos. Si se requiere intervención, mantiene las tareas pausadas.
+- Unifica Puntos obtenidos hoy en Home Assistant con el indicador de CC Tools: suma solo movimientos positivos del día, sin restar gastos.
+- Conserva las funciones propias de Dev, sus dos perfiles favoritos predeterminados, el puerto 8088 y /media con escritura.
+
+MAKENOW: REINTENTO MANUAL
+Ejecutar ahora consulta de nuevo Use MakeNow. Si sigue en 0/1, permite otro intento aunque ya hubiera uno ese día; si está en 1/1, no abre otro proyecto. Cada intento conserva su registro. Un reintento puede abrir otro proyecto y consumir cupo: no elimina el anterior ni garantiza la aprobación de la recompensa. Los intentos automáticos siguen limitados a uno por día y perfil.
 
 FUNCIONES INCORPORADAS DESDE 1.0.35
 - Nuevo módulo Subir diseños: biblioteca en /media/cctools_3d_models, escaneo y validación, importación desde el PC y selección de modelos.
@@ -19,7 +22,7 @@ FUNCIONES INCORPORADAS DESDE 1.0.35
 INSTALACIÓN Y ACTUALIZACIÓN
 1. Detén CC Tools Dev cuando no haya una tarea en curso.
 2. Copia el contenido de cc_tools del ZIP en /addons/cc_tools, conservando la instalación y sus datos.
-3. Recarga la tienda de aplicaciones de Home Assistant y actualiza a 1.0.44 o utiliza Reconstruir en tu instalación local.
+3. Recarga la tienda de aplicaciones de Home Assistant y actualiza a 1.0.45 o utiliza Reconstruir en tu instalación local.
 4. Inicia el complemento y recarga la interfaz. Conserva el slug cc_tools y el puerto externo 8088.
 El montaje de /media requiere escritura; viene incluido en config.yaml. Copiar archivos sin actualizar o reconstruir no actualiza la imagen ni sus permisos.
 Los TXT antiguos que ya estén en la carpeta de instalación pueden permanecer al sobrescribirla; no forman parte de este ZIP.
@@ -62,4 +65,4 @@ Limpiar diseños está desmarcado por defecto. Desde el día siguiente se verifi
 El historial permanece en los datos del complemento aunque se limpien las carpetas. Los modelos inciertos, modificados o sin confirmación pública se conservan.
 
 VERIFICACIÓN
-Dev 1.0.43 está validada por el usuario en Home Assistant y publicada como estable. Los cambios de sesión de 1.0.44 se comprueban con pruebas automáticas y datos controlados; esta versión permanece como pre-release hasta completar la validación en Home Assistant.
+Versión Dev publicada como pre-release para validación en Home Assistant. Las pruebas automáticas utilizan datos controlados y no crean proyectos en una cuenta real.

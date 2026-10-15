@@ -38,7 +38,11 @@ const DEFAULT_CONFIG = {
   crealitySession: {
     authenticated: null,
     checkedAt: '',
-    reason: ''
+    reason: '',
+    autoLoginEnabled: false,
+    autoLoginLastAttemptAt: '',
+    autoLoginLastStatus: '',
+    autoLoginLastMessage: ''
   },
   crealityFavorites: DEFAULT_FAVORITE_PROFILES.map(profile => ({ ...profile })),
   automationHealth: {

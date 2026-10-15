@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.45 — MakeNow e integración de TitoTB 1.0.33
+
+- Permite reintentar MakeNow manualmente el mismo día cuando una consulta nueva confirma 0/1. Mantiene el bloqueo de duplicados automáticos y el historial por perfil CC.
+- Distingue en el registro la apertura del editor, la recompensa pendiente y la recompensa confirmada. El identificador del editor no acredita el punto.
+- Integra todos los cambios de TitoTB desde 1.0.29 hasta 1.0.33 (etiqueta v1.0.33): indicador LED de sesión, comprobación antes de cada tarea, recuperación de sesión y aviso de cupones disponibles.
+- Añade Inicio de sesión automático, desactivado por defecto, con los datos recordados por el navegador y un intervalo de 30 minutos entre intentos automáticos fallidos. Si se requiere intervención, mantiene las tareas pausadas.
+- Unifica Puntos obtenidos hoy en Home Assistant con el indicador de CC Tools: suma solo movimientos positivos del día, sin restar gastos.
+- Conserva las funciones propias de Dev, sus dos perfiles favoritos predeterminados, el puerto 8088 y /media con escritura.
+
 ## 1.0.44 — integración de TitoTB 1.0.29
 
 - Añade un indicador de sesión verde o rojo junto al avatar según el último estado conocido de Creality Cloud.

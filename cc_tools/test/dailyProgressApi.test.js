@@ -56,8 +56,10 @@ test('API: datos externos actualizan paneles, HA y planificación; una tarea com
     const ha=await request('/api/integration/status');
     assert.equal(ha.tasks.downloads.dailyCount,24);
     assert.equal(ha.tasks.downloads.dailyLimit,30);
-    const manual=await request('/api/tasks/makenow/run','POST');
-    assert.equal(manual.status,'skipped');
+    // MakeNow deliberately checks the live reward on manual runs, even with a cached 1/1.
+    const manual=await request('/api/tasks/model-likes/run','POST');
+    assert.equal(manual.ok,true,JSON.stringify(manual));
+    assert.equal(manual.result.status,'skipped');
     assert.equal((await request('/api/status')).browser.active,false);
     assert.doesNotMatch(logs,/browserType\.launch|chromium.*executable/i);
     const saved=await request('/api/config','PATCH',{modelDownloads:{enabled:true,dailyLimit:20,windowStart:'00:00',windowEnd:'23:59',minIntervalMinutes:10,cleanupAfterHours:1}});

@@ -4,6 +4,7 @@ import { chromium } from 'playwright';
 import { browserSessionDir } from './storage.js';
 import { inspectCrealityPage, normalizeCaughtError } from './crealityDiagnostics.js';
 import { isNavigationTimeout, navigateToCrealityPage } from './crealityNavigation.js';
+import { confirmAuthenticatedSession } from './sessionMonitor.js';
 
 const PROFILE_LOCK_FILES = ['SingletonLock', 'SingletonCookie', 'SingletonSocket', 'lock'];
 const SESSION_CHECK_URL = 'https://www.crealitycloud.com/es/workbench-beta/?type=1';
@@ -29,6 +30,7 @@ export async function withAutomationBrowser(options, callback) {
     activeBrowserVersion = activeContext.browser()?.version() || '';
     watchContext(activeContext);
     await assertAuthenticatedSession(activeContext);
+    await confirmAuthenticatedSession();
     return await callback(activeContext);
   } catch (error) {
     throw normalizeBrowserError(error);
@@ -116,6 +118,83 @@ export async function closeInteractiveBrowser() {
   if (activeMode !== 'interactive') return false;
   await closeActiveContext();
   return true;
+}
+
+export async function verifyPersistedSession() {
+  if (activeMode === 'automation') {
+    throw browserError('BROWSER_BUSY', 'Ya hay otra operación utilizando el navegador.', false);
+  }
+
+  if (activeMode === 'interactive' && activeContext) {
+    const page = activeContext.pages().find((candidate) => isCrealityApplicationPage(candidate.url()));
+    if (!page) {
+      return { checked: false, authenticated: false, reason: 'LOGIN_IN_PROGRESS' };
+    }
+    await assertAuthenticatedSession(activeContext, page);
+    const session = await confirmAuthenticatedSession();
+    return { checked: true, ...session };
+  }
+
+  let session = null;
+  await withAutomationBrowser({}, async () => {
+    session = { authenticated: true };
+  });
+  return { checked: true, ...(session || {}), authenticated: true };
+}
+
+export async function attemptRememberedSessionLogin() {
+  if (activeMode) {
+    return {
+      attempted: false,
+      authenticated: false,
+      reason: activeMode === 'interactive' ? 'LOGIN_IN_PROGRESS' : 'BROWSER_BUSY'
+    };
+  }
+
+  activeMode = 'automation';
+  try {
+    activeContext = await launchWithRecovery(
+      { ...baseOptions(), headless: true },
+      { allowHeadlessFallback: true }
+    );
+    activeBrowserVersion = activeContext.browser()?.version() || '';
+    watchContext(activeContext);
+    const page = activeContext.pages()[0] || await activeContext.newPage();
+
+    await page.goto(SESSION_CHECK_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    if (isCrealityIdentityPage(page.url())) {
+      await page.waitForURL(
+        (url) => isCrealityApplicationPage(url.toString()),
+        { timeout: 20000, waitUntil: 'domcontentloaded' }
+      ).catch(() => null);
+    }
+
+    if (!isCrealityApplicationPage(page.url())) {
+      return {
+        attempted: true,
+        authenticated: false,
+        reason: 'MANUAL_LOGIN_REQUIRED',
+        url: page.url()
+      };
+    }
+
+    await assertAuthenticatedSession(activeContext, page);
+    const session = await confirmAuthenticatedSession();
+    return { attempted: true, ...session, authenticated: true, url: page.url() };
+  } catch (error) {
+    const normalized = normalizeBrowserError(error);
+    if (normalized?.code === 'LOGIN_REQUIRED') {
+      return {
+        attempted: true,
+        authenticated: false,
+        reason: 'MANUAL_LOGIN_REQUIRED',
+        url: activeContext?.pages?.()[0]?.url?.() || ''
+      };
+    }
+    throw normalized;
+  } finally {
+    await closeActiveContext();
+  }
 }
 
 export function browserManagerState() {
@@ -318,8 +397,8 @@ async function closeActiveContext() {
   if (context) await context.close().catch(() => {});
 }
 
-async function assertAuthenticatedSession(context) {
-  const page = context.pages()[0] || await context.newPage();
+async function assertAuthenticatedSession(context, preferredPage = null) {
+  const page = preferredPage || context.pages()[0] || await context.newPage();
   const profileResponsePromise = page.waitForResponse(
     (response) => response.url().includes(SESSION_PROFILE_API_PATH),
     { timeout: 6000 }
@@ -369,6 +448,22 @@ async function assertAuthenticatedSession(context) {
   error.systemic = true;
   error.diagnostic = diagnostic;
   throw error;
+}
+
+export function isCrealityApplicationPage(url) {
+  try {
+    return new URL(String(url || '')).hostname === 'www.crealitycloud.com';
+  } catch {
+    return false;
+  }
+}
+
+export function isCrealityIdentityPage(url) {
+  try {
+    return new URL(String(url || '')).hostname === 'id.creality.com';
+  } catch {
+    return false;
+  }
 }
 
 export function profileSessionState(payload, httpStatus = 200) {

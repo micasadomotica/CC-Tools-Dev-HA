@@ -75,12 +75,12 @@ Puedes comunicar dudas, fallos y sugerencias en la [comunidad de Aguacatec en Te
 
 CC Tools no es una aplicación oficial ni está afiliada con Creality o Creality Cloud. Utiliza la herramienta bajo tu responsabilidad y respeta siempre las normas establecidas por la plataforma.
 
-## MakeNow (1.0.19, prueba local)
+## MakeNow (Dev 1.0.45)
 
 Activa MakeNow en Herramientas y configura su franja diaria. También puedes usar Ejecutar ahora. Utiliza la sesión de Creality Cloud existente y funciona sin activar Descubrir diseños.
 
-El flujo consulta Use MakeNow, abre Lampshade Generator y pulsa New Project. Después verifica la recompensa y cierra el navegador. Nunca usa AI Create Lab ni genera, guarda o finaliza el proyecto.
+El flujo consulta Use MakeNow, elige una herramienta permitida con espacio disponible y pulsa New Project. Después verifica la recompensa y cierra el navegador. Nunca usa AI Create Lab ni genera, guarda o finaliza el proyecto.
 
-Log muestra los pasos y si Creality Cloud confirmó la recompensa. Si ya estaba completada, no abre otro proyecto. Tras intentar el clic no se repite ese día, incluso si la confirmación tarda o se reinicia la app. Ejecutar ahora permite volver a consultar la recompensa sin repetir el clic. El día se determina según la zona horaria configurada. No se eliminan proyectos existentes.
+Log muestra los pasos y si Creality Cloud confirmó la recompensa. Si ya estaba completada, no abre otro proyecto. Tras intentar el clic no se repite automáticamente ese día, incluso si la confirmación tarda o se reinicia la app. Ejecutar ahora consulta de nuevo la recompensa y permite otro intento si confirma 0/1. El reintento puede consumir otro espacio y conserva el proyecto anterior. Si la lectura es incierta o la recompensa ya está en 1/1, no repite el clic. El identificador del editor no confirma la aprobación de la recompensa. El día se determina según la zona horaria configurada. No se eliminan proyectos existentes.
 
 Instalación local: sustituye la carpeta cc_tools de la app local por la de este ZIP y actualiza/reconstruye CC Tools Dev desde Home Assistant. Conserva el slug y los datos de la versión 1.0.18. Esta entrega no publica cambios en GitHub.

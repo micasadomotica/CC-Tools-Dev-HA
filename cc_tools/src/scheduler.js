@@ -32,8 +32,13 @@ import {
   shopOrdersRefreshDue,
   shippedShopOrderTransitions
 } from './shopOrdersState.js';
-import { abortAutomationBrowser } from './browserManager.js';
-import { pauseForExpiredSession } from './sessionHealth.js';
+import { abortAutomationBrowser, attemptRememberedSessionLogin, verifyPersistedSession } from './browserManager.js';
+import {
+  automaticLoginDue,
+  markAutomaticLoginAttempt,
+  pauseForExpiredSession,
+  resumeAfterAuthenticatedLogin
+} from './sessionHealth.js';
 
 const TASK_IDS = ['creality', 'finishPrint', 'modelDownloads', 'comments', 'modelBoosts', 'modelLikes', 'modelCollections', 'makeNow', 'uploadDesigns'];
 const MIN_AUTOMATION_GAP_MINUTES = 10;
@@ -443,6 +448,7 @@ async function tick() {
   if (running) return;
 
   let config = await readConfig();
+  if (await holdForAutomationHealth(config)) return;
   if (config.setup?.assistantCompleted && TASK_IDS.some(id => config.tasks[id]?.enabled)) {
     const sync = await synchronizeDailyProgress();
     if (sync.busy) return;
@@ -450,7 +456,6 @@ async function tick() {
   }
   if (running) return;
   if (await refreshScheduledShopOrders(config)) return;
-  if (await holdForAutomationHealth(config)) return;
   const runs = await readRuns();
   if (await redeemScheduledShopGoal(config)) return;
   await refreshDailyBoostAvailability(config);
@@ -1450,6 +1455,50 @@ function shouldNotify(config, status) {
 async function holdForAutomationHealth(config) {
   const health = config.automationHealth || {};
   if (health.state !== 'paused') return false;
+  if (health.reasonCode === 'LOGIN_REQUIRED') {
+    if (automaticLoginDue(config)) {
+      const attemptAt = new Date();
+      markAutomaticLoginAttempt(config, 'attempting', '', attemptAt);
+      await writeConfig(config);
+      try {
+        const automatic = await attemptRememberedSessionLogin();
+        if (automatic.authenticated) {
+          markAutomaticLoginAttempt(config, 'success', 'Sesión recordada restablecida.', attemptAt);
+          resumeAfterAuthenticatedLogin(config, null, new Date(automatic.checkedAt || Date.now()));
+          await writeConfig(config);
+          return false;
+        }
+        markAutomaticLoginAttempt(
+          config,
+          automatic.reason === 'MANUAL_LOGIN_REQUIRED' ? 'manual_required' : 'skipped',
+          automatic.reason === 'MANUAL_LOGIN_REQUIRED'
+            ? 'Creality Cloud requiere completar el inicio de sesión manualmente.'
+            : 'El navegador está siendo utilizado por otra operación.',
+          attemptAt
+        );
+        await writeConfig(config);
+      } catch (error) {
+        markAutomaticLoginAttempt(config, 'error', error?.message || String(error), attemptAt);
+        await writeConfig(config);
+        if (!['BROWSER_BUSY', 'SESSION_CHECK_UNAVAILABLE', 'CREALITY_SERVICE_UNAVAILABLE'].includes(error?.code)) {
+          console.warn('[session] Falló el inicio de sesión automático:', error?.message || String(error));
+        }
+      }
+      return true;
+    }
+    try {
+      const verification = await verifyPersistedSession();
+      if (verification.authenticated) {
+        resumeAfterAuthenticatedLogin(config, null, new Date(verification.checkedAt || Date.now()));
+        return false;
+      }
+    } catch (error) {
+      if (!['LOGIN_REQUIRED', 'BROWSER_BUSY', 'SESSION_CHECK_UNAVAILABLE'].includes(error?.code)) {
+        console.warn('[session] No se pudo comprobar la recuperación:', error?.message || String(error));
+      }
+    }
+    return true;
+  }
   const pausedUntil = Date.parse(health.pausedUntil || '');
   if (health.reasonCode === 'CREALITY_SERVICE_UNAVAILABLE'
     && Number.isFinite(pausedUntil)
