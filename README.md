@@ -73,8 +73,6 @@ Utiliza [**Creality Cloud Dev**](https://github.com/micasadomotica/Creality-Clou
 
 Mantén la integración de TitoTB conectada a CC Tools original y Creality Cloud Dev conectada a Dev. Las tareas programadas deben repartirse entre ambas aplicaciones para no duplicar acciones sobre la misma cuenta.
 
-**Si ya instalaste 1.0.5-dev o 1.0.4-dev.1 del fork anterior:** esas versiones usaban `creality_cloud` y sustituían la integración original. La integración nueva crea entidades distintas. No borres el hub antiguo antes de comprobar los datos y actualizar las referencias de tus automatizaciones y paneles. Consulta los [pasos de transición y revisión de impresoras duplicadas](https://github.com/micasadomotica/Creality-Cloud-Dev-HA#pasar-desde-105-dev-o-104-dev1-del-repositorio-anterior).
-
 La integración incluye el sensor **Sesión**, los vínculos de las impresoras de TitoTB 1.0.5 y el reinicio por destino configurado. CC Tools Dev **1.0.45** proporciona los datos necesarios y mantiene esa numeración: **1.0.6-dev.1** corresponde a la integración HACS independiente. Pre-release pendiente de validación real en Home Assistant.
 
 ## Añadir a la colección (Collection Models)
