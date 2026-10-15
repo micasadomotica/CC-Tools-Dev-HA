@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { executeMakeNow, attemptedToday, countMakeNowRun, MAKENOW_TITLE } from '../src/makeNowTask.js';
+import { createMakeNowJournal, lastProfileAttempt, MAKENOW_TOOLS } from '../src/makeNowProjects.js';
 import { updateNextRunAfterExecution } from '../src/scheduler.js';
 import { buildHealthMetrics } from '../src/healthMetrics.js';
 import { buildHomeAssistantState, buildHomeAssistantEvents, internalTaskId } from '../src/homeAssistantApi.js';
@@ -58,12 +59,75 @@ for (const final of [before, { found: false }]) {
   });
 }
 
-test('un reinicio o reintento el mismo día vuelve a verificar sin crear proyectos', async () => {
+test('un reinicio o reintento automático el mismo día vuelve a verificar sin crear proyectos', async () => {
   const { calls, dependencies } = harness();
   dependencies.now = new Date('2026-10-04T14:00:00Z');
   const result = await executeMakeNow({}, {}, { lastAttemptAt: '2026-10-04T10:00:00Z' }, dependencies);
   assert.equal(result.success, false);
   assert.deepEqual(calls, ['read']);
+});
+
+test('el reintento manual con 0/1 atraviesa ambos bloqueos y conserva el historial por perfil', async () => {
+  const now = new Date();
+  const previous = new Date(now.getTime() - 1).toISOString();
+  const profile = { userId: '42', name: 'Test' };
+  let saved = { crealityProfile: profile, tasks: { makeNow: { timezone: 'Europe/Madrid',
+    projectAccounts: { '42': { attempts: [{ attemptId: 'earlier', attemptedAt: previous, status: 'created', rewardStatus: 'not_credited' }] } }
+  } } };
+  const journal = createMakeNowJournal(profile, {
+    readConfig: async () => structuredClone(saved),
+    writeConfig: async config => { saved = structuredClone(config); }
+  });
+  const { calls, dependencies } = harness();
+  Object.assign(dependencies, journal, { source: 'manual', now,
+    openProject: async (_page, _observer, options) => {
+      const project = await options.reserveAttempt({ ...MAKENOW_TOOLS[0], used: 2, limit: 30 });
+      calls.push('click');
+      return { project };
+    }
+  });
+  const result = await executeMakeNow({}, {}, { lastAttemptAt: previous }, dependencies);
+  assert.equal(result.success, true);
+  assert.deepEqual(calls, ['read', 'click', 'verify']);
+  const attempts = saved.tasks.makeNow.projectAccounts['42'].attempts;
+  assert.equal(attempts.length, 2);
+  assert.equal(attempts[0].rewardStatus, 'not_credited');
+  assert.equal(attempts[1].source, 'manual');
+  assert.equal(attempts[1].manualRetry, true);
+  assert.equal(attempts[1].rewardStatus, 'credited');
+  assert.match(result.details.events.map(event => event.message).join('\n'), /Reintento manual permitido/);
+
+  calls.length = 0;
+  dependencies.source = 'schedule';
+  const automatic = await executeMakeNow({}, {}, { lastAttemptAt: lastProfileAttempt(saved.tasks.makeNow, '42') }, dependencies);
+  assert.equal(automatic.success, false);
+  assert.deepEqual(calls, ['read']);
+  assert.equal(saved.tasks.makeNow.projectAccounts['42'].attempts.length, 2);
+});
+
+for (const initial of [after, { found: false }, { found: true, completed: false }, { ...before, valid: 2 }]) {
+  test(`un reintento manual no crea proyectos sin confirmar 0/1: ${JSON.stringify(initial)}`, async () => {
+    const { calls, dependencies } = harness(initial);
+    dependencies.source = 'manual';
+    const run = executeMakeNow({}, {}, { lastAttemptAt: new Date().toISOString() }, dependencies);
+    if (!initial.found) await assert.rejects(run, { code: 'INCENTIVE_TASK_NOT_FOUND' });
+    else {
+      const result = await run;
+      assert.equal(result.success, initial.completed === true);
+    }
+    assert.deepEqual(calls, ['read']);
+  });
+}
+
+test('el reintento manual sin punto acreditado sigue pendiente y permite una nueva comprobación', async () => {
+  const { calls, dependencies } = harness(before, before);
+  dependencies.source = 'manual';
+  const result = await executeMakeNow({}, {}, { lastAttemptAt: new Date().toISOString() }, dependencies);
+  assert.deepEqual(calls, ['read', 'reserve', 'click', 'verify']);
+  assert.equal(result.success, false);
+  assert.equal(countMakeNowRun(result), 0);
+  assert.equal(result.details.rewardVerification.status, 'not_credited');
+  assert.match(result.message, /recompensa pendiente \(0\/1\)/);
 });
 
 test('el siguiente día permite un nuevo intento según la zona horaria', async () => {

@@ -141,7 +141,7 @@ export async function createMakeNowProject(page, tool, { reserveAttempt, updateA
   }
   const project = { ...attempt, ...(identity || {}), status: identity ? 'created' : 'clicked' };
   await updateAttempt?.(attempt, project);
-  record(identity ? `Proyecto registrado: ${identity.projectId}.` : 'Clic registrado; la web no expuso un identificador de proyecto.');
+  record(identity ? `Editor abierto con identificador ${identity.projectId}. La recompensa todavía no está confirmada.` : 'Clic registrado; no se detectó el identificador del editor. La recompensa todavía no está confirmada.');
   return project;
 }
 
@@ -194,6 +194,11 @@ export function lastProfileAttempt(task, profileId) {
   return !task.lastAttemptProfileId || task.lastAttemptProfileId === profileId ? task.lastAttemptAt : '';
 }
 
+export function canRetryMakeNowManually({ source, progress } = {}) {
+  return source === 'manual' && progress?.found === true && progress.done === 0
+    && progress.valid === 1 && progress.completed === false;
+}
+
 export function createMakeNowJournal(profile, storage = { readConfig, writeConfig }) {
   const profileId = String(profile?.userId || '').trim();
   const access = async () => {
@@ -214,14 +219,17 @@ export function createMakeNowJournal(profile, storage = { readConfig, writeConfi
       account.checkedAt = new Date().toISOString();
       await storage.writeConfig(config);
     },
-    async reserveAttempt(tool) {
+    async reserveAttempt(tool, options = {}) {
       const { config, task, account } = await access();
       const now = new Date();
       const day = value => new Intl.DateTimeFormat('en-CA', { timeZone: task.timezone || 'Europe/Madrid' }).format(new Date(value));
       const previous = lastProfileAttempt(task, profileId);
-      if (previous && Number.isFinite(Date.parse(previous)) && day(previous) === day(now)) throw projectError('MAKENOW_ALREADY_ATTEMPTED', 'Ya se intentó crear un proyecto hoy para este perfil CC.');
+      const attemptedToday = Boolean(previous && Number.isFinite(Date.parse(previous)) && day(previous) === day(now));
+      const manualRetry = canRetryMakeNowManually(options) && previous === options.previousAttemptAt;
+      if (attemptedToday && !manualRetry) throw projectError('MAKENOW_ALREADY_ATTEMPTED', 'Ya se intentó crear un proyecto hoy para este perfil CC. Un reintento manual requiere volver a comprobar que la recompensa sigue en 0/1.');
       const attempt = { attemptId: randomUUID(), profileId, profileName: account.profileName, toolId: tool.id, tool: tool.name,
-        attemptedAt: now.toISOString(), capacityBefore: { used: tool.used, limit: tool.limit }, status: 'reserved', rewardStatus: 'unverified' };
+        attemptedAt: now.toISOString(), capacityBefore: { used: tool.used, limit: tool.limit }, status: 'reserved', rewardStatus: 'unverified',
+        source: options.source || 'unknown', manualRetry: attemptedToday && manualRetry };
       account.attempts.push(attempt);
       task.lastAttemptAt = attempt.attemptedAt;
       task.lastAttemptProfileId = profileId;

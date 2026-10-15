@@ -1,6 +1,6 @@
 import { withAutomationBrowser } from './browserManager.js';
 import { readConfig } from './storage.js';
-import { MAKENOW_HOME, selectAndCreateMakeNowProject, createMakeNowJournal, lastProfileAttempt } from './makeNowProjects.js';
+import { MAKENOW_HOME, selectAndCreateMakeNowProject, createMakeNowJournal, lastProfileAttempt, canRetryMakeNowManually } from './makeNowProjects.js';
 import { observeCrealityPage, diagnoseTaskError, captureDiagnosticScreenshot } from './crealityDiagnostics.js';
 import { readIncentiveProgress, waitForIncentiveProgress, compareIncentiveProgress } from './incentiveTasks.js';
 
@@ -19,7 +19,7 @@ export async function runMakeNow(taskConfig = {}, options = {}) {
       return await executeMakeNow(page, observer, {
         ...taskConfig, lastAttemptAt: lastProfileAttempt(config.tasks.makeNow, profile?.userId)
       }, {
-        ...journal, events, signal: options.signal
+        ...journal, events, signal: options.signal, source: options.source
       });
     } catch (error) {
       if (error.silentRetry) throw error;
@@ -48,19 +48,26 @@ export async function executeMakeNow(page, observer, taskConfig = {}, dependenci
   const before = await readProgress(page, observer, MAKENOW_TITLE, {
     timezone: taskConfig.timezone, requireTaskList: true
   });
-  record('Consultada la recompensa Use MakeNow.');
   if (!before.found) throw taskError('INCENTIVE_TASK_NOT_FOUND', 'No se encontró la recompensa Use MakeNow.', 'reward');
+  record(`Consultada la recompensa Use MakeNow: ${before.done}/${before.valid}.`);
   if (before.completed) {
     record('La recompensa diaria ya estaba completada.');
     return { success: true, skipped: true, message: 'MakeNow: la recompensa diaria ya estaba completada.',
       details: { events, rewardVerification: { status: 'already_completed', before, after: before } } };
   }
+  const manualRetry = canRetryMakeNowManually({ source: dependencies.source, progress: before });
   if (attemptedToday(taskConfig.lastAttemptAt, taskConfig.timezone, dependencies.now)) {
-    record('Ya se intentó New Project hoy; no se repite el clic.');
-    return { success: false, message: 'MakeNow: ya se intentó abrir un proyecto hoy; recompensa todavía sin confirmar.',
-      details: { events, rewardVerification: { status: 'unverified', before, after: before } } };
+    if (!manualRetry) {
+      record('Ya hubo un intento hoy; se evita repetirlo automáticamente. El reintento manual requiere confirmar 0/1.');
+      return { success: false, message: 'MakeNow: intento diario realizado; recompensa sin confirmar. Puedes reintentar manualmente si sigue en 0/1.',
+        details: { events, rewardVerification: compareIncentiveProgress(before, before) } };
+    }
+    record('Reintento manual permitido: la consulta actual confirma 0/1. Se abrirá otro proyecto; el anterior se conserva.');
   }
-  const selection = await openProject(page, observer, { record, reserveAttempt: dependencies.reserveAttempt,
+  const selection = await openProject(page, observer, { record,
+    reserveAttempt: tool => dependencies.reserveAttempt(tool, {
+      source: dependencies.source, progress: before, previousAttemptAt: taskConfig.lastAttemptAt
+    }),
     updateAttempt: dependencies.updateAttempt, saveInventory: dependencies.saveInventory, signal: dependencies.signal });
   dependencies.signal?.throwIfAborted();
   const after = await waitProgress(page, observer, MAKENOW_TITLE, before, [0, 10000, 15000, 20000], {
@@ -69,10 +76,13 @@ export async function executeMakeNow(page, observer, taskConfig = {}, dependenci
   const verification = compareIncentiveProgress(before, after);
   const success = verification.status === 'credited';
   await dependencies.updateAttempt?.(selection?.project, { rewardStatus: verification.status, verifiedAt: new Date().toISOString() });
-  record(success ? 'Creality Cloud confirmó la recompensa MakeNow.' : 'Creality Cloud no confirmó la recompensa tras el clic.');
+  const pendingMessage = verification.status === 'not_credited'
+    ? `MakeNow: recompensa pendiente (${after.done}/${after.valid}). Abrir el editor no confirma su aprobación. Puedes reintentar manualmente si sigue en 0/1.`
+    : 'MakeNow: no se pudo verificar la recompensa después del clic. Vuelve a consultar antes de reintentar.';
+  record(success ? 'Creality Cloud confirmó la recompensa MakeNow (1/1).' : pendingMessage);
   return {
     success,
-    message: success ? 'MakeNow: recompensa diaria confirmada.' : 'MakeNow: New Project pulsado; recompensa sin confirmar. Revisa el Log.',
+    message: success ? 'MakeNow: recompensa diaria confirmada.' : pendingMessage,
     details: { events, ...selection, newProjectClicked: true, rewardVerification: verification }
   };
 }

@@ -1190,7 +1190,8 @@ export function delayPendingTaskPlan(taskConfig, taskId, delayedRunAt) {
 async function executePendingTask(taskId, taskConfig, options, config) {
   const runs = await readRuns();
   const progress = dailyProgress(config, runs);
-  if (!options.cleanupOnly && progress.counters[taskId] > 0 && progress.remaining[taskId] === 0) {
+  if (!(taskId === 'makeNow' && options.source === 'manual')
+    && !options.cleanupOnly && progress.counters[taskId] > 0 && progress.remaining[taskId] === 0) {
     return { success: true, skipped: true, message: 'El objetivo diario ya está completado según el progreso sincronizado.',
       details: { synchronized: true, dailyCount: progress.counters[taskId] } };
   }

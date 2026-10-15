@@ -92,3 +92,20 @@ test('el registro persiste por perfil, protege reintentos y conserva proyecto y 
 test('sin perfil conocido no atribuye proyectos a una cuenta inventada', async () => {
   await assert.rejects(createMakeNowJournal({}).reserveAttempt(state(MAKENOW_TOOLS[0])), { code: 'MAKENOW_PROFILE_REQUIRED' });
 });
+
+test('el registro rechaza reintentos sin lectura válida o con un intento posterior a la consulta', async () => {
+  const previous = new Date().toISOString();
+  let saved = { crealityProfile: { userId: '42' }, tasks: { makeNow: { lastAttemptAt: previous } } };
+  const journal = createMakeNowJournal(saved.crealityProfile, {
+    readConfig: async () => structuredClone(saved), writeConfig: async config => { saved = structuredClone(config); }
+  });
+  const valid = { source: 'manual', progress: { found: true, done: 0, valid: 1, completed: false }, previousAttemptAt: previous };
+  for (const options of [
+    { ...valid, source: 'schedule' }, { ...valid, source: undefined },
+    { ...valid, progress: { found: false } }, { ...valid, progress: { found: true, done: 1, valid: 1, completed: true } },
+    { ...valid, previousAttemptAt: '2020-01-01T00:00:00.000Z' }
+  ]) await assert.rejects(journal.reserveAttempt(state(MAKENOW_TOOLS[0]), options), { code: 'MAKENOW_ALREADY_ATTEMPTED' });
+  assert.equal(saved.tasks.makeNow.projectAccounts, undefined);
+  saved.crealityProfile.userId = '84';
+  await assert.rejects(journal.reserveAttempt(state(MAKENOW_TOOLS[0]), valid), { code: 'MAKENOW_PROFILE_CHANGED' });
+});
