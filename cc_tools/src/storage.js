@@ -35,6 +35,11 @@ const DEFAULT_CONFIG = {
     avatarUrl: '',
     updatedAt: ''
   },
+  crealitySession: {
+    authenticated: null,
+    checkedAt: '',
+    reason: ''
+  },
   crealityFavorites: DEFAULT_FAVORITE_PROFILES.map(profile => ({ ...profile })),
   automationHealth: {
     state: 'active',

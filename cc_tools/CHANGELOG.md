@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.44 — integración de TitoTB 1.0.29
+
+- Añade un indicador de sesión verde o rojo junto al avatar según el último estado conocido de Creality Cloud.
+- Reconoce la redirección al centro de cuentas como sesión cerrada y evita que un diagnóstico secundario de descarga oculte la pérdida de sesión.
+- Guarda el estado de sesión, la fecha de comprobación y el motivo; los expone en la API de Home Assistant.
+- Actualiza el indicador al confirmar el acceso y al refrescar el perfil o los contadores.
+- Conserva las funciones de Dev 1.0.43, sus dos perfiles favoritos predeterminados, el puerto 8088 y /media con escritura.
+
 ## 1.0.43 — integración de TitoTB 1.0.28
 
 - Integra TitoTB 1.0.28 y su corrección de instalación de Chromium en las pruebas, conservando las funciones de Dev 1.0.42.

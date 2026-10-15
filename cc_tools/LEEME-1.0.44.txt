@@ -1,12 +1,12 @@
-CC Tools Dev 1.0.43
+CC Tools Dev 1.0.44
 
-CAMBIOS DE 1.0.43
-- Integra TitoTB 1.0.28 conservando las funciones de Dev 1.0.42.
-- Detecta sesiones caducadas, pausa las automatizaciones y las reanuda tras confirmar el nuevo inicio de sesión.
-- Logs con páginas, descarga de los registros visibles y estado de la última ejecución.
-- Nuevos favoritos solo con diseños publicados; conserva Aguacatec y MiCasaDomotica fijados y la actualización de avatares.
-- Canjes con selección de región mejorada, pedido confirmado y pausa ante resultados inciertos.
-- Diagnósticos ampliados del navegador y las impresoras. Conserva el puerto 8088 y /media con escritura.
+CAMBIOS DE 1.0.44
+- Integra TitoTB 1.0.29 conservando las funciones de Dev 1.0.43.
+- Indicador verde o rojo junto al avatar según el último estado conocido de la sesión. Se actualiza al confirmar el acceso y al refrescar el perfil o los contadores.
+- Detecta la redirección al centro de cuentas de Creality como sesión cerrada y mantiene ese diagnóstico aunque también haya errores de descarga.
+- La API de Home Assistant incluye el estado de sesión, la fecha de comprobación y el motivo.
+- Conserva Subir diseños, MakeNow, colecciones, Logs, canjes, ambos perfiles favoritos fijados, Telegram con Perfil CC, el puerto 8088 y /media con escritura.
+- Versión previa pendiente de validación en Home Assistant; Dev 1.0.43 queda como estable.
 
 FUNCIONES INCORPORADAS DESDE 1.0.35
 - Nuevo módulo Subir diseños: biblioteca en /media/cctools_3d_models, escaneo y validación, importación desde el PC y selección de modelos.
@@ -19,7 +19,7 @@ FUNCIONES INCORPORADAS DESDE 1.0.35
 INSTALACIÓN Y ACTUALIZACIÓN
 1. Detén CC Tools Dev cuando no haya una tarea en curso.
 2. Copia el contenido de cc_tools del ZIP en /addons/cc_tools, conservando la instalación y sus datos.
-3. Recarga la tienda de aplicaciones de Home Assistant y actualiza a 1.0.43 o utiliza Reconstruir en tu instalación local.
+3. Recarga la tienda de aplicaciones de Home Assistant y actualiza a 1.0.44 o utiliza Reconstruir en tu instalación local.
 4. Inicia el complemento y recarga la interfaz. Conserva el slug cc_tools y el puerto externo 8088.
 El montaje de /media requiere escritura; viene incluido en config.yaml. Copiar archivos sin actualizar o reconstruir no actualiza la imagen ni sus permisos.
 Los TXT antiguos que ya estén en la carpeta de instalación pueden permanecer al sobrescribirla; no forman parte de este ZIP.
@@ -62,4 +62,4 @@ Limpiar diseños está desmarcado por defecto. Desde el día siguiente se verifi
 El historial permanece en los datos del complemento aunque se limpien las carpetas. Los modelos inciertos, modificados o sin confirmación pública se conservan.
 
 VERIFICACIÓN
-El usuario confirmó la publicación real y el incremento de puntos con 1.0.40. Las imágenes opcionales incorporadas en 1.0.41 se han probado con formularios y respuestas locales controlados; falta validarlas en Creality con una publicación real.
+Dev 1.0.43 está validada por el usuario en Home Assistant y publicada como estable. Los cambios de sesión de 1.0.44 se comprueban con pruebas automáticas y datos controlados; esta versión permanece como pre-release hasta completar la validación en Home Assistant.
