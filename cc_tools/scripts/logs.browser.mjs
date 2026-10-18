@@ -51,6 +51,51 @@ after(async () => {
   if (dataDir) { assert.equal(path.dirname(dataDir), path.resolve(os.tmpdir())); await fs.rm(dataDir, { recursive: true, force: true }); }
 });
 
+test('pedidos: refresco manual muestra carga, evita duplicados y conserva datos ante un error', async () => {
+  const page = await browser.newPage();
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  let forced = 0, releaseResponse;
+  const orders = { items: [{ id: 'test-order', title: 'Pedido de prueba', status: 'Pendiente', statusKind: 'pending', quantity: 1 }] };
+  await page.route('**/*', route => route.request().url().startsWith(baseUrl) ? route.continue() : route.abort());
+  await page.route('**/api/status?*', async route => {
+    const response = await route.fetch(); const status = await response.json();
+    status.config.setup.assistantCompleted = true;
+    await route.fulfill({ json: status });
+  });
+  for (const pattern of ['**/api/creality/profile/refresh', '**/api/progress/refresh', '**/api/points/**', '**/api/shop/**']) {
+    await page.route(pattern, route => route.fulfill({ json: { ok: false } }));
+  }
+  await page.route('**/api/shop/orders/refresh*', async route => {
+    if (!route.request().url().includes('force=1')) {
+      return route.fulfill({ json: { ok: true, orders } });
+    }
+    forced++;
+    await new Promise(resolve => { releaseResponse = resolve; });
+    await route.fulfill({ status: 409, json: { ok: false, error: 'SHOP_ORDERS_REFRESH_FAILED', orders } });
+  });
+  try {
+    await page.goto(baseUrl);
+    await page.locator('#points-counter').click();
+    await page.waitForFunction(() => document.querySelector('#points-shop-orders-list').textContent.includes('Pedido de prueba'));
+    const button = page.locator('#refresh-shop-orders');
+    await page.waitForFunction(() => !document.querySelector('#refresh-shop-orders').disabled);
+    await button.click();
+    await page.waitForFunction(() => document.querySelector('#refresh-shop-orders').classList.contains('is-loading'));
+    assert.equal(await button.isDisabled(), true);
+    assert.equal(forced, 1);
+    releaseResponse();
+    await page.waitForFunction(() => !document.querySelector('#refresh-shop-orders').disabled);
+    assert.equal(await button.evaluate(el => el.classList.contains('is-loading')), false);
+    assert.match(await page.locator('#points-shop-orders-list').innerText(), /Pedido de prueba/);
+    assert.deepEqual(errors, []);
+  } finally {
+    releaseResponse?.();
+    await page.unrouteAll({ behavior: 'wait' });
+    await page.close();
+  }
+});
+
 test('Logs pagina, conserva la página al refrescar y descarga solo los registros visibles', async () => {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1050 } });
   const errors = [];

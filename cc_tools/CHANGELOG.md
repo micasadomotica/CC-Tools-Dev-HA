@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.46 — pedidos y boosts de TitoTB 1.0.35
+
+- Integra las mejoras de TitoTB 1.0.34 y 1.0.35.
+- Añade Actualizar pedidos para consultar sin esperar 24 horas, con indicador de carga y conservación de los pedidos conocidos si falla la consulta.
+- Permite varios boosts manuales el mismo día mientras queden boletos; adapta el control de progreso de Dev y conserva el límite automático diario.
+- Comprueba el límite automático antes de abrir Chromium, revisa hasta tres candidatos por intento y los rota tras fallos.
+- Mejora el diagnóstico de boosts con los modelos revisados y los motivos de rechazo.
+- Conserva MakeNow con reintento manual, las funciones propias de Dev, el puerto 8088 y /media con escritura.
+
 ## 1.0.45 — MakeNow e integración de TitoTB 1.0.33
 
 - Permite reintentar MakeNow manualmente el mismo día cuando una consulta nueva confirma 0/1. Mantiene el bloqueo de duplicados automáticos y el historial por perfil CC.

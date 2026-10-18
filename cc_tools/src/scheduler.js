@@ -1195,7 +1195,7 @@ export function delayPendingTaskPlan(taskConfig, taskId, delayedRunAt) {
 async function executePendingTask(taskId, taskConfig, options, config) {
   const runs = await readRuns();
   const progress = dailyProgress(config, runs);
-  if (!(taskId === 'makeNow' && options.source === 'manual')
+  if (!(['makeNow', 'modelBoosts'].includes(taskId) && options.source === 'manual')
     && !options.cleanupOnly && progress.counters[taskId] > 0 && progress.remaining[taskId] === 0) {
     return { success: true, skipped: true, message: 'El objetivo diario ya está completado según el progreso sincronizado.',
       details: { synchronized: true, dailyCount: progress.counters[taskId] } };
@@ -1223,7 +1223,13 @@ function executeTask(taskId, taskConfig, options, config) {
   }
   if (taskId === 'modelDownloads') return runModelDownloads(taskConfig, ownershipOptions);
   if (taskId === 'comments') return runModelComment(taskConfig, ownershipOptions);
-  if (taskId === 'modelBoosts') return runModelBoost({ ...taskConfig, ownUserId: ownershipOptions.ownUserId });
+  if (taskId === 'modelBoosts') {
+    return runModelBoost({
+      ...taskConfig,
+      ownUserId: ownershipOptions.ownUserId,
+      executionSource: options.source
+    });
+  }
   if (taskId === 'modelLikes') return runModelAction('like_model', taskConfig, ownershipOptions);
   if (taskId === 'modelCollections') return runModelAction('add_to_collection', taskConfig, ownershipOptions);
   throw new Error(`Tarea desconocida: ${taskId}`);

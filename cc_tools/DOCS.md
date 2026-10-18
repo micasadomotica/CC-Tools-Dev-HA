@@ -83,4 +83,10 @@ El flujo consulta Use MakeNow, elige una herramienta permitida con espacio dispo
 
 Log muestra los pasos y si Creality Cloud confirmó la recompensa. Si ya estaba completada, no abre otro proyecto. Tras intentar el clic no se repite automáticamente ese día, incluso si la confirmación tarda o se reinicia la app. Ejecutar ahora consulta de nuevo la recompensa y permite otro intento si confirma 0/1. El reintento puede consumir otro espacio y conserva el proyecto anterior. Si la lectura es incierta o la recompensa ya está en 1/1, no repite el clic. El identificador del editor no confirma la aprobación de la recompensa. El día se determina según la zona horaria configurada. No se eliminan proyectos existentes.
 
-Instalación local: sustituye la carpeta cc_tools de la app local por la de este ZIP y actualiza/reconstruye CC Tools Dev desde Home Assistant. Conserva el slug y los datos de la versión 1.0.18. Esta entrega no publica cambios en GitHub.
+Instalación local: sustituye la carpeta cc_tools de la app local por la de este ZIP y actualiza/reconstruye CC Tools Dev desde Home Assistant. Conserva el slug y los datos de la instalación existente.
+
+## Pedidos y boosts (Dev 1.0.46)
+
+En el seguimiento de pedidos, Actualizar pedidos permite consultar el estado sin esperar al intervalo automático de 24 horas. El botón indica cuándo está consultando. Si falla la consulta, se conservan los pedidos conocidos. El botón de histórico abre los pedidos en Creality Cloud.
+
+Los boosts manuales pueden repetirse el mismo día aunque el objetivo diario ya esté completo, siempre que queden boletos y Creality Cloud permita impulsar el modelo. La programación mantiene el límite diario: si ya se consumió un boost, no realiza otro automáticamente. Cada intento revisa hasta tres modelos; tras un fallo, cambia el punto de inicio de la búsqueda y registra los modelos revisados y los motivos de rechazo.
