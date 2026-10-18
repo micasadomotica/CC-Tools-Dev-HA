@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.47 — selector de archivos de las portadas
+
+- Versión estable recomendada tras confirmar el usuario la subida real de diseños en Home Assistant.
+- Corrige el timeout de filechooser al subir diseños: pulsa el recuadro interior de imagen de portada, en lugar de la columna que contiene el título y espacio vacío.
+- Aplica la corrección a la portada web 4:3 y a la portada App 3:4. Mantiene la confirmación del recorte y las comprobaciones antes de entregar.
+- Añade una prueba que reproduce el fallo con la estructura actual de Creality y comprueba los selectores de ambas portadas.
+
 ## 1.0.46 — pedidos y boosts de TitoTB 1.0.35
 
 - Integra las mejoras de TitoTB 1.0.34 y 1.0.35.

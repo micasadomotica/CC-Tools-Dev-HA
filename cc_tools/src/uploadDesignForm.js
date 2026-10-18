@@ -120,14 +120,21 @@ export async function submitUploadForm(page, model, { beforeSubmit, signal, time
     }
     const coverBox = details.locator('.model-cover-content').first();
     async function uploadCover(index, file) {
-      const chooser = page.waitForEvent('filechooser', { timeout: 15000 }); chooser.catch(() => {});
-      await coverBox.locator('.upload-cover').nth(index).click();
-      await (await chooser).setFiles(file);
+      // The outer column includes the title and empty space. Only its inner
+      // image box opens the file input, for both the web and App covers.
+      const cover = coverBox.locator('.upload-cover').nth(index);
+      const trigger = cover.locator('.upload-cover-box');
+      await trigger.waitFor({ state: 'visible', timeout: 15000 });
+      const [chooser] = await Promise.all([
+        page.waitForEvent('filechooser', { timeout: 15000 }),
+        trigger.click({ timeout: 15000 })
+      ]);
+      await chooser.setFiles(file);
       const crop = page.locator('.el-dialog:visible').filter({ has: page.locator('.cropper-container') });
       await crop.waitFor({ state: 'visible', timeout: 15000 });
       await crop.getByRole('button', { name: /^(Confirmar|Confirm|Aceptar|Guardar)$/i }).click();
       await crop.waitFor({ state: 'hidden', timeout: 30000 });
-      await coverBox.locator('.upload-cover').nth(index).locator('.progress-content:visible').waitFor({ state: 'hidden', timeout: 60000 });
+      await cover.locator('.progress-content:visible').waitFor({ state: 'hidden', timeout: 60000 });
     }
     await uploadCover(0, model.coverPath);
     if (model.appCoverPath) await uploadCover(1, model.appCoverPath);

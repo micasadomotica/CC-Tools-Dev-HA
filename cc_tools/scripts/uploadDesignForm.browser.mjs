@@ -18,13 +18,13 @@ before(async()=>{
   browser=await chromium.launch({headless:true,...(process.platform==='win32'?{channel:'chrome'}:{})});
 });
 after(async()=>{await browser?.close();if(server)await new Promise(resolve=>{server.close(resolve);server.closeAllConnections();});if(base)await fs.rm(base,{recursive:true,force:true});});
-function form(invalid=false){return `<!doctype html><meta charset="utf-8"><style>[hidden]{display:none!important}input,button,[contenteditable]{min-height:24px} .el-dialog{position:fixed;top:10px;left:10px;background:white;padding:30px;z-index:10}.category-cascader{display:flex}.el-cascader-menu{height:180px;overflow:auto;width:220px}.el-cascader-node{position:relative;min-height:32px}.el-cascader-node .el-radio{position:absolute;top:0;bottom:0;left:10px;right:0;z-index:1}.closing{animation:closeMenu .4s linear}@keyframes closeMenu{from{transform:scaleY(1)}to{transform:scaleY(.8)}}.el-cascader-node input{opacity:0}</style>
+function form(invalid=false){return `<!doctype html><meta charset="utf-8"><style>[hidden]{display:none!important}input,button,[contenteditable]{min-height:24px} .upload-cover{height:260px;width:240px;display:inline-block;vertical-align:top}.upload-cover-box{width:90px;height:70px;background:#ddd;cursor:pointer}.upload-cover-box.width{height:120px} .el-dialog{position:fixed;top:10px;left:10px;background:white;padding:30px;z-index:10}.category-cascader{display:flex}.el-cascader-menu{height:180px;overflow:auto;width:220px}.el-cascader-node{position:relative;min-height:32px}.el-cascader-node .el-radio{position:absolute;top:0;bottom:0;left:10px;right:0;z-index:1}.closing{animation:closeMenu .4s linear}@keyframes closeMenu{from{transform:scaleY(1)}to{transform:scaleY(.8)}}.el-cascader-node input{opacity:0}</style>
 <div class="creality-print-content"><div class="upload-3mf"><input type="file" id="model" onchange="document.getElementById('plate').hidden=false"></div><div id="plate" class="plate-thumbnail" hidden>Plataforma 1</div></div>
 <div class="second-step" hidden>
 <div class="model-name-content"><input value="case"></div><div class="model-origin-content">Original</div><div class="model-set-price-content">Gratis</div>
 <div class="model-category-content"><input onclick="document.getElementById('categories').hidden=false" readonly></div><div class="category-cascader" id="categories" hidden><div class="el-cascader-menu"><div class="el-cascader-node" onmouseenter="document.getElementById('children').hidden=false" onclick="window.parentClicks++"><div>Impresoras 3D</div><label class="el-radio"><input type="radio" name="category" onclick="selectParent()"></label></div></div><div id="children" class="el-cascader-menu" hidden><div class="el-cascader-node">Piezas de impresora 3D</div><div class="el-cascader-node">Accesorios de impresora</div><div class="el-cascader-node">Modelos de prueba</div><div class="el-cascader-node"><div>Otro</div><label class="el-radio"><input type="radio" name="category" onclick="window.selectedScroll=document.getElementById('children').scrollTop;document.querySelector('.model-category-content input').value='Impresoras 3D / Otro';document.getElementById('categories').hidden=true"></label></div></div></div>
 <div class="model-tag-content"><input id="tags"></div>
-<div class="model-cover-content"><div class="upload-cover" onclick="document.getElementById('cover').click()">Portada</div><input id="cover" type="file" hidden onchange="window.cropKind='web';document.querySelector('.el-dialog').hidden=false"><div class="upload-cover" onclick="document.getElementById('appCover').click()">Portada App</div><input id="appCover" type="file" hidden onchange="window.cropKind='app';document.querySelector('.el-dialog').hidden=false"><div class="upload-cover-last"><input type="file" multiple onchange="galleryUpload(this)"><div id="gallery"></div></div></div>
+<div class="model-cover-content"><div class="upload-cover"><div class="clip-title">Portada web 4:3</div><div class="upload-cover-box" onclick="document.getElementById('cover').click()">Imagen de portada</div></div><input id="cover" type="file" hidden onchange="window.cropKind='web';document.querySelector('.el-dialog').hidden=false"><div class="upload-cover"><div class="clip-title">Portada App 3:4</div><div class="upload-cover-box width" onclick="document.getElementById('appCover').click()">Imagen de portada</div></div><input id="appCover" type="file" hidden onchange="window.cropKind='app';document.querySelector('.el-dialog').hidden=false"><div class="upload-cover-last"><input type="file" multiple onchange="galleryUpload(this)"><div id="gallery"></div></div></div>
 <div class="model-license-content"><div class="radio-item"><label><input type="radio" name="adapt" value="1" onchange="if(!window.keepThird)document.getElementById('redistribute').hidden=true">Sí</label><label><input type="radio" name="adapt" value="2" checked>No</label></div><div class="radio-item"><label><input type="radio" name="commerce" value="1" checked>Sí</label><label><input type="radio" name="commerce" value="2">No</label></div><div class="radio-item" id="redistribute"><label><input type="radio" name="redistribute" value="1" checked>Sí</label><label><input type="radio" name="redistribute" value="2">No</label></div></div>
 <div class="material-box"><label><input type="radio" name="filament" value="true" checked>Sí</label><label><input type="radio" name="filament" value="false">No</label></div>
 <div class="model-share-content"><input type="radio" name="share" value="1">Público</div>
@@ -67,6 +67,23 @@ test('recorre 3MF, categoría, etiquetas, recorte, licencia, descripción y entr
   assert.equal(await page.locator('.model-instructions-content input').evaluate(el=>el.files.length),0);
   assert.equal(await page.locator('.model-detail-content3 [contenteditable]').innerText(),'');
 });
+test('las columnas de portada no abren el selector; los recuadros interiores sí abren el archivo correcto',async t=>{
+  const page=await setup(t);await page.goto(CREATE_MODEL_URL);await page.locator('footer .step-one-btn').click();
+  let chooserCount=0;page.on('filechooser',()=>chooserCount++);
+  for(const [index,id] of ['cover','appCover'].entries()){
+    const column=page.locator('.model-cover-content .upload-cover').nth(index);
+    await column.click();
+    assert.equal(chooserCount,index);
+    const [chooser]=await Promise.all([page.waitForEvent('filechooser',{timeout:2000}),column.locator('.upload-cover-box').click()]);
+    assert.equal(await chooser.element().getAttribute('id'),id);
+    await chooser.setFiles(model.coverPath);
+    await page.locator('.el-dialog:visible').filter({has:page.locator('.cropper-container')}).getByRole('button',{name:'Confirmar',exact:true}).click();
+  }
+  assert.equal(chooserCount,2);
+  assert.deepEqual(await page.evaluate(()=>window.uploadOrder),['web','app']);
+  assert.equal(requests.length,0);
+});
+
 test('reproduce texto cubierto y cierre diferido; selecciona Otro con hover sobre la fila y un solo clic en Otro',async t=>{
   const page=await setup(t);await page.goto(CREATE_MODEL_URL);await page.locator('footer .step-one-btn').click();
   await page.locator('.model-category-content input').click();

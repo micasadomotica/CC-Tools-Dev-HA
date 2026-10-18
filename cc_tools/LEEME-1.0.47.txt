@@ -1,6 +1,12 @@
-CC Tools Dev 1.0.46
+CC Tools Dev 1.0.47
 
-CAMBIOS DE 1.0.46
+CAMBIOS DE 1.0.47
+- Corrige la apertura del selector de archivos de las portadas web y App: pulsa el recuadro de imagen que contiene el control de carga.
+- Evita el timeout de 15 segundos causado por pulsar espacio vacío de la columna.
+- Conserva Confirmar en el recorte, la declaración de derechos y las validaciones antes de Entregar.
+- Versión estable recomendada, con la subida real de diseños confirmada por el usuario en Home Assistant.
+
+CAMBIOS CONSERVADOS DE 1.0.46
 - Integra las mejoras de TitoTB 1.0.34 y 1.0.35.
 - Añade Actualizar pedidos para consultar sin esperar 24 horas, con indicador de carga y conservación de los pedidos conocidos si falla la consulta.
 - Permite varios boosts manuales el mismo día mientras queden boletos; adapta el control de progreso de Dev y conserva el límite automático diario.
@@ -68,4 +74,4 @@ Limpiar diseños está desmarcado por defecto. Desde el día siguiente se verifi
 El historial permanece en los datos del complemento aunque se limpien las carpetas. Los modelos inciertos, modificados o sin confirmación pública se conservan.
 
 VERIFICACIÓN
-Versión Dev publicada como pre-release para validación en Home Assistant. Las pruebas automáticas utilizan datos controlados y no crean proyectos en una cuenta real.
+El usuario confirmó que la subida real de diseños funciona con 1.0.47 en Home Assistant. Se ha reproducido el timeout con el código anterior y comprobado la corrección con 478 pruebas automáticas y 14 pruebas de navegador. Las pruebas automáticas utilizan datos y formularios controlados; la confirmación real procede de la prueba del usuario.

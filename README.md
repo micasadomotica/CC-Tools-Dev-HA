@@ -4,9 +4,9 @@ CC Tools Dev es la edición de desarrollo de este fork de [CC Tools de TitoTB](h
 
 Se instala como aplicación local y utiliza el puerto **8088**. Puede convivir con la aplicación de TitoTB instalada desde su repositorio, que utiliza el puerto **8080** por defecto.
 
-**Última versión estable: [1.0.46](https://github.com/micasadomotica/CC-Tools-HA/releases/tag/dev-v1.0.46)**, probada en Home Assistant y con funcionamiento correcto confirmado. Integra las mejoras de TitoTB 1.0.34 y 1.0.35: actualización manual de pedidos y boosts manuales adicionales con boletos disponibles, manteniendo el límite automático diario.
+**Versión estable recomendada: [CC Tools Dev 1.0.47](https://github.com/micasadomotica/CC-Tools-HA/releases/tag/dev-v1.0.47)**, probada en Home Assistant, con la subida real de diseños confirmada tras corregir la apertura del selector de portada. Conserva las mejoras de TitoTB 1.0.34 y 1.0.35, la actualización manual de pedidos y los boosts manuales adicionales con boletos disponibles.
 
-[Descargar ZIP 1.0.46](https://github.com/micasadomotica/CC-Tools-HA/releases/download/dev-v1.0.46/cc-tools-dev-1.0.46.zip) · [Todas las versiones](https://github.com/micasadomotica/CC-Tools-HA/releases) · [Código de Dev](https://github.com/micasadomotica/CC-Tools-HA/tree/dev)
+[Descargar ZIP 1.0.47](https://github.com/micasadomotica/CC-Tools-HA/releases/download/dev-v1.0.47/cc-tools-dev-1.0.47.zip) · [Todas las versiones](https://github.com/micasadomotica/CC-Tools-HA/releases) · [Código de Dev](https://github.com/micasadomotica/CC-Tools-HA/tree/dev)
 
 Las novedades y correcciones de cada versión se describen en su release. Las publicaciones marcadas como **Pre-release** están pendientes de validación completa en Home Assistant.
 
@@ -75,7 +75,7 @@ Utiliza [**Creality Cloud Dev**](https://github.com/micasadomotica/Creality-Clou
 
 Mantén la integración de TitoTB conectada a CC Tools original y Creality Cloud Dev conectada a Dev. Las tareas programadas deben repartirse entre ambas aplicaciones para no duplicar acciones sobre la misma cuenta.
 
-La integración incluye el sensor **Sesión**, los vínculos de las impresoras de TitoTB 1.0.5 y el reinicio por destino configurado. CC Tools Dev **1.0.46** es estable y proporciona los datos necesarios. La versión **1.0.6-dev.1** corresponde a la integración HACS independiente Creality Cloud Dev, que mantiene su estado de pre-release.
+La integración incluye el sensor **Sesión**, los vínculos de las impresoras de TitoTB 1.0.5 y el reinicio por destino configurado. CC Tools Dev **1.0.47** es estable y proporciona los datos necesarios. La versión **1.0.6-dev.1** corresponde a la integración HACS independiente Creality Cloud Dev, que mantiene su estado de pre-release.
 
 ## Añadir a la colección (Collection Models)
 
