@@ -65,17 +65,17 @@ La convivencia descrita utiliza la principal instalada desde el repositorio de T
 
 ## Usar Dev junto a Creality Cloud HA
 
-Utiliza [**Creality Cloud Dev**](https://github.com/micasadomotica/Creality-Cloud-Dev-HA) para CC Tools Dev. Es una integración independiente con dominio `creality_cloud_dev`, compatible con tener instalada [Creality Cloud de TitoTB](https://github.com/TitoTB/Creality-Cloud-HA), cuyo dominio es `creality_cloud`. El mismo perfil de Creality puede aparecer en ambas sin que se sustituya la conexión del otro hub.
+Utiliza [**Creality Cloud Dev 1.0.6-dev.1**](https://github.com/micasadomotica/Creality-Cloud-Dev-HA/releases/tag/v1.0.6-dev.1) para CC Tools Dev. Esta versión está probada y validada en Home Assistant. Es una integración independiente con dominio `creality_cloud_dev`, compatible con tener instalada [Creality Cloud de TitoTB](https://github.com/TitoTB/Creality-Cloud-HA), cuyo dominio es `creality_cloud`. El mismo perfil de Creality puede aparecer en ambas sin que se sustituya la conexión del otro hub.
 
 1. En HACS, añade `https://github.com/micasadomotica/Creality-Cloud-Dev-HA` como repositorio personalizado de tipo **Integración**.
-2. Activa las versiones beta y descarga [**1.0.6-dev.1**](https://github.com/micasadomotica/Creality-Cloud-Dev-HA/releases/tag/v1.0.6-dev.1). Requiere **Home Assistant 2026.8 o posterior**. Reinicia Home Assistant tras instalarla.
+2. Descarga [**1.0.6-dev.1**](https://github.com/micasadomotica/Creality-Cloud-Dev-HA/releases/tag/v1.0.6-dev.1). Requiere **Home Assistant 2026.8 o posterior**. Reinicia Home Assistant tras instalarla.
 3. En **Ajustes > Dispositivos y servicios > Añadir integración**, selecciona **Creality Cloud Dev** e introduce `http://IP_DE_HOME_ASSISTANT:8088`, o el puerto configurado para Dev. Siempre pide la URL; no necesitas detener CC Tools original.
 4. Comprueba el hub con el nombre del perfil y el sufijo **Dev**. Para cambiar su dirección, utiliza **Reconfigurar**. Añadir la misma cuenta otra vez no cambia silenciosamente su URL.
 5. Si activas **Reinicio automático**, comprueba que los atributos `restart_app` y `restart_app_name` correspondan a Dev, normalmente `local_cc_tools` / CC Tools Dev. Se verifica el destino con Supervisor por dirección y puerto; si es ambiguo o remoto, no se reinicia ninguna aplicación.
 
 Mantén la integración de TitoTB conectada a CC Tools original y Creality Cloud Dev conectada a Dev. Las tareas programadas deben repartirse entre ambas aplicaciones para no duplicar acciones sobre la misma cuenta.
 
-La integración incluye el sensor **Sesión**, los vínculos de las impresoras de TitoTB 1.0.5 y el reinicio por destino configurado. CC Tools Dev **1.0.47** es estable y proporciona los datos necesarios. La versión **1.0.6-dev.1** corresponde a la integración HACS independiente Creality Cloud Dev, que mantiene su estado de pre-release.
+La integración incluye el sensor **Sesión**, los vínculos de las impresoras de TitoTB 1.0.5 y el reinicio por destino configurado. CC Tools Dev **1.0.47** es estable y proporciona los datos necesarios. La versión **1.0.6-dev.1** corresponde a la integración HACS independiente Creality Cloud Dev y está publicada como **Latest**.
 
 ## Añadir a la colección (Collection Models)
 
