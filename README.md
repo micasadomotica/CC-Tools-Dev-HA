@@ -123,12 +123,11 @@ La entrega queda registrada por cuenta para evitar duplicados. Si el resultado e
 
 ## Organización del fork
 
-- **`main`** sigue la rama principal de TitoTB y sirve como base para preparar aportaciones.
-- **`dev`** contiene la edición Dev completa, incluidas funciones propias que no se enviarán al proyecto original.
+- **`dev`** es la rama predeterminada del repositorio y contiene la edición Dev completa, incluidas funciones propias que no se enviarán al proyecto original.
 - **`feat/nombre-del-cambio`** contiene únicamente los cambios de una aportación concreta.
 - Las releases Dev usan etiquetas **`dev-vX.Y.Z`** y adjuntan el ZIP de instalación. Los ZIP no se guardan dentro del código.
 
-Para proponer una función al proyecto original se crea una rama desde `main` y se trasladan solo los cambios necesarios. Se conserva la atribución y la licencia del proyecto original.
+La rama `main` de este fork se ha retirado; su historial permanece incluido en `dev`. Para revisar cambios de TitoTB o preparar una aportación, se utiliza la rama `main` de su repositorio original (`upstream/main`) y se trasladan solo los cambios necesarios a una rama específica. Se conserva la atribución y la licencia del proyecto original.
 
 ## Soporte
 
