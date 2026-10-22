@@ -24,6 +24,10 @@ export function uploadDesignRoutes(library = uploadLibrary, services = {}) {
         available: item.valid && !['submitting', 'submitted', 'uncertain'].includes(ledger[item.modelHash]?.status) })) };
   }
   router.get('/', json(async () => view(await library.status())));
+  router.put('/category', json(async req => {
+    if (!req.body?.category || !req.body?.subcategory) throw new Error('Selecciona una categoría y una subcategoría.');
+    return view(await library.saveDefaultCategory(req.body));
+  }));
   router.post('/scan', json(async () => view(await library.scan())));
   router.post('/library', json(() => library.ensureRoot()));
   router.post('/imports', json(() => library.beginImport()));

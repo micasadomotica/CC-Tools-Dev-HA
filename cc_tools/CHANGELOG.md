@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.49 — categorías de subida y aviso de capacidad de impresión
+
+- Añade diez categorías y 45 subcategorías al módulo Subir diseños. La selección se guarda al cambiarla y se aplica a las subidas manuales y programadas sin categoría propia.
+- Admite la línea opcional CATEGORIA: Categoría / Subcategoría en info.txt. Tiene prioridad sobre el selector; si falta o está vacía, se usa la selección guardada, inicialmente Impresoras 3D / Otro. Las combinaciones incorrectas se marcan para revisar.
+- Selecciona las categorías de Creality Cloud con hover sobre el padre y desplazamiento independiente en ambos menús. Verifica la categoría antes de entregar y mantiene la selección durante todo el lote.
+- Incluye Orca Slicer en los requisitos del archivo .3mf y actualiza la ayuda, los README y el ejemplo de info.txt.
+- Al guardar una programación de impresiones distingue cuántas faltan para el objetivo diario y cuántas se programan por el tiempo disponible. Los intentos fallidos siguen sin descontarse del objetivo.
+- Conserva todas las correcciones de 1.0.48, el puerto 8088 y la compatibilidad con Creality Cloud Dev 1.0.6-dev.1.
+- Versión de prueba: pendiente de validación real en Home Assistant. 1.0.48 permanece como versión estable Latest.
+
 ## 1.0.48 — descargas, impresiones, boosts y limpieza
 
 - Adapta las descargas al máximo diario de 10, incluidos ajustes antiguos, planes pendientes, contadores, API y formulario. Conserva los objetivos inferiores elegidos por el usuario. Incorpora la adaptación de TitoTB 1.0.37.

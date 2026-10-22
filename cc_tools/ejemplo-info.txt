@@ -1,0 +1,3 @@
+ETIQUETAS: caja, organizador
+DESCRIPCION: Caja organizadora con compartimentos para piezas pequeñas.
+CATEGORIA: Impresoras 3D / Otro

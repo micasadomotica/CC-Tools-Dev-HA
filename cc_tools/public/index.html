@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CC Tools Dev</title>
     <link rel="icon" type="image/png" href="/assets/app-icon.png">
-    <link rel="stylesheet" href="/assets/styles.css?v=1.0.48">
-    <link rel="stylesheet" href="/assets/upload-designs.css?v=1.0.48">
+    <link rel="stylesheet" href="/assets/styles.css?v=1.0.49">
+    <link rel="stylesheet" href="/assets/upload-designs.css?v=1.0.49">
   </head>
   <body>
     <header class="topbar">
@@ -1143,13 +1143,25 @@
         <section class="setup-step">
           <div class="setup-step-heading"><h3>Consulta los requisitos previos</h3><div class="setup-step-actions"><button id="uploads-help-toggle" class="setup-help-button" type="button" title="Mostrar requisitos previos" aria-label="Mostrar requisitos previos"><svg viewBox="0 0 512 512" aria-hidden="true"><path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM216 336h24V248H216c-13.3 0-24-10.7-24-24s10.7-24 24-24h48c13.3 0 24 10.7 24 24V336h8c13.3 0 24 10.7 24 24s-10.7 24-24 24H216c-13.3 0-24-10.7-24-24s10.7-24 24-24zm40-208a32 32 0 1 1 0 64 32 32 0 1 1 0-64z"/></svg></button></div></div>
           <div id="uploads-help" class="setup-step-config setup-requirements" hidden>
-            <p>Prepara un archivo <b>.3mf con configuración de Creality Print o Bambu Studio</b>, un <b>info.txt</b> y una <b>portada JPG, PNG o WebP estática con proporción 4:3</b>. Opcionalmente, añade <b>portada2</b> para la App con proporción <b>3:4</b> y hasta nueve <b>imágenes del modelo</b>, llamadas <b>imagen1, imagen2… imagen9</b>, con proporción <b>4:3</b>. Todas las imágenes pueden ser JPG, PNG o WebP.</p>
+            <p>Prepara un archivo <b>.3mf con configuración de Creality Print, Bambu Studio u Orca Slicer</b>, un <b>info.txt</b> y una <b>portada JPG, PNG o WebP estática con proporción 4:3</b>. Opcionalmente, añade <b>portada2</b> para la App con proporción <b>3:4</b> y hasta nueve <b>imágenes del modelo</b>, llamadas <b>imagen1, imagen2… imagen9</b>, con proporción <b>4:3</b>. Todas las imágenes pueden ser JPG, PNG o WebP.</p>
             <p>El botón de carpeta de <b>Mis diseños</b> crea <code>/media/cctools_3d_models</code> si todavía no existe y abre el explorador para seleccionar los archivos obligatorios y las imágenes opcionales de un diseño. También puedes copiar una subcarpeta por diseño en esa ruta y pulsar el icono de escaneo.</p>
             <p>Formato de <b>info.txt</b> (UTF-8):</p><pre>ETIQUETAS: caja, organizador [Añade etiquetas separadas por coma]
-DESCRIPCION: Descripción del modelo [Añade una breve descripción]</pre>
+DESCRIPCION: Descripción del modelo [Añade una breve descripción]
+CATEGORIA: Impresoras 3D / Otro</pre>
             <p>Los textos entre corchetes son indicaciones; no los incluyas en info.txt. Hasta 20 etiquetas de 30 caracteres. Límites por archivo: 3MF 256 MB, cada imagen 20 MB e info.txt 32 KB.</p>
-            <p>Los diseños se entregan como <b>Original, Gratis y Público</b>, con el nombre del archivo, categoría <b>Impresoras 3D / Otro</b> y licencia <b>CC BY-NC</b> (permite adaptaciones y prohíbe el uso comercial), sin recomendación de filamento. La selección de otras categorías se deja para futuras versiones. Al subir o programar autorizas aceptar la declaración de derechos de autor de Creality para estos diseños.</p>
-            <p>El contador muestra las confirmaciones de <b>Upload Models</b> frente a la cantidad diaria programada. Entregar un diseño no confirma todavía la recompensa; Creality debe aprobarlo.</p>
+            <p><b>CATEGORIA:</b> es opcional. Escribe el nombre de la categoría y la subcategoría separados por <b>/</b>, usando las opciones de los selectores. Si falta la línea o está vacía, se usará la categoría predeterminada del módulo. Si contiene una combinación válida, tendrá prioridad para ese diseño. Una combinación incorrecta se marcará para revisar.</p>
+            <p>Los diseños se entregan como <b>Original, Gratis y Público</b>, con el nombre del archivo, la categoría elegida y licencia <b>CC BY-NC</b> (permite adaptaciones y prohíbe el uso comercial), sin recomendación de filamento. Al subir o programar autorizas aceptar la declaración de derechos de autor de Creality para estos diseños.</p>
+            <p>El contador muestra las confirmaciones de <b>Upload Models</b> sobre un máximo de <b>5 al día</b>. Entregar un diseño no confirma todavía la recompensa; Creality debe aprobarlo.</p>
+          </div>
+        </section>
+        <section class="setup-step">
+          <div class="setup-step-heading"><h3>Categoría predeterminada</h3></div>
+          <div class="setup-step-config">
+            <div class="form-grid upload-category-grid">
+              <label><span>Categoría</span><select id="uploads-category" aria-describedby="uploads-category-help" disabled><option>Impresoras 3D</option></select></label>
+              <label><span>Subcategoría</span><select id="uploads-subcategory" aria-describedby="uploads-category-help" disabled><option>Otro</option></select></label>
+            </div>
+            <p id="uploads-category-help" class="muted">Se guarda al cambiarla y se aplica a las subidas manuales y programadas de todos los diseños sin CATEGORIA en info.txt, o con esa línea vacía. La categoría de info.txt tiene prioridad. El valor inicial es Impresoras 3D / Otro.</p>
           </div>
         </section>
         <section class="setup-step">
@@ -1181,7 +1193,7 @@ DESCRIPCION: Descripción del modelo [Añade una breve descripción]</pre>
       </div>
     </div>
 
-    <script src="/assets/upload-designs.js?v=1.0.48" type="module"></script>
-    <script src="/assets/app.js?v=1.0.48" type="module"></script>
+    <script src="/assets/upload-designs.js?v=1.0.49" type="module"></script>
+    <script src="/assets/app.js?v=1.0.49" type="module"></script>
   </body>
 </html>

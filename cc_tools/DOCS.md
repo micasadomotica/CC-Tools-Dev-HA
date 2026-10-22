@@ -101,3 +101,11 @@ El máximo de descargas es 10 al día. Los ajustes antiguos de 30 se reducen a 1
 Una impresión sin recompensa conserva el G-code seleccionado. Al volver a programar se descuentan las impresiones recompensadas, sin consumir el objetivo con los intentos fallidos.
 
 Subir diseños muestra las recompensas sobre 5. Mis diseños conserva la fecha de entrega debajo de Entregado. Limpiar diseños se guarda al marcarlo y funciona también con las subidas desactivadas: desde el día siguiente a la entrega, comprueba la publicación en el perfil antes de eliminar los archivos locales que no hayan cambiado.
+
+## Categorías y capacidad de impresión (Dev 1.0.49, en pruebas)
+
+Subir diseños admite .3mf con configuración de Creality Print, Bambu Studio u Orca Slicer. Los selectores Categoría y Subcategoría se guardan al cambiar y se aplican a subidas manuales y programadas. El valor inicial es Impresoras 3D / Otro.
+
+Puedes indicar una categoría propia en info.txt: `CATEGORIA: Hogar / Mascotas`. Separa siempre categoría y subcategoría con /. Si falta la línea o está vacía, se usa el selector; si contiene una combinación válida, tiene prioridad. Una combinación desconocida se marca para revisar. Las opciones disponibles aparecen en el módulo; la selección en Creality Cloud desplaza cada menú cuando hace falta.
+
+Al guardar la programación de impresiones, el aviso distingue el objetivo pendiente de la capacidad del horario restante. Por ejemplo: «Quedan 9 impresiones para el objetivo; se programan 5 por el tiempo disponible». Los fallos anteriores no consumen el objetivo diario.

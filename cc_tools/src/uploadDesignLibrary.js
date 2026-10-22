@@ -3,13 +3,14 @@ import { createReadStream } from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 import { inflateRawSync } from 'node:zlib';
+import { DEFAULT_UPLOAD_CATEGORY, resolveUploadCategory, UPLOAD_CATEGORIES } from './uploadCategories.js';
 
 const digest = value => createHash('sha256').update(value).digest('hex');
 const MAX_MODEL = 256 * 1024 * 1024;
 const MAX_COVER = 20 * 1024 * 1024;
 const MAX_FOLDERS = 500;
 const clock = value => typeof value === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
-const defaults = () => ({ version: 1, manual: [], schedule: { enabled: false, dailyLimit: 5,
+const defaults = () => ({ version: 1, defaultCategory: { ...DEFAULT_UPLOAD_CATEGORY }, manual: [], schedule: { enabled: false, dailyLimit: 5,
   windowStart: '08:00', windowEnd: '12:00', selected: [] }, firstSeen: {}, ledger: {}, inventory: [], scannedAt: '', libraryError: '' });
 
 function problem(message, status = 400) {
@@ -42,7 +43,11 @@ function validateImage(data, kind, name) {
 }
 
 export function parseUploadInfo(text) {
-  const normalized = text.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+  let normalized = text.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+  const categories = [...normalized.matchAll(/^[\t ]*CATEGOR[ÍI]A[\t ]*:[\t ]*(.*)$/gim)];
+  if (categories.length > 1) throw problem('Usa una sola línea CATEGORIA: en info.txt.');
+  const categoryOverride = categories[0]?.[1].trim() ? resolveUploadCategory(categories[0][1]) : undefined;
+  normalized = normalized.replace(/^[\t ]*CATEGOR[ÍI]A[\t ]*:[^\n]*(?:\n|$)/gim, '');
   const match = normalized.match(/^\s*ETIQUETAS:\s*\n?([\s\S]*?)^\s*DESCRIPCI[ÓO]N:\s*\n?([\s\S]*)$/im);
   if (!match) throw problem('info.txt debe contener ETIQUETAS: y DESCRIPCION:, en ese orden.');
   const tags = [...new Set(match[1].split(/[,;\n]/).map(tag => tag.trim()).filter(Boolean))];
@@ -52,7 +57,7 @@ export function parseUploadInfo(text) {
   if (tags.length > 20 || tags.some(tag => tag.length > 30)) throw problem('Usa un máximo de 20 etiquetas de hasta 30 caracteres.');
   if (!tags.length) throw problem('Faltan etiquetas en info.txt.');
   if (!description) throw problem('Falta descripción en info.txt.');
-  return { tags, description };
+  return { tags, description, ...(categoryOverride ? { categoryOverride } : {}) };
 }
 
 export function coverDimensions(data) {
@@ -271,7 +276,7 @@ export function createUploadLibrary({ root = '/media/cctools_3d_models',
           item.imageFiles = optional.filter(([kind]) => kind.startsWith('image')).map(([, file]) => file.name);
           item.bytes = before[0].size; item.dimensions = dimensions;
           item.firstSeen = state.firstSeen[item.modelHash] ||= now;
-          item.warnings.push(profileFound ? 'Perfil detectado. Compatibilidad pendiente de verificar en Creality.' : 'No se ha reconocido un perfil de impresión. Comprueba que el 3MF procede de Creality Print o Bambu Studio.');
+          item.warnings.push(profileFound ? 'Perfil detectado. Compatibilidad pendiente de verificar en Creality.' : 'No se ha reconocido un perfil de impresión. Comprueba que el 3MF procede de Creality Print, Bambu Studio u Orca Slicer.');
           item.valid = true;
         } catch (error) {
           item.errors.push(error.code === 'ENOENT' ? 'La carpeta o un archivo ya no existe.' :
@@ -293,7 +298,9 @@ export function createUploadLibrary({ root = '/media/cctools_3d_models',
   }
   function output(state) {
     const matches = selection => selection.every(entry => state.inventory.some(item => item.valid && item.id === entry.id && item.fingerprint === entry.fingerprint));
-    return { ...state, firstSeen: undefined, root, uploadsAvailable: true, schedulerConnected: true,
+    return { ...state, categories: UPLOAD_CATEGORIES,
+      inventory: state.inventory.map(item => ({ ...item, category: resolveUploadCategory(item.categoryOverride || state.defaultCategory) })),
+      firstSeen: undefined, root, uploadsAvailable: true, schedulerConnected: true,
       scheduleReady: !state.libraryError && state.schedule.selected.length === state.schedule.dailyLimit && matches(state.schedule.selected),
       manualReady: !state.libraryError && state.manual.length > 0 && matches(state.manual) };
   }
@@ -372,13 +379,13 @@ export function createUploadLibrary({ root = '/media/cctools_3d_models',
       }
       else chosen = available.filter(item => ledger[item.modelHash]?.status !== 'failed').sort((a,b) => a.firstSeen.localeCompare(b.firstSeen) || a.folder.localeCompare(b.folder));
       await writeState(state);
-      return { items: chosen.slice(0, Math.max(0, Math.min(limit, 5) - used)), used };
+      return { items: chosen.slice(0, Math.max(0, Math.min(limit, 5) - used)), used, defaultCategory: resolveUploadCategory(state.defaultCategory) };
     }),
-    prepare: entry => serial(async () => {
+    prepare: (entry, defaultCategory) => serial(async () => {
       const state = await scanState(await readState());
       const selected = selectionFrom(state, [entry], 1)[0];
       const item = state.inventory.find(item => item.id === selected.id);
-      return { ...item, modelPath: await safePath(item.folder, item.modelFile), coverPath: await safePath(item.folder, item.coverFile),
+      return { ...item, category: resolveUploadCategory(item.categoryOverride || defaultCategory || state.defaultCategory), modelPath: await safePath(item.folder, item.modelFile), coverPath: await safePath(item.folder, item.coverFile),
         appCoverPath: item.appCoverFile ? await safePath(item.folder, item.appCoverFile) : '',
         imagePaths: await Promise.all((item.imageFiles || []).map(name => safePath(item.folder, name))) };
     }),
@@ -423,6 +430,11 @@ export function createUploadLibrary({ root = '/media/cctools_3d_models',
       saved.cleanedAt = new Date().toISOString(); saved.publicVerifiedAt = proof.checkedAt;
       state.inventory = state.inventory.filter(model => model.id !== item.id);
       await writeState(state); return true;
+    }),
+    saveDefaultCategory: value => serial(async () => {
+      const category = resolveUploadCategory(value);
+      const state = await readState(); state.defaultCategory = category;
+      await writeState(state); return output(state);
     }),
     status: () => serial(async () => output(await readState())),
     scan: () => serial(async () => { const state = await scanState(await readState()); await writeState(state); return output(state); }),

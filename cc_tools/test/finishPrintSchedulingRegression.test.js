@@ -110,7 +110,7 @@ test('saving updates the next execution immediately and reports the actual pendi
   const { c } = await save([]);
   let message = '', renderedNext = '';
   const state = { config: {}, nextExecutions: {} };
-  const result = { ok: true, config: c, nextExecutions: { finishPrint: c.tasks.finishPrint.nextRunAt } };
+  const result = { ok: true, config: c, finishPrintRemaining: 5, nextExecutions: { finishPrint: c.tasks.finishPrint.nextRunAt } };
   const h = vm.createContext({ state, fields: { finishPrintEnabled: { checked: true } },
     collectFinishPrinterProfiles: () => [profile()], windowDurationMinutes: () => 149,
     $: () => ({ disabled: false }), api: async () => result,
@@ -120,12 +120,29 @@ test('saving updates the next execution immediately and reports the actual pendi
   vm.runInContext(functionsFrom('../public/assets/app.js', ['saveFinishPrinterProfiles']), h);
   assert.equal(await h.saveFinishPrinterProfiles(), true);
   assert.equal(renderedNext, result.nextExecutions.finishPrint);
-  assert.match(message, /5 impresi/);
+  assert.equal(message, 'Programación guardada. Quedan 5 impresiones para el objetivo; se programan 5 hoy.');
+  // The response wins over a stale panel counter and distinguishes quota from actual time slots.
+  state.dailyCounters = { finishPrint: 10 };
+  result.finishPrintRemaining = 9;
+  await h.saveFinishPrinterProfiles();
+  assert.equal(message, 'Programación guardada. Quedan 9 impresiones para el objetivo; se programan 5 por el tiempo disponible.');
+  c.tasks.finishPrint.printerProfiles[0].printPlan = c.tasks.finishPrint.printerProfiles[0].printPlan.slice(0, 1);
+  result.finishPrintRemaining = 1;
+  await h.saveFinishPrinterProfiles();
+  assert.equal(message, 'Programación guardada. Queda 1 impresión para el objetivo; se programa 1 hoy.');
+  result.finishPrintRemaining = 9;
   c.tasks.finishPrint.printerProfiles[0].printPlan = [];
   result.nextExecutions = {};
   await h.saveFinishPrinterProfiles();
-  assert.match(message, /sin ejecuciones pendientes/);
+  assert.equal(message, 'Programación guardada. Quedan 9 impresiones para el objetivo; se programan 0 por el tiempo disponible.');
   assert.equal(state.nextExecutions.finishPrint, undefined);
+  result.finishPrintRemaining = 0;
+  await h.saveFinishPrinterProfiles();
+  assert.match(message, /No faltan impresiones para el objetivo diario/);
+  c.tasks.finishPrint.enabled = false;
+  result.finishPrintRemaining = 9;
+  await h.saveFinishPrinterProfiles();
+  assert.equal(message, 'Programación de impresiones desactivada.');
 });
 
 

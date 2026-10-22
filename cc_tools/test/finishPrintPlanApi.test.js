@@ -66,6 +66,7 @@ test('the real server reprograms from account rewards, preserving G-code despite
     const saved = await response.json();
     assert.equal(response.status, 200, JSON.stringify(saved));
     assert.equal(saved.config.tasks.finishPrint.printPlan.length, 1);
+    assert.equal(saved.finishPrintRemaining, 1);
     assert.ok(saved.nextExecutions.finishPrint);
     const status = await fetch(baseUrl + '/api/status').then(r => r.json());
     assert.equal(status.dailyCounters.finishPrint, 2);
@@ -88,6 +89,7 @@ test('the real server reprograms from account rewards, preserving G-code despite
         } }) }).then(r => r.json());
       assert.equal(changed.config.tasks.finishPrint.totalDailyLimit, target);
       assert.equal(changed.config.tasks.finishPrint.printPlan.length, expected);
+      assert.equal(changed.finishPrintRemaining, expected);
       assert.equal(Boolean(changed.nextExecutions.finishPrint), expected > 0);
       const agenda = await fetch(baseUrl + '/api/schedule/preview').then(r => r.json());
       assert.equal(agenda.items.filter(item => item.taskId === 'finishPrint' && item.status === 'pending').length, expected);
@@ -99,6 +101,7 @@ test('the real server reprograms from account rewards, preserving G-code despite
         enabled: true, printerProfiles: [restored]
       } }) }).then(r => r.json());
     assert.equal(reprogrammed.config.tasks.finishPrint.printPlan.length, 8);
+    assert.equal(reprogrammed.finishPrintRemaining, 8);
     assert.deepEqual(reprogrammed.config.tasks.finishPrint.cloudFileRecords, restored.cloudFileRecords);
     const invalid = await fetch(baseUrl + '/api/config', { method: 'PATCH',
       headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ finishPrint: {

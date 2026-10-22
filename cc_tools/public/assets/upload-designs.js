@@ -27,6 +27,7 @@ function updateCard() {
 }
 function accept(result, reset = false) {
   library = result;
+  renderCategories();
   if (reset) {
     draft = { manual: [...result.manual], schedule: [...result.schedule.selected] };
     $('uploads-limit').value = result.schedule.dailyLimit;
@@ -45,7 +46,8 @@ function controls() {
   const invalid = busy || !library || !!library.libraryError;
   $('uploads-run').disabled = invalid || !count || count > 5;
   $('uploads-program').disabled = invalid || !Number.isInteger(n) || n < 1 || n > 5 || draft.schedule.length !== n || !$('uploads-start').value || !$('uploads-end').value || $('uploads-start').value >= $('uploads-end').value;
-  for (const id of ['uploads-scan','uploads-plan-scan','uploads-import','uploads-limit','uploads-start','uploads-end','uploads-cleanup']) $(id).disabled = busy;
+  for (const id of ['uploads-scan','uploads-plan-scan','uploads-import','uploads-limit','uploads-start','uploads-end','uploads-cleanup','uploads-category','uploads-subcategory']) $(id).disabled = busy;
+  $('uploads-category').disabled = $('uploads-subcategory').disabled = busy || !library?.categories?.length;
   for (const input of modal.querySelectorAll('[data-upload-id]')) {
     const mode = input.dataset.mode, item = library?.inventory.find(item => item.id === input.dataset.uploadId);
     input.disabled = busy || !item?.available || (!input.checked && draft[mode].length >= (mode === 'manual' ? 5 : n));
@@ -69,7 +71,7 @@ function render() {
   $('uploads-list').innerHTML = items.length ? items.map(item => {
     const status = item.delivery?.status;
     const label = status === 'submitted' ? `Entregado${deliveryDateMarkup(item.delivery)}` : ['submitting','uncertain'].includes(status) ? 'Pendiente de comprobar' : item.valid ? 'Disponible' : 'Revisar';
-    return `<article class="upload-model">${check(item,'manual')}${item.coverFile ? `<img class="upload-cover" loading="lazy" src="/api/upload-designs/cover/${item.id}?v=${encodeURIComponent(library.scannedAt)}" alt="Portada de ${escape(item.name)}">` : '<div class="upload-cover upload-cover-empty">Sin portada</div>'}<div class="upload-model-body"><div class="upload-model-heading"><strong>${escape(item.name)}</strong><span class="upload-status ${item.available ? 'is-valid' : 'is-invalid'}">${label}</span></div><small class="muted">${escape(item.folder)}</small>${item.errors.map(error=>`<p class="upload-error">${escape(error)}</p>`).join('')}${item.tags ? `<details><summary>Ver información del diseño</summary><p class="upload-tags">${item.tags.map(escape).join(' · ')}</p><p class="upload-description">${escape(item.description)}</p>${(item.warnings||[]).map(w=>`<p class="muted">${escape(w)}</p>`).join('')}</details>`:''}${['submitting','uncertain'].includes(status) ? '<p>Comprueba el Banco de trabajo de Creality antes de volver a enviar este diseño.</p>' : ''}</div></article>`;
+    return `<article class="upload-model">${check(item,'manual')}${item.coverFile ? `<img class="upload-cover" loading="lazy" src="/api/upload-designs/cover/${item.id}?v=${encodeURIComponent(library.scannedAt)}" alt="Portada de ${escape(item.name)}">` : '<div class="upload-cover upload-cover-empty">Sin portada</div>'}<div class="upload-model-body"><div class="upload-model-heading"><strong>${escape(item.name)}</strong><span class="upload-status ${item.available ? 'is-valid' : 'is-invalid'}">${label}</span></div><small class="muted">${escape(item.folder)}</small>${item.errors.map(error=>`<p class="upload-error">${escape(error)}</p>`).join('')}${item.tags ? `<details><summary>Ver información del diseño</summary><p class="upload-category">Categoría: ${escape(item.category?.category)} / ${escape(item.category?.subcategory)} <small class="muted">(${item.categoryOverride ? 'info.txt' : 'predeterminada'})</small></p><p class="upload-tags">${item.tags.map(escape).join(' · ')}</p><p class="upload-description">${escape(item.description)}</p>${(item.warnings||[]).map(w=>`<p class="muted">${escape(w)}</p>`).join('')}</details>`:''}${['submitting','uncertain'].includes(status) ? '<p>Comprueba el Banco de trabajo de Creality antes de volver a enviar este diseño.</p>' : ''}</div></article>`;
   }).join('') : '<div class="upload-empty">No hay diseños en la biblioteca. Pulsa el botón de carpeta para añadir un diseño.</div>';
   $('uploads-plan-list').innerHTML = items.filter(item=>item.available).map(item=>`<label class="upload-plan-option">${check(item,'schedule')}<span>${escape(item.name)}</span></label>`).join('') || '<p class="muted">No hay nuevos diseños disponibles.</p>';
   controls();
@@ -80,6 +82,28 @@ async function work(action) {
   finally { busy=false; modal.removeAttribute('aria-busy'); updateCard(); controls(); }
 }
 const changed = () => window.dispatchEvent(new Event('uploads-changed'));
+function renderSubcategories(category, selected) {
+  const children = library?.categories?.find(entry => entry.category === category)?.subcategories || [];
+  $('uploads-subcategory').innerHTML = children.map(name => `<option value="${escape(name)}">${escape(name)}</option>`).join('');
+  $('uploads-subcategory').value = children.includes(selected) ? selected : children.includes('Otro') ? 'Otro' : children[0] || '';
+}
+function renderCategories() {
+  $('uploads-category').innerHTML = (library?.categories || []).map(entry => `<option value="${escape(entry.category)}">${escape(entry.category)}</option>`).join('');
+  $('uploads-category').value = library?.defaultCategory?.category || 'Impresoras 3D';
+  renderSubcategories($('uploads-category').value, library?.defaultCategory?.subcategory);
+}
+async function saveCategory() {
+  const category = $('uploads-category').value, subcategory = $('uploads-subcategory').value;
+  try {
+    accept(await api('/category', 'PUT', { category, subcategory }));
+    message(`Categoría predeterminada guardada: ${category} / ${subcategory}. Se aplicará a los diseños sin CATEGORIA en info.txt.`);
+  } finally { renderCategories(); }
+}
+$('uploads-category').addEventListener('change', () => work(async () => {
+  renderSubcategories($('uploads-category').value);
+  await saveCategory();
+}));
+$('uploads-subcategory').addEventListener('change', () => work(saveCategory));
 $('uploads-cleanup').addEventListener('change', () => work(async () => {
   const enabled = $('uploads-cleanup').checked;
   try {
@@ -102,7 +126,7 @@ document.addEventListener('keydown',event=>{
   if (modal.hidden) return;
   if(event.key==='Escape')close();
   if(event.key==='Tab') {
-    const entries=[...modal.querySelectorAll('button,input,summary,a')].filter(e=>!e.disabled&&e.tabIndex!==-1&&e.getClientRects().length);
+    const entries=[...modal.querySelectorAll('button,input,select,summary,a')].filter(e=>!e.disabled&&e.tabIndex!==-1&&e.getClientRects().length);
     if(event.shiftKey&&document.activeElement===entries[0]){event.preventDefault();entries.at(-1)?.focus();}
     else if(!event.shiftKey&&document.activeElement===entries.at(-1)){event.preventDefault();entries[0]?.focus();}
   }

@@ -33,7 +33,7 @@ export async function runUploadDesigns(task = {}, options = {}, deps = {}) {
         options.signal?.throwIfAborted();
         let submitting = false;
         try {
-          const model = await library.prepare(entry);
+          const model = await library.prepare(entry, selection.defaultCategory);
           const result = await submit(page, model, { signal: options.signal, beforeSubmit: async () => {
             await library.record(account, entry, { status: 'submitting', day, source }); submitting = true;
           } });

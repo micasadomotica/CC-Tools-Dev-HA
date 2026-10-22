@@ -1,4 +1,5 @@
 import { parseCrealityProfile } from './crealityProfile.js';
+import { resolveUploadCategory, uploadCategoryLabel, uploadCategoryMatches, uploadCategoryTextPattern } from './uploadCategories.js';
 
 export const CREATE_MODEL_URL = 'https://www.crealitycloud.com/es/create-model';
 export const CREATE_MODEL_PATH = '/api/cxy/v3/model/modelGroupCreate';
@@ -28,21 +29,25 @@ export async function acceptCopyrightDeclaration(page) {
   if (!await accepted.isChecked()) throw fail('UPLOAD_FORM_MISMATCH', 'La declaración de derechos de autor no quedó aceptada tras confirmar el popup.');
 }
 
-export async function selectUploadCategory(page, details) {
+export async function selectUploadCategory(page, details, value) {
+  const expected = resolveUploadCategory(value);
   const input = details.locator('.model-category-content input');
   await input.click();
   const menu = page.locator('.category-cascader:visible');
-  const parent = menu.locator('.el-cascader-node').filter({ has: page.getByText(/^(Impresoras? 3D|3D Printers?)$/i) });
+  const parent = menu.locator('.el-cascader-menu').first().locator('.el-cascader-node')
+    .filter({ has: page.getByText(uploadCategoryTextPattern(expected.category)) });
   // Hover the complete row, not the text underneath its overlaid radio label.
   // Element Plus expands on hover; clicking the parent would close the popup.
+  await parent.scrollIntoViewIfNeeded();
   await parent.hover();
-  const other = menu.locator('.el-cascader-menu').nth(1).locator('.el-cascader-node')
-    .filter({ has: page.getByText(/^(Otros?|Others?)$/i) });
-  await other.waitFor({ state: 'visible', timeout: 10000 });
-  await other.locator('label.el-radio').click();
+  const child = menu.locator('.el-cascader-menu').nth(1).locator('.el-cascader-node')
+    .filter({ has: page.getByText(uploadCategoryTextPattern(expected.subcategory)) });
+  await child.waitFor({ state: 'visible', timeout: 10000 });
+  await child.scrollIntoViewIfNeeded();
+  await child.locator('label.el-radio').click();
   const category = await input.inputValue();
-  if (!/Impresoras? 3D|3D Printers?/i.test(category) || !/\b(Otros?|Others?)\b/i.test(category)) {
-    throw fail('UPLOAD_CATEGORY_MISMATCH', 'La categoría seleccionada debe ser Impresoras 3D / Otro.');
+  if (!uploadCategoryMatches(category, expected)) {
+    throw fail('UPLOAD_CATEGORY_MISMATCH', `La categoría seleccionada debe ser ${uploadCategoryLabel(expected)}.`);
   }
   await details.locator('.model-name-content input').click();
 }
@@ -71,6 +76,7 @@ export function validateUploadPayload(payload, model, descriptionText) {
 // Uses the public create-model form. The request guard validates its final payload,
 // records the irreversible attempt, and permits exactly one creation request.
 export async function submitUploadForm(page, model, { beforeSubmit, signal, timeout = 180000 } = {}) {
+  const expectedCategory = resolveUploadCategory(model.category);
   let sent = false, guardError, creationRequest, rejectGuard;
   const guardFailed = new Promise((_, reject) => { rejectGuard = reject; }); guardFailed.catch(() => {});
   const requestRoute = '**' + CREATE_MODEL_PATH;
@@ -84,7 +90,7 @@ export async function submitUploadForm(page, model, { beforeSubmit, signal, time
       const description = await page.evaluate(html => { const div = document.createElement('div'); div.innerHTML = html || ''; div.style.cssText='position:fixed;left:-10000px'; document.body.append(div); const text = div.innerText; div.remove(); return text; }, payload?.groupItem?.groupDesc);
       validateUploadPayload(payload, model, description);
       const category = await page.locator('.model-category-content input').first().inputValue();
-      if (!/Impresoras? 3D|3D Printers?/i.test(category) || !/\b(Otros?|Others?)\b/i.test(category)) throw fail('UPLOAD_CATEGORY_MISMATCH', 'La categoría seleccionada debe ser Impresoras 3D / Otro.');
+      if (!uploadCategoryMatches(category, expectedCategory)) throw fail('UPLOAD_CATEGORY_MISMATCH', `La categoría seleccionada debe ser ${uploadCategoryLabel(expectedCategory)}.`);
       if (!await page.locator('footer:visible input[type="checkbox"]').isChecked()) throw fail('UPLOAD_FORM_MISMATCH', 'Debes aceptar la declaración de derechos de autor antes de entregar.');
       await beforeSubmit();
       signal?.throwIfAborted();
@@ -109,7 +115,7 @@ export async function submitUploadForm(page, model, { beforeSubmit, signal, time
     if (await original.count()) await original.click();
     const free = details.locator('.model-set-price-content').getByText(/^(Gratis|Free)$/i);
     if (await free.count()) await free.click();
-    await selectUploadCategory(page, details);
+    await selectUploadCategory(page, details, expectedCategory);
     // Clear any automatically suggested tags and enter the metadata verbatim.
     const tags = details.locator('.model-tag-content');
     while (await tags.locator('.el-tag__close').count()) await tags.locator('.el-tag__close').first().click();

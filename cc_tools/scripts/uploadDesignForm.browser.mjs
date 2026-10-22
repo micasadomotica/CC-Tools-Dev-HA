@@ -6,6 +6,7 @@ import path from 'node:path';
 import express from 'express';
 import {chromium} from 'playwright';
 import {submitUploadForm,selectUploadCategory,acceptCopyrightDeclaration,CREATE_MODEL_URL,CREATE_MODEL_PATH} from '../src/uploadDesignForm.js';
+import {UPLOAD_CATEGORIES} from '../src/uploadCategories.js';
 import {addModel,png} from '../test/uploadDesignFixtures.js';
 let browser,server,url,base,model,requests=[],reserved=false,responseCode=0,invalidForm=false;
 before(async()=>{
@@ -22,7 +23,8 @@ function form(invalid=false){return `<!doctype html><meta charset="utf-8"><style
 <div class="creality-print-content"><div class="upload-3mf"><input type="file" id="model" onchange="document.getElementById('plate').hidden=false"></div><div id="plate" class="plate-thumbnail" hidden>Plataforma 1</div></div>
 <div class="second-step" hidden>
 <div class="model-name-content"><input value="case"></div><div class="model-origin-content">Original</div><div class="model-set-price-content">Gratis</div>
-<div class="model-category-content"><input onclick="document.getElementById('categories').hidden=false" readonly></div><div class="category-cascader" id="categories" hidden><div class="el-cascader-menu"><div class="el-cascader-node" onmouseenter="document.getElementById('children').hidden=false" onclick="window.parentClicks++"><div>Impresoras 3D</div><label class="el-radio"><input type="radio" name="category" onclick="selectParent()"></label></div></div><div id="children" class="el-cascader-menu" hidden><div class="el-cascader-node">Piezas de impresora 3D</div><div class="el-cascader-node">Accesorios de impresora</div><div class="el-cascader-node">Modelos de prueba</div><div class="el-cascader-node"><div>Otro</div><label class="el-radio"><input type="radio" name="category" onclick="window.selectedScroll=document.getElementById('children').scrollTop;document.querySelector('.model-category-content input').value='Impresoras 3D / Otro';document.getElementById('categories').hidden=true"></label></div></div></div>
+<div class="model-category-content"><input onclick="document.getElementById('categories').hidden=false" readonly></div>
+<div class="category-cascader" id="categories" hidden><div id="parents" class="el-cascader-menu">${UPLOAD_CATEGORIES.map((entry,index)=>'<div class="el-cascader-node" onmouseenter="showChildren('+index+')" onclick="window.parentClicks++"><div>'+entry.category+'</div><label class="el-radio"><input type="radio" name="category" onclick="selectParent()"></label></div>').join('')}</div><div id="children" class="el-cascader-menu" hidden></div></div>
 <div class="model-tag-content"><input id="tags"></div>
 <div class="model-cover-content"><div class="upload-cover"><div class="clip-title">Portada web 4:3</div><div class="upload-cover-box" onclick="document.getElementById('cover').click()">Imagen de portada</div></div><input id="cover" type="file" hidden onchange="window.cropKind='web';document.querySelector('.el-dialog').hidden=false"><div class="upload-cover"><div class="clip-title">Portada App 3:4</div><div class="upload-cover-box width" onclick="document.getElementById('appCover').click()">Imagen de portada</div></div><input id="appCover" type="file" hidden onchange="window.cropKind='app';document.querySelector('.el-dialog').hidden=false"><div class="upload-cover-last"><input type="file" multiple onchange="galleryUpload(this)"><div id="gallery"></div></div></div>
 <div class="model-license-content"><div class="radio-item"><label><input type="radio" name="adapt" value="1" onchange="if(!window.keepThird)document.getElementById('redistribute').hidden=true">Sí</label><label><input type="radio" name="adapt" value="2" checked>No</label></div><div class="radio-item"><label><input type="radio" name="commerce" value="1" checked>Sí</label><label><input type="radio" name="commerce" value="2">No</label></div><div class="radio-item" id="redistribute"><label><input type="radio" name="redistribute" value="1" checked>Sí</label><label><input type="radio" name="redistribute" value="2">No</label></div></div>
@@ -35,12 +37,29 @@ function form(invalid=false){return `<!doctype html><meta charset="utf-8"><style
 <footer><div class="step-one-btn" onclick="this.hidden=true;document.querySelector('.second-step').hidden=false;document.getElementById('finish').hidden=false">Siguiente</div><div id="finish" hidden><label><input type="checkbox" id="agreement">He leído y acepto <strong onclick="event.preventDefault();document.getElementById('copyright').hidden=false">Declaración de derechos de autor.</strong></label><div class="submit" onclick="deliver()">Entregar</div></div></footer>
 <div class="el-dialog" id="copyright" hidden><h2>Declaración de derechos de autor</h2><div class="source-rule-content">Declaro que todos los archivos 3D digitales cargados son obra original mía.</div><button onclick="window.copyrightConfirmations=(window.copyrightConfirmations||0)+1;document.getElementById('agreement').checked=!window.preventAcceptance;this.parentElement.hidden=true">Confirmar</button></div>
 <script>
+window.fixtureCategories=${JSON.stringify(UPLOAD_CATEGORIES)};
+function showChildren(index){
+  const parent=window.fixtureCategories[index], children=document.getElementById('children');
+  children.hidden=false;children.replaceChildren();
+  for(const [childIndex,name] of parent.subcategories.entries()){
+    const row=document.createElement('div');row.className='el-cascader-node';
+    const text=document.createElement('div');text.textContent=name;
+    const label=document.createElement('label');label.className='el-radio';
+    const input=document.createElement('input');input.type='radio';input.name='category';
+    input.addEventListener('click',()=>{
+      window.selectedScroll=children.scrollTop;window.selectedParentScroll=document.getElementById('parents').scrollTop;
+      document.querySelector('.model-category-content input').value=parent.category+' / '+name;
+      window.selectedCategoryId='category-'+index+'-'+childIndex;document.getElementById('categories').hidden=true;
+    });
+    label.append(input);row.append(text,label);children.append(row);
+  }
+}
 window.uploadOrder=[];window.galleryFiles=[];
 function galleryUpload(input){const file=input.files[0];window.uploadOrder.push(file.name);const item=document.createElement('div');item.className='model-cover-item loading-work';item.textContent=file.name;document.getElementById('gallery').append(item);setTimeout(()=>{window.galleryFiles.push(file.name);item.classList.remove('loading-work');},100);}
 window.parentSelections=0;window.parentClicks=0;
 function selectParent(){window.parentSelections++;document.querySelector('.model-category-content input').value='Impresoras 3D';const menu=document.getElementById('categories');menu.classList.add('closing');setTimeout(()=>{menu.hidden=true;menu.classList.remove('closing')},250);}
 const tags=[];document.getElementById('tags').addEventListener('keydown',event=>{if(event.key!=='Enter')return;tags.push(event.target.value);const span=document.createElement('span');span.className='el-tag';span.textContent=event.target.value;event.target.parentElement.append(span);event.target.value='';});
-async function deliver(){if(!document.querySelector('footer input[type=checkbox]').checked)throw Error('Acuerdo sin aceptar');const payload={groupItem:{modelSource:1,isPay:${invalid},isShared:document.querySelector('[name=share]:checked')?.value==='1',license:document.querySelector('[name=adapt]:checked')?.value==='1'&&document.querySelector('[name=commerce]:checked')?.value==='2'?'CC BY-NC':'wrong',groupName:document.querySelector('.model-name-content input').value,categoryId:document.querySelector('.model-category-content input').value.endsWith('/ Otro')?'other':null,tags,groupDesc:document.querySelector('[contenteditable]').innerHTML,pcCovers:window.coverReady?['cover']:[],appCovers:window.appCoverReady&&!window.dropAppCover?[{url:'https://example.test/app.png'}]:[],covers:window.galleryFiles.map(name=>({url:'https://example.test/'+name})),colorFilament:[{type:'PLA',color:'#ffffff',...(document.querySelector('[name=filament]:checked').value==='true'?{skuId:'creality-sku',url:'https://example.test/filament'}:{})}]},model3mf:{filekey:'file'}};await fetch('${url+CREATE_MODEL_PATH}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).catch(()=>{});}
+async function deliver(){if(!document.querySelector('footer input[type=checkbox]').checked)throw Error('Acuerdo sin aceptar');const payload={groupItem:{modelSource:1,isPay:${invalid},isShared:document.querySelector('[name=share]:checked')?.value==='1',license:document.querySelector('[name=adapt]:checked')?.value==='1'&&document.querySelector('[name=commerce]:checked')?.value==='2'?'CC BY-NC':'wrong',groupName:document.querySelector('.model-name-content input').value,categoryId:window.selectedCategoryId||null,tags,groupDesc:document.querySelector('[contenteditable]').innerHTML,pcCovers:window.coverReady?['cover']:[],appCovers:window.appCoverReady&&!window.dropAppCover?[{url:'https://example.test/app.png'}]:[],covers:window.galleryFiles.map(name=>({url:'https://example.test/'+name})),colorFilament:[{type:'PLA',color:'#ffffff',...(document.querySelector('[name=filament]:checked').value==='true'?{skuId:'creality-sku',url:'https://example.test/filament'}:{})}]},model3mf:{filekey:'file'}};await fetch('${url+CREATE_MODEL_PATH}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).catch(()=>{});}
 </script>`;}
 async function setup(t,invalid=false){
   requests=[];reserved=false;invalidForm=invalid;const page=await browser.newPage();t.after(()=>page.close());
@@ -88,7 +107,7 @@ test('reproduce texto cubierto y cierre diferido; selecciona Otro con hover sobr
   const page=await setup(t);await page.goto(CREATE_MODEL_URL);await page.locator('footer .step-one-btn').click();
   await page.locator('.model-category-content input').click();
   await assert.rejects(page.locator('.category-cascader').getByText(/^Impresoras 3D$/).hover({timeout:500}),/intercepts pointer events/);
-  await page.locator('.el-cascader-menu').first().locator('.el-cascader-node').click();
+  await page.locator('.el-cascader-menu').first().locator('.el-cascader-node').first().click();
   await assert.rejects(page.locator('#children .el-cascader-node').last().scrollIntoViewIfNeeded({timeout:800}),/Timeout/);
   assert.equal(await page.locator('#categories').isVisible(),false);
   await page.evaluate(()=>{window.parentSelections=0;window.parentClicks=0;});
@@ -96,6 +115,32 @@ test('reproduce texto cubierto y cierre diferido; selecciona Otro con hover sobr
   assert.equal(await page.locator('.model-category-content input').inputValue(),'Impresoras 3D / Otro');
   assert.equal(requests.length,0);assert.equal(await page.evaluate(()=>window.parentSelections),0);assert.equal(await page.evaluate(()=>window.parentClicks),0);
 });
+test('selecciona las 45 subcategorías con desplazamiento independiente y sin pulsar los padres',async t=>{
+  const page=await setup(t);await page.goto(CREATE_MODEL_URL);await page.locator('footer .step-one-btn').click();
+  for(const [index,{category,subcategories}] of UPLOAD_CATEGORIES.entries()) {
+    for(const subcategory of subcategories) {
+      await selectUploadCategory(page,page.locator('.second-step'),{category,subcategory});
+      assert.equal(await page.locator('.model-category-content input').inputValue(),`${category} / ${subcategory}`);
+      if(index>=5) assert.ok(await page.evaluate(()=>window.selectedParentScroll)>0);
+      if(category==='Aficiones y bricolaje'&&subcategory==='Otro') assert.ok(await page.evaluate(()=>window.selectedScroll)>0);
+    }
+  }
+  assert.equal(await page.evaluate(()=>window.parentClicks),0);assert.equal(await page.evaluate(()=>window.parentSelections),0);
+  assert.equal(requests.length,0);
+});
+
+test('entrega la categoría solicitada y bloquea un cambio posterior antes de enviar',async t=>{
+  responseCode=0;const page=await setup(t);
+  await submitUploadForm(page,{...model,category:{category:'MakeNow',subcategory:'SignForge'}},{beforeSubmit:async()=>{reserved=true;},timeout:5000});
+  assert.equal(requests.length,1);assert.equal(requests[0].payload.groupItem.categoryId,'category-9-3');
+  requests=[];reserved=false;
+  await page.addInitScript(()=>document.addEventListener('click',event=>{
+    if(event.target.closest('footer .submit')) document.querySelector('.model-category-content input').value='Impresoras 3D / Otro';
+  },true));
+  await assert.rejects(submitUploadForm(page,{...model,category:{category:'Hogar',subcategory:'Mascotas'}},{beforeSubmit:async()=>{reserved=true;},timeout:5000}),error=>error.code==='UPLOAD_CATEGORY_MISMATCH');
+  assert.equal(requests.length,0);assert.equal(reserved,false);
+});
+
 test('marca No también cuando la tercera pregunta permanece visible',async t=>{
   responseCode=0;const page=await setup(t);await page.addInitScript(()=>window.keepThird=true);
   await submitUploadForm(page,model,{beforeSubmit:async()=>{reserved=true;},timeout:5000});

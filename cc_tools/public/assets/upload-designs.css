@@ -58,3 +58,11 @@
 #uploads-help pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 #uploads-cleanup { width: 18px; height: 18px; min-height: 18px; accent-color: var(--accent); }
 .uploads-storage-grid { margin-top: 16px; }
+
+.upload-category-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.upload-category-grid label, .upload-category-grid select { min-width: 0; max-width: 100%; }
+.upload-category-grid select { width: 100%; min-height: 42px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background-color: var(--panel-strong); color: var(--text); text-overflow: ellipsis; }
+.upload-category-grid select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.upload-category-grid select:disabled { opacity: .6; }
+.upload-category { overflow-wrap: anywhere; }
+@media (max-width: 600px) { .upload-category-grid { grid-template-columns: minmax(0, 1fr); } }

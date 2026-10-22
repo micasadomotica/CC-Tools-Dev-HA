@@ -1,0 +1,65 @@
+CC Tools Dev 1.0.49
+
+1.0.49 — categorías de subida y aviso de capacidad de impresión
+
+- Añade diez categorías y 45 subcategorías al módulo Subir diseños. La selección se guarda al cambiarla y se aplica a las subidas manuales y programadas sin categoría propia.
+- Admite la línea opcional CATEGORIA: Categoría / Subcategoría en info.txt. Tiene prioridad sobre el selector; si falta o está vacía, se usa la selección guardada, inicialmente Impresoras 3D / Otro. Las combinaciones incorrectas se marcan para revisar.
+- Selecciona las categorías de Creality Cloud con hover sobre el padre y desplazamiento independiente en ambos menús. Verifica la categoría antes de entregar y mantiene la selección durante todo el lote.
+- Incluye Orca Slicer en los requisitos del archivo .3mf y actualiza la ayuda, los README y el ejemplo de info.txt.
+- Al guardar una programación de impresiones distingue cuántas faltan para el objetivo diario y cuántas se programan por el tiempo disponible. Los intentos fallidos siguen sin descontarse del objetivo.
+- Conserva todas las correcciones de 1.0.48, el puerto 8088 y la compatibilidad con Creality Cloud Dev 1.0.6-dev.1.
+- Versión de prueba: pendiente de validación real en Home Assistant. 1.0.48 permanece como versión estable Latest.
+
+INSTALACIÓN Y ACTUALIZACIÓN
+1. Detén CC Tools Dev cuando no haya una tarea en curso.
+2. Copia el contenido de cc_tools del ZIP en /addons/cc_tools, conservando la instalación y sus datos.
+3. Recarga la tienda de aplicaciones de Home Assistant y actualiza a 1.0.49 o utiliza Reconstruir en tu instalación local.
+4. Inicia el complemento y recarga la interfaz. Conserva el slug cc_tools y el puerto externo 8088.
+El montaje de /media requiere escritura; viene incluido en config.yaml. Copiar archivos sin actualizar o reconstruir no actualiza la imagen ni sus permisos.
+Los TXT antiguos que ya estén en la carpeta de instalación pueden permanecer al sobrescribirla; no forman parte de este ZIP.
+
+ARCHIVOS POR DISEÑO
+Una subcarpeta dentro de /media/cctools_3d_models con:
+- Un .3mf con configuración de Creality Print, Bambu Studio u Orca Slicer.
+- info.txt en UTF-8.
+- Una portada web 4:3, por ejemplo portada.png (1200 × 900).
+Opcionales:
+- portada2.jpg, .jpeg, .png o .webp para la App, con proporción 3:4 (900 × 1200).
+- imagen1 a imagen9 con extensión .jpg, .jpeg, .png o .webp, con proporción 4:3. Se suben en orden numérico; puedes incluir solo las que necesites.
+No repitas un nombre opcional con extensiones distintas. Todas las imágenes deben ser estáticas. El escaneo detecta imágenes con nombres duplicados, proporciones incorrectas o archivos cambiados.
+Límites por archivo: 3MF 256 MB, cada imagen 20 MB, info.txt 32 KB. Hasta 500 carpetas; sin enlaces simbólicos ni copias duplicadas del mismo 3MF.
+
+FORMATO DE info.txt
+ETIQUETAS: caja, organizador [Añade etiquetas separadas por coma]
+DESCRIPCION: Descripción del modelo [Añade una breve descripción]
+CATEGORIA: Impresoras 3D / Otro
+Los textos entre corchetes son indicaciones: no se incluyen en el archivo. El ejemplo adjunto está listo para editar.
+Se acepta DESCRIPCIÓN con tilde, descripciones con varias líneas y etiquetas separadas por comas, punto y coma o saltos de línea. Máximo 20 etiquetas de 30 caracteres.
+Se omite el apartado final «Recomendaciones de impresión:» de las plantillas antiguas al preparar la publicación, sin modificar info.txt.
+
+MIS DISEÑOS Y SUBIDA
+Al abrir la rueda se escanea automáticamente la biblioteca. El icono de actualizar repite el escaneo.
+El botón de carpeta crea /media/cctools_3d_models si falta y permite seleccionar juntos los archivos obligatorios y opcionales de un diseño desde el PC. Cada importación crea una subcarpeta independiente.
+También puedes copiar una carpeta por diseño directamente en esa ruta.
+Elige modelos y pulsa Subir seleccionados. Se mantiene Original, Gratis, Público y el nombre del archivo. Los selectores de Categoría y Subcategoría se guardan al cambiar y se aplican a las subidas manuales y programadas; inicialmente muestran Impresoras 3D / Otro.
+Si info.txt contiene CATEGORIA: Categoría / Subcategoría, esa combinación tiene prioridad para el diseño. Por ejemplo, CATEGORIA: Hogar / Mascotas. Si falta o está vacía, se usa el selector. Si la combinación no existe, el diseño se marca para revisar. La selección utiliza desplazamiento automático cuando una opción queda fuera del menú visible.
+Después de la portada web se añade portada2, si existe, confirmando ambos recortes; a continuación se suben las imágenes del modelo.
+Licencia CC BY-NC: Sí a las adaptaciones y No al uso comercial; No en la tercera pregunta cuando sea visible. Recomendación de filamento: No.
+Al subir o programar autorizas aceptar la declaración de derechos de autor para esos modelos. Se pulsa Confirmar en ese popup y se comprueba la casilla antes de Entregar.
+No se añaden archivos de instrucciones ni se rellena la descripción del ajuste de impresión.
+Solo se marca Entregado cuando Creality devuelve un identificador. Un resultado incierto bloquea nuevos intentos del archivo para evitar duplicados.
+
+PROGRAMACIÓN, RECOMPENSAS Y LIMPIEZA
+Elige horario, cantidad diaria y esa misma cantidad de diseños para el primer lote; pulsa Programar. La tarea aparece en Planificación.
+En los días siguientes se vuelve a escanear y se eligen diseños nuevos. Si faltan diseños se suben los disponibles; si no hay nuevos se registra el aviso. Telegram utiliza la configuración existente.
+El límite de cinco entregas diarias por cuenta se comparte entre manual y programación. Los envíos manuales no aplazan la próxima ejecución.
+El recuento periódico consulta Upload Models. La tarjeta refleja la recompensa confirmada sobre 5, independientemente de la cantidad programada; una entrega todavía pendiente de aprobación no suma por sí sola.
+Mis diseños muestra la fecha de entrega debajo de Entregado y la conserva al volver a escanear. Limpiar diseños está desmarcado por defecto; se guarda al marcarlo y funciona aunque las subidas estén desactivadas. Desde el día siguiente a la entrega se verifica el identificador y su presencia en el perfil público. Solo se eliminan los archivos del envío, incluidas las imágenes opcionales, si no han cambiado y no hay archivos ajenos.
+El historial permanece en los datos del complemento aunque se limpien las carpetas. Los modelos inciertos, modificados o sin confirmación pública se conservan.
+
+
+VERIFICACIÓN
+Versión de prueba, pendiente de validación real en Home Assistant. Se han comprobado localmente la prioridad de categorías, su persistencia, las 45 subcategorías, el desplazamiento de los menús, la interfaz móvil y el aviso de impresiones. Consulta el resultado de las comprobaciones automáticas en la publicación de GitHub.
+
+IMPRESIONES PENDIENTES Y TIEMPO DISPONIBLE
+Al programar, el aviso distingue las impresiones que faltan según el contador de recompensas y las que se pueden programar hoy. Por ejemplo: «Quedan 9 impresiones para el objetivo; se programan 5 por el tiempo disponible». Los fallos anteriores no restan del objetivo.

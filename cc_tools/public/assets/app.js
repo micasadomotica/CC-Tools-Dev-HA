@@ -2057,9 +2057,17 @@ async function saveFinishPrinterProfiles() {
   renderFinishPrinterProfiles();
   const pending = state.finishPrintDraftProfiles.reduce((total, profile) =>
     total + Math.max(0, (profile.printPlan || []).length - (Number(profile.printPlanCursor) || 0)), 0);
-  toast(pending
-    ? `Programación guardada: ${pending} ${pending === 1 ? 'impresión pendiente' : 'impresiones pendientes'} hoy.`
-    : 'Programación guardada sin ejecuciones pendientes hoy. Revisa el cupo diario y la ventana horaria.');
+  // Use the server's remaining reward target, not failed attempts or a stale panel counter.
+  const remaining = Math.max(0, Number(result.finishPrintRemaining) || 0);
+  if (!state.config.tasks.finishPrint.enabled) {
+    toast('Programación de impresiones desactivada.');
+  } else if (remaining === 0) {
+    toast('Programación guardada. No faltan impresiones para el objetivo diario; no se programa ninguna más hoy.');
+  } else {
+    const outstanding = remaining === 1 ? 'Queda 1 impresión' : `Quedan ${remaining} impresiones`;
+    const planned = pending === 1 ? 'se programa 1' : `se programan ${pending}`;
+    toast(`Programación guardada. ${outstanding} para el objetivo; ${planned}${pending < remaining ? ' por el tiempo disponible' : ' hoy'}.`);
+  }
   return true;
 }
 

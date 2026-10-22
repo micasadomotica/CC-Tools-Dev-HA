@@ -70,6 +70,46 @@ test('programación exige cantidad exacta y horario; persiste y se desactiva',as
   await page.locator('#uploads-plan').scrollIntoViewIfNeeded();await capture(page,'03-programacion');
   await page.locator('#close-uploads').click();await page.locator('#uploads-card .tool-switch').click();await ready(page);assert.equal(config.tasks.uploadDesigns.enabled,false);
 });
+test('categoría dependiente, prioridad de info.txt, guardado inmediato y restauración tras error',async t=>{
+  const page=await pageFor(t,{width:390,height:844});await page.locator('#open-uploads-config svg').click();await ready(page);
+  assert.equal(await page.locator('#uploads-category').inputValue(),'Impresoras 3D');
+  assert.equal(await page.locator('#uploads-subcategory').inputValue(),'Otro');
+  assert.equal(await page.locator('#uploads-category option').count(),10);
+  await page.locator('#uploads-category').selectOption('Hogar');await ready(page);
+  assert.equal(await page.locator('#uploads-subcategory').inputValue(),'Otro');
+  await page.locator('#uploads-subcategory').selectOption('Mascotas');await ready(page);
+  assert.deepEqual((await library.status()).defaultCategory,{category:'Hogar',subcategory:'Mascotas'});
+  const infoFile=path.join(root,'case','info.txt'),original=await fs.readFile(infoFile,'utf8');
+  try {
+    await fs.appendFile(infoFile,'\nCATEGORIA: Moda / Cosplay');
+    await page.locator('#uploads-scan').click();await ready(page);
+    const item=page.locator('.upload-model').filter({has:page.getByText('case',{exact:true})});
+    await item.locator('summary').click();
+    assert.match(await item.locator('.upload-category').innerText(),/Moda \/ Cosplay.*info.txt/);
+    const other=page.locator('.upload-model').filter({has:page.getByText('soporte',{exact:true})});
+    await other.locator('summary').click();assert.match(await other.locator('.upload-category').innerText(),/Hogar \/ Mascotas.*predeterminada/);
+    await page.locator('#close-uploads').click();await page.locator('#open-uploads-config svg').click();await ready(page);
+    assert.equal(await page.locator('#uploads-subcategory').inputValue(),'Mascotas');
+    await page.locator('#uploads-category').selectOption('MakeNow');await ready(page);
+    assert.equal(await page.locator('#uploads-subcategory').inputValue(),'MagicRelief');
+    await page.locator('#uploads-subcategory').selectOption('SignForge');await ready(page);
+    assert.equal(await page.locator('.upload-modal-card').evaluate(e=>e.scrollWidth<=e.clientWidth),true);
+    await capture(page,'categorias-movil');
+    await page.route('**/api/upload-designs/category',route=>route.fulfill({status:400,contentType:'application/json',body:JSON.stringify({ok:false,message:'No se pudo guardar la categoría.'})}));
+    await page.locator('#uploads-category').selectOption('Educación');await ready(page);
+    assert.equal(await page.locator('#uploads-category').inputValue(),'MakeNow');
+    assert.equal(await page.locator('#uploads-subcategory').inputValue(),'SignForge');
+    assert.match(await page.locator('#uploads-message').innerText(),/No se pudo guardar/);
+    await page.unroute('**/api/upload-designs/category');
+    await page.locator('#uploads-category').selectOption('Impresoras 3D');await ready(page);
+    await page.setViewportSize({width:1366,height:1000});
+    await page.locator('#uploads-category').scrollIntoViewIfNeeded();await capture(page,'categorias-pc');
+    await page.locator('#uploads-help-toggle').click();
+    assert.match(await page.locator('#uploads-help').innerText(),/Orca Slicer/);
+    assert.match(await page.locator('#uploads-help').innerText(),/CATEGORIA: Impresoras 3D \/ Otro/);
+  } finally { await fs.writeFile(infoFile,original);await library.scan(); }
+});
+
 test('móvil sin desbordamiento; botón de carpeta crea e importa los tres archivos',async t=>{
   const page=await pageFor(t,{width:390,height:844});await fs.rename(root,root+'-previous');
   await page.locator('#open-uploads-config svg').click();await ready(page);assert.match(await page.locator('#uploads-library-error').innerText(),/No se encuentra/);
@@ -94,7 +134,7 @@ test('el explorador importa portada2 y nueve imágenes junto con los archivos ob
   await page.waitForFunction(()=>document.getElementById('uploads-message').textContent.includes('añadido'));await ready(page);
   const item=(await library.scan()).inventory.find(item=>item.name==='galeria');assert.equal(item.valid,true);assert.equal(item.appCoverFile,'portada2.png');assert.equal(item.imageFiles.length,9);
   await page.locator('#uploads-help-toggle').click();const help=await page.locator('#uploads-help').innerText();
-  assert.match(help,/portada2/);assert.match(help,/3:4/);assert.match(help,/futuras versiones/);
+  assert.match(help,/portada2/);assert.match(help,/3:4/);assert.match(help,/CATEGORIA: es opcional/);assert.doesNotMatch(help,/futuras versiones/);
   assert.match(help,/ETIQUETAS: caja, organizador \[Añade etiquetas separadas por coma\]/);
   assert.match(help,/DESCRIPCION: Descripción del modelo \[Añade una breve descripción\]/);
 });

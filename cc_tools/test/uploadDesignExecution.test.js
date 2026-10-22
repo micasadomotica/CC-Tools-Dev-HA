@@ -68,6 +68,25 @@ test('envío manual completo persiste IDs, mantiene recompensa pendiente e impid
   assert.equal(dailyProgress({tasks:{uploadDesigns:{dailyLimit:5}}},[{taskId:'uploadDesigns',status:'success',finishedAt:new Date().toISOString(),details:result.details}]).counters.uploadDesigns,0);
   assert.equal((await library.candidates({account:'another',source:'manual',day:progressDay(),limit:5,selected:items})).items.length,2);
 });
+test('manual y programado respetan info.txt y mantienen la categoría inicial durante todo el lote',async t=>{
+  for(const source of ['manual','schedule']) {
+    const {library,root}=await fixture(t);
+    await fs.appendFile(path.join(root,'modelo1','info.txt'),'\nCATEGORIA: Moda / Cosplay');
+    const items=(await library.scan()).inventory;
+    await library.saveDefaultCategory({category:'Hogar',subcategory:'Mascotas'});
+    if(source==='schedule') await library.saveSchedule({enabled:true,dailyLimit:2,windowStart:'08:00',windowEnd:'12:00',selected:items});
+    const submitted=[];
+    const result=await runUploadDesigns({accountId:'user',dailyLimit:2},{ownUserId:'user',source,selected:items},deps(library,async(_,model,{beforeSubmit})=>{
+      submitted.push({name:model.name,category:model.category});
+      await beforeSubmit();
+      await library.saveDefaultCategory({category:'Educación',subcategory:'Otro'});
+      return{id:model.id,name:model.name};
+    }));
+    assert.equal(result.success,true);
+    assert.deepEqual(submitted,[{name:'modelo0',category:{category:'Hogar',subcategory:'Mascotas'}},{name:'modelo1',category:{category:'Moda',subcategory:'Cosplay'}}]);
+  }
+});
+
 test('un resultado incierto bloquea reintentos, un rechazo explícito permite revisión manual',async t=>{
   const {library,items}=await fixture(t);
   const failure=await runUploadDesigns({}, {ownUserId:'user',selected:[items[0]]},deps(library,async(_,model,{beforeSubmit})=>{await beforeSubmit();throw new Error('sin respuesta');}));

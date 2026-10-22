@@ -1030,7 +1030,8 @@ app.patch('/api/config', async (req, res) => {
   res.json({
     ok: true,
     config: sanitizeConfig(config),
-    nextExecutions: buildNextExecutions(config, runs)
+    nextExecutions: buildNextExecutions(config, runs),
+    finishPrintRemaining: dailyProgress(config, runs).remaining.finishPrint
   });
 });
 
