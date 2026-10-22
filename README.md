@@ -6,13 +6,18 @@ CC Tools Dev automatiza tareas de Creality Cloud desde Home Assistant. Es una ed
 
 [![Añadir repositorio a Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fmicasadomotica%2FCC-Tools-Dev-HA)
 
-[Novedades](cc_tools/CHANGELOG.md) · [Migrar desde la instalación local](MIGRACION.md) · [Versiones publicadas](https://github.com/micasadomotica/CC-Tools-Dev-HA/releases)
+[Novedades](cc_tools/CHANGELOG.md) · [Migración opcional desde la instalación local](MIGRACION.md) · [Versiones publicadas](https://github.com/micasadomotica/CC-Tools-Dev-HA/releases)
 
 ## Instalación desde la tienda
 
 Necesitas Home Assistant con Supervisor, conexión a Internet y un equipo **amd64** o **aarch64**.
 
-**Si ya utilizas Dev como app local, sigue primero [la guía de migración](MIGRACION.md).** Añadir este repositorio crea otra instalación: no transfiere los datos de la local.
+**Puedes empezar de cero siguiendo el asistente. La migración es opcional**, también si ya utilizas Dev como app local. Elige cómo quieres pasar a la app del repositorio:
+
+- **Empezar de cero:** instala la nueva app, inicia sesión y completa el asistente con los pasos siguientes. Tendrás una configuración nueva y un historial local vacío; vuelve a añadir tus favoritos y configura los módulos que utilices.
+- **Conservar tus datos:** sigue primero [la guía de migración](MIGRACION.md) para trasladar la configuración, sesión, programaciones e historial de la instalación local.
+
+Ambas opciones permiten actualizar después desde Home Assistant. Añadir el repositorio crea otra instalación y no transfiere los datos por sí solo.
 
 1. Entra en **Ajustes > Apps > Instalar app** (en algunas versiones, **Aplicaciones > Tienda de aplicaciones**).
 2. Abre **⋮ > Repositorios**, añade `https://github.com/micasadomotica/CC-Tools-Dev-HA` y pulsa **Añadir**. También puedes usar el botón anterior.
@@ -22,6 +27,14 @@ Necesitas Home Assistant con Supervisor, conexión a Internet y un equipo **amd6
 6. Completa el asistente e inicia sesión en Creality Cloud. Si has migrado, comprueba los datos restaurados en lugar de configurar otra cuenta.
 
 Utiliza la URL del repositorio tal como aparece arriba, sin `#main` ni `.git`. La rama predeterminada es **main**. Mantener la misma URL evita crear otro identificador de instalación.
+
+### Empezar de cero si ya tienes la app local
+
+Antes de iniciar la nueva, espera a que terminen las tareas de la local. Desactiva su arranque automático y Watchdog, si lo utilizas, y detén la app. Desactiva también el reinicio automático de Creality Cloud Dev durante el cambio. Puedes conservar la local detenida como respaldo mientras compruebas la nueva.
+
+En la nueva app, sigue el asistente y configura de nuevo tus favoritos y los ajustes que utilices: módulos, horarios, Telegram, impresoras y archivos de impresión. La sesión y los registros locales empiezan de cero. Lo publicado en tu cuenta de Creality Cloud permanece allí.
+
+**Aviso sobre diseños ya subidos:** los archivos de `/media/cctools_3d_models` permanecen en el almacenamiento compartido de HA, pero el registro de cuáles entregó la app antigua está en sus datos privados y no se recupera al empezar de cero. Al escanear, la nueva app puede considerar esos diseños como pendientes. Antes de activar subidas manuales o programadas, mueve las carpetas de los diseños ya entregados a una ubicación fuera de `/media/cctools_3d_models`, o prepara una biblioteca que contenga únicamente diseños pendientes de subir. Si no tienes claro cuáles se entregaron, revísalos en Creality Cloud antes de publicarlos otra vez.
 
 ## Actualizar desde Home Assistant
 
@@ -43,7 +56,7 @@ Cada app tiene sus propios datos, sesión y programación. Reparte las tareas en
 
 Likes y colecciones requieren **Descubrir diseños** activado en la misma app. Los catálogos y configuraciones privados no se sincronizan. La biblioteca `/media/cctools_3d_models` está en el almacenamiento compartido de HA; evita que varias instalaciones suban o limpien los mismos archivos a la vez.
 
-La instalación local anterior debe permanecer detenida después de migrar. La guía explica cómo conservarla como respaldo temporal sin interferir con la nueva.
+La instalación local anterior debe permanecer detenida cuando pases a la nueva, tanto si empiezas de cero como si migras. Puedes conservarla como respaldo temporal mientras compruebas la app del repositorio.
 
 ## Conectar Creality Cloud Dev
 
@@ -54,7 +67,7 @@ Utiliza [Creality Cloud Dev 1.0.6-dev.1](https://github.com/micasadomotica/Creal
 3. Si ya tenías el hub y conservas esa dirección, utiliza el existente. Para cambiar la dirección, usa **Reconfigurar**; no borres el hub ni lo añadas de nuevo.
 4. Antes de activar **Reinicio automático**, comprueba que `restart_app` identifica la app del nuevo repositorio, con formato `<id_repositorio>_cc_tools`, y que `restart_app_name` es **CC Tools Dev**. Ya no debe apuntar a `local_cc_tools`.
 
-La integración resuelve el destino por dirección y puerto. Si la app local conserva también 8088, la coincidencia es ambigua aunque esté detenida: cámbiale el puerto a uno libre, por ejemplo 8089, y deja 8088 únicamente en la nueva. Durante la migración mantén desactivado **Reinicio automático**.
+La integración resuelve el destino por dirección y puerto. Si la app local conserva también 8088, la coincidencia es ambigua aunque esté detenida: cámbiale el puerto a uno libre, por ejemplo 8089, y deja 8088 únicamente en la nueva. Durante el cambio de instalación mantén desactivado **Reinicio automático**, tanto si empiezas de cero como si migras.
 
 ## Añadir a la colección (Collection Models)
 

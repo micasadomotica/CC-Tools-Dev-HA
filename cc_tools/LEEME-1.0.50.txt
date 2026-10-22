@@ -8,9 +8,11 @@ Añade el repositorio en Ajustes > Apps > Instalar app > Repositorios.
 Instala CC Tools Dev, revisa la zona horaria y el puerto 8088 e inicia la app.
 Home Assistant construye la imagen en el equipo.
 
-MIGRACIÓN DESDE LA APP LOCAL
+EMPEZAR DE CERO O CONSERVAR LOS DATOS
 Añadir el repositorio crea otra instalación. No transfiere los datos por sí solo.
-Sigue la guía completa antes de usar la nueva app:
+Puedes empezar de cero: detén la app local, desactiva su arranque y reinicio automáticos e inicia la nueva. Sigue el asistente y configura tus favoritos y los módulos que utilices.
+Los archivos de /media/cctools_3d_models permanecen, pero la nueva app no conserva el registro de los diseños ya entregados. Antes de activar subidas manuales o programadas, mueve los diseños ya subidos fuera de esa biblioteca para evitar publicarlos otra vez.
+La migración es opcional, solo para conservar la configuración, sesión e historial locales. En ese caso, sigue la guía:
 https://github.com/micasadomotica/CC-Tools-Dev-HA/blob/main/MIGRACION.md
 Conserva la app local y su copia de seguridad hasta verificar la migración.
 

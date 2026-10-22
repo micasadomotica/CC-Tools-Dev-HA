@@ -1,6 +1,8 @@
 # Migrar CC Tools Dev local al repositorio
 
-Esta guía traslada una instalación local **1.0.49** a **1.0.50** desde [CC-Tools-Dev-HA](https://github.com/micasadomotica/CC-Tools-Dev-HA). Se hace una sola vez. Después podrás actualizar desde Home Assistant.
+**La migración es opcional y sirve para conservar tus datos locales.** Si prefieres empezar de cero, instala la app del repositorio, inicia sesión y completa el asistente siguiendo el [README](README.md#instalación-desde-la-tienda). Vuelve a configurar tus favoritos y los módulos que utilices. Antes de activar subidas, aparta de `/media/cctools_3d_models` los diseños ya entregados: sus archivos permanecen, pero la nueva app no conserva el historial de entrega de la local.
+
+Si eliges conservar los datos, esta guía traslada una instalación local **1.0.49** a **1.0.50** desde [CC-Tools-Dev-HA](https://github.com/micasadomotica/CC-Tools-Dev-HA). Se hace una sola vez. Después podrás actualizar desde Home Assistant, igual que si hubieras empezado de cero.
 
 La base 1.0.49 está validada en Home Assistant por el mantenedor. El procedimiento de migración requiere su comprobación final en una instalación real. Conserva la instalación local y las copias hasta verificar todos tus datos.
 
