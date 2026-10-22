@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.50 — repositorio propio y actualizaciones desde Home Assistant
+
+- Estrena CC-Tools-Dev-HA con main como rama predeterminada, conservando el historial de dev-v1.0.49.
+- Parte de 1.0.49, confirmada como probada y funcional en Home Assistant por el mantenedor.
+- Permite instalar y actualizar desde el repositorio en la tienda de Apps, con construcción local para amd64 y aarch64.
+- Actualiza las direcciones, documentación, versión de la interfaz e instrucciones de publicación.
+- Documenta la migración de todos los datos privados desde la app local, el almacenamiento compartido de media, la vuelta atrás y el nuevo destino del reinicio automático.
+- Conserva las funciones, la API, el slug cc_tools y el puerto 8088. No modifica el formato de los datos.
+- La instalación desde el nuevo repositorio y la migración quedan pendientes de validación final en una instalación real de Home Assistant.
+
 ## 1.0.49 — categorías de subida y aviso de capacidad de impresión
 
 - Añade diez categorías y 45 subcategorías al módulo Subir diseños. La selección se guarda al cambiarla y se aplica a las subidas manuales y programadas sin categoría propia.
@@ -8,7 +18,7 @@
 - Incluye Orca Slicer en los requisitos del archivo .3mf y actualiza la ayuda, los README y el ejemplo de info.txt.
 - Al guardar una programación de impresiones distingue cuántas faltan para el objetivo diario y cuántas se programan por el tiempo disponible. Los intentos fallidos siguen sin descontarse del objetivo.
 - Conserva todas las correcciones de 1.0.48, el puerto 8088 y la compatibilidad con Creality Cloud Dev 1.0.6-dev.1.
-- Versión de prueba: pendiente de validación real en Home Assistant. 1.0.48 permanece como versión estable Latest.
+- Validada en Home Assistant por el mantenedor antes de preparar 1.0.50. La publicación original se había ofrecido inicialmente como versión de prueba.
 
 ## 1.0.48 — descargas, impresiones, boosts y limpieza
 

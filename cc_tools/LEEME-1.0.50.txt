@@ -1,0 +1,23 @@
+CC Tools Dev 1.0.50
+
+Repositorio: https://github.com/micasadomotica/CC-Tools-Dev-HA
+Base: dev-v1.0.49, validada en Home Assistant por el mantenedor.
+
+INSTALACIÓN
+Añade el repositorio en Ajustes > Apps > Instalar app > Repositorios.
+Instala CC Tools Dev, revisa la zona horaria y el puerto 8088 e inicia la app.
+Home Assistant construye la imagen en el equipo.
+
+MIGRACIÓN DESDE LA APP LOCAL
+Añadir el repositorio crea otra instalación. No transfiere los datos por sí solo.
+Sigue la guía completa antes de usar la nueva app:
+https://github.com/micasadomotica/CC-Tools-Dev-HA/blob/main/MIGRACION.md
+Conserva la app local y su copia de seguridad hasta verificar la migración.
+
+ACTUALIZACIONES
+Las siguientes versiones se instalan desde Actualizar en la ficha de la app.
+No es necesario descargar ni copiar ZIP.
+
+VALIDACIÓN
+Se mantienen las funciones y el formato de datos de 1.0.49.
+La instalación y migración de 1.0.50 requieren comprobación final en Home Assistant.

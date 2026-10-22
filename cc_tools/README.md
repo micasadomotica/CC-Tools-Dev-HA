@@ -1,17 +1,121 @@
-# CC Tools Dev
+# CC Tools Dev para Home Assistant
 
-Edición de desarrollo de CC Tools para automatizar tareas de Creality Cloud desde Home Assistant.
+CC Tools Dev automatiza tareas de Creality Cloud desde Home Assistant. Es una edición independiente basada en [CC Tools de TitoTB](https://github.com/TitoTB/CC-Tools-HA) y en el trabajo de la comunidad de Aguacatec.
 
-**Versión de prueba: [CC Tools Dev 1.0.49](https://github.com/micasadomotica/CC-Tools-HA/releases/tag/dev-v1.0.49)**. Añade categorías y subcategorías para subir diseños, prioridad de `CATEGORIA:` en `info.txt`, requisitos de Orca Slicer y un aviso que distingue impresiones pendientes de las que caben por tiempo. Pendiente de validación real en Home Assistant.
+**Versión 1.0.50**, basada en la [1.0.49 validada en Home Assistant](https://github.com/micasadomotica/CC-Tools-HA/releases/tag/dev-v1.0.49). Esta versión estrena el repositorio propio y permite instalar y actualizar desde la tienda de Apps. Mantiene las funciones, el formato de datos y la API de 1.0.49. La instalación y migración de 1.0.50 requieren su comprobación final en Home Assistant.
 
-[Descargar ZIP 1.0.49 para probar](https://github.com/micasadomotica/CC-Tools-HA/releases/download/dev-v1.0.49/cc-tools-dev-1.0.49.zip) · [Versión estable validada y Latest: 1.0.48](https://github.com/micasadomotica/CC-Tools-HA/releases/tag/dev-v1.0.48)
+[![Añadir repositorio a Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fmicasadomotica%2FCC-Tools-Dev-HA)
 
-La interfaz web utiliza el puerto **8088** por defecto: `http://IP_DE_HOME_ASSISTANT:8088`. Puede convivir con CC Tools de TitoTB instalado desde su repositorio en el puerto **8080**.
+[Novedades](CHANGELOG.md) · [Migrar desde la instalación local](../MIGRACION.md) · [Versiones publicadas](https://github.com/micasadomotica/CC-Tools-Dev-HA/releases)
 
-Descarga el ZIP adjunto de las [Releases de Dev](https://github.com/micasadomotica/CC-Tools-HA/releases), descomprímelo y copia la carpeta `cc_tools` dentro de `/addons`. Después busca actualizaciones en la tienda e instala **CC Tools Dev** desde las aplicaciones locales.
+## Instalación desde la tienda
 
-Consulta la [guía de instalación y actualización](https://github.com/micasadomotica/CC-Tools-HA/tree/dev#instalación) y la pestaña **Documentación** para configurar el puerto y repartir los módulos entre ambas instalaciones.
+Necesitas Home Assistant con Supervisor, conexión a Internet y un equipo **amd64** o **aarch64**.
 
-En **Subir diseños**, prepara un `.3mf` con configuración de **Creality Print, Bambu Studio u Orca Slicer**, una portada e `info.txt`. Los selectores de **Categoría** y **Subcategoría** se guardan al cambiarlos y se aplican a las subidas manuales y programadas. El valor inicial es **Impresoras 3D / Otro**.
+**Si ya utilizas Dev como app local, sigue primero [la guía de migración](../MIGRACION.md).** Añadir este repositorio crea otra instalación: no transfiere los datos de la local.
 
-La línea opcional `CATEGORIA: Categoría / Subcategoría` de `info.txt` tiene prioridad para ese diseño. Por ejemplo: `CATEGORIA: Hogar / Mascotas`. Si falta o está vacía, se usa el selector del módulo. Una combinación incorrecta se marca para revisar. Consulta los requisitos previos del módulo y [ejemplo-info.txt](ejemplo-info.txt).
+1. Entra en **Ajustes > Apps > Instalar app** (en algunas versiones, **Aplicaciones > Tienda de aplicaciones**).
+2. Abre **⋮ > Repositorios**, añade `https://github.com/micasadomotica/CC-Tools-Dev-HA` y pulsa **Añadir**. También puedes usar el botón anterior.
+3. Busca **CC Tools Dev** dentro del repositorio **CC Tools Dev** e instala la app. Home Assistant construye la imagen en tu equipo; la primera instalación necesita descargar sus dependencias.
+4. Revisa la zona horaria y el puerto externo **8088** en **Configuración > Red**.
+5. Inicia la app y abre `http://IP_DE_HOME_ASSISTANT:8088`, o pulsa **Abrir interfaz web**.
+6. Completa el asistente e inicia sesión en Creality Cloud. Si has migrado, comprueba los datos restaurados en lugar de configurar otra cuenta.
+
+Utiliza la URL del repositorio tal como aparece arriba, sin `#main` ni `.git`. La rama predeterminada es **main**. Mantener la misma URL evita crear otro identificador de instalación.
+
+## Actualizar desde Home Assistant
+
+1. Cuando haya una nueva versión, abre **CC Tools Dev** y revisa el changelog. Si no aparece, pulsa **Buscar actualizaciones** en la tienda.
+2. Espera a que termine cualquier tarea en curso y crea una copia de seguridad de la app. Incluye también **media** si quieres respaldar los archivos de diseños.
+3. Pulsa **Actualizar**. Home Assistant obtiene los archivos del repositorio y construye la nueva versión.
+4. Comprueba que la app arranca y recarga la interfaz web.
+
+Las actualizaciones de esta misma instalación conservan los datos de `/data`. Ya no necesitas descargar ZIP ni sustituir `/addons/cc_tools`. La detección de una versión nueva no implica que se instale automáticamente: puedes pulsar **Actualizar** desde HA.
+
+## Convivencia con CC Tools de TitoTB
+
+| App | Instalación | Puerto habitual |
+|---|---|---|
+| CC Tools | Repositorio de TitoTB | 8080 |
+| CC Tools Dev | Este repositorio | 8088 |
+
+Cada app tiene sus propios datos, sesión y programación. Reparte las tareas entre ellas para evitar acciones duplicadas sobre la misma cuenta. Las recompensas y los límites diarios pertenecen a la cuenta de Creality Cloud.
+
+Likes y colecciones requieren **Descubrir diseños** activado en la misma app. Los catálogos y configuraciones privados no se sincronizan. La biblioteca `/media/cctools_3d_models` está en el almacenamiento compartido de HA; evita que varias instalaciones suban o limpien los mismos archivos a la vez.
+
+La instalación local anterior debe permanecer detenida después de migrar. La guía explica cómo conservarla como respaldo temporal sin interferir con la nueva.
+
+## Conectar Creality Cloud Dev
+
+Utiliza [Creality Cloud Dev 1.0.6-dev.1](https://github.com/micasadomotica/Creality-Cloud-Dev-HA/releases/tag/v1.0.6-dev.1), integración independiente con dominio `creality_cloud_dev`, compatible con tener también la integración original.
+
+1. Añade `https://github.com/micasadomotica/Creality-Cloud-Dev-HA` en HACS como repositorio personalizado de tipo **Integración**, instálala y reinicia Home Assistant. Requiere HA **2026.8 o posterior**.
+2. En **Ajustes > Dispositivos y servicios > Añadir integración**, selecciona **Creality Cloud Dev** y usa `http://IP_DE_HOME_ASSISTANT:8088`.
+3. Si ya tenías el hub y conservas esa dirección, utiliza el existente. Para cambiar la dirección, usa **Reconfigurar**; no borres el hub ni lo añadas de nuevo.
+4. Antes de activar **Reinicio automático**, comprueba que `restart_app` identifica la app del nuevo repositorio, con formato `<id_repositorio>_cc_tools`, y que `restart_app_name` es **CC Tools Dev**. Ya no debe apuntar a `local_cc_tools`.
+
+La integración resuelve el destino por dirección y puerto. Si la app local conserva también 8088, la coincidencia es ambigua aunque esté detenida: cámbiale el puerto a uno libre, por ejemplo 8089, y deja 8088 únicamente en la nueva. Durante la migración mantén desactivado **Reinicio automático**.
+
+## Añadir a la colección (Collection Models)
+
+Guarda un diseño pendiente en **Default Collections** de tu cuenta y comprueba la recompensa diaria **Collection Models**. Requiere una sesión de Creality Cloud iniciada y **Descubrir diseños** activado en la misma instalación para su programación. Omite los diseños propios, los que ya están guardados y la acción si la recompensa diaria ya está completada.
+
+El guardado en colecciones fallaba desde los navegadores de PC y solo funcionaba desde la app móvil de Creality Cloud. Dev incorpora una vía de guardado directa para resolver ese problema. Dev obtiene el identificador del modelo de los datos de su ficha y envía el guardado directamente a la API de Creality Cloud con la sesión autenticada. Después recarga la ficha y consulta la recompensa. El punto solo se cuenta cuando Creality Cloud lo confirma; si el resultado es incierto, no vuelve a enviar el mismo modelo automáticamente.
+
+## Crear un proyecto (MakeNow)
+
+El módulo consulta primero la recompensa diaria. Si está pendiente, revisa los cupos de Lampshade Generator, FrameStudio, ClickerMaker, FlexiWeave, CubeMe, SnapForm, MagicRelief y SignForge. Cada herramienta admite 30 proyectos. Elige la que tenga menos proyectos y espacio disponible, y pulsa **New Project** sin generar ni finalizar el proyecto. Quedan excluidos AI Create Lab, Fanforge-Football y FlexiToys.
+
+En la configuración del módulo puedes consultar los últimos cupos leídos. Dev registra cada intento por perfil CC y guarda el identificador del proyecto cuando la web lo muestra. Si hay un corte después del clic, no repite automáticamente la creación ese día. Ejecutar ahora consulta de nuevo la recompensa y permite un reintento manual si confirma 0/1; con 1/1 no abre otro proyecto. Cada reintento puede consumir otro espacio y conserva el proyecto anterior. El identificador del editor no confirma la aprobación de la recompensa. El contador diario solo se completa cuando Creality Cloud confirma la recompensa.
+
+Dev no elimina proyectos. Si todos los cupos están llenos, lo registra en el Log y avisa por Telegram si tienes activadas las notificaciones de error del módulo. Libera espacio manualmente en alguna herramienta y vuelve a ejecutar el módulo. Los proyectos que ya existían se incluyen en el cupo, pero no se atribuyen a Dev.
+
+## Subir diseños (Upload Models)
+
+Publica diseños desde una biblioteca local de Home Assistant, de forma manual o con una programación de **1 a 5 diseños diarios**. Requiere una sesión de Creality Cloud iniciada y el perfil de la cuenta actualizado en Dev.
+
+En la configuración del módulo, abre **Mis diseños** y pulsa el botón de carpeta para importar desde el PC los archivos de un diseño. Dev crea la biblioteca en `/media/cctools_3d_models`. También puedes copiar allí una subcarpeta por diseño y pulsar **Escanear carpeta**.
+
+Prepara estos archivos para cada diseño:
+
+| Archivo | Requisitos |
+|---|---|
+| Un `.3mf` | Con configuración de Creality Print, Bambu Studio u Orca Slicer; máximo 256 MB. Su nombre, sin extensión, se usa como título. |
+| Una portada web | JPG, JPEG, PNG o WebP estática, proporción **4:3**; máximo 20 MB. Por ejemplo, `portada.jpg`. |
+| `info.txt` | Texto UTF-8 con etiquetas y descripción; máximo 32 KB. Hasta 20 etiquetas de 30 caracteres cada una. |
+| Imágenes opcionales | `portada2` para la app en **3:4** e `imagen1` a `imagen9` en **4:3**, con cualquiera de las extensiones de imagen anteriores; máximo 20 MB por archivo. |
+
+Ejemplo de `info.txt`:
+
+```text
+CATEGORIA: Impresoras 3D / Otro
+ETIQUETAS: caja, organizador
+DESCRIPCION: Caja organizadora con compartimentos para piezas pequeñas.
+```
+
+Dev valida los archivos y detecta duplicados por su contenido. Selecciona los diseños y pulsa **Subir seleccionados**, o configura la cantidad diaria, la franja horaria y los diseños de la primera ejecución y pulsa **Programar**.
+
+La **categoría predeterminada** se guarda al cambiar los selectores de categoría y subcategoría y se aplica tanto a subidas manuales como programadas. Su valor inicial es **Impresoras 3D / Otro**. La línea opcional `CATEGORIA: Categoría / Subcategoría` de `info.txt` tiene prioridad para ese diseño. Si falta o está vacía, se usa el selector. Si no coincide con una combinación disponible, el diseño se marca para revisar; no se sustituye por otra categoría. Puedes consultar las diez categorías y sus subcategorías en los selectores del módulo.
+
+La subida automatiza el formulario web de Creality Cloud: carga los archivos, completa las etiquetas y la descripción y entrega el diseño como **Original, Gratis y Público**, en la categoría indicada en `info.txt` o en el selector del módulo, con licencia **CC BY-NC**. Al subir o programar autorizas que acepte la declaración de derechos de autor para esos diseños.
+
+La tarjeta muestra la recompensa **Upload Models** sobre **5**, aunque hayas programado menos diseños. En **Mis diseños**, debajo de **Entregado** aparece la fecha original de entrega, que no cambia al volver a escanear.
+
+La entrega queda registrada por cuenta para evitar duplicados. Si el resultado es incierto, revisa el **Banco de trabajo** de Creality antes de repetirla. Entregar un diseño no confirma la recompensa **Upload Models**: queda pendiente de aprobación. La limpieza local es opcional y está desactivada por defecto. **Limpiar diseños** se guarda al marcar la casilla y funciona también con las subidas desactivadas, sin tener que seleccionar diseños ni pulsar Programar. Desde el día siguiente a la entrega comprueba que el diseño esté publicado en el perfil antes de eliminar sus archivos. Conserva los archivos adicionales, modificados o sin confirmación pública.
+
+## Desarrollo y publicaciones
+
+- **main** es la rama predeterminada y contiene la versión que ofrece la tienda de Home Assistant.
+- Las ramas de trabajo se integran después de las comprobaciones. Para publicar, sigue [PUBLICACION.md](../PUBLICACION.md).
+- Las versiones de este repositorio usan etiquetas **vX.Y.Z**. El historial anterior se conserva, partiendo del commit `07fbf22ae26969877eda19a551d9c923c98fb71d` de **dev-v1.0.49**.
+- El [repositorio anterior](https://github.com/micasadomotica/CC-Tools-HA) conserva las publicaciones históricas.
+
+## Soporte
+
+Comunica los problemas de Dev en [Issues](https://github.com/micasadomotica/CC-Tools-Dev-HA/issues), indicando la versión y los pasos para reproducirlos. Para la edición original, consulta el [repositorio de TitoTB](https://github.com/TitoTB/CC-Tools-HA).
+
+## Aviso y licencia
+
+CC Tools no es una aplicación oficial ni está afiliada con Creality o Creality Cloud. Respeta las normas de la plataforma.
+
+Se conserva el trabajo de TitoTB y la comunidad de Aguacatec, su historial y la [licencia MIT](LICENSE).

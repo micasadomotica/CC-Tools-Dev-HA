@@ -4,7 +4,7 @@ CC Tools ejecuta automatizaciones de Creality Cloud desde Home Assistant.
 
 ## Configuración
 
-Antes de iniciar el complemento puedes configurar:
+Antes de iniciar la app puedes configurar:
 
 - `timezone`: zona horaria utilizada para planificar las automatizaciones. El valor predeterminado es `Europe/Madrid`.
 
@@ -17,7 +17,7 @@ y reinicia Dev. El puerto interno del contenedor sigue siendo 8080; Home Assista
 resuelve **Abrir interfaz web** con el puerto externo configurado.
 
 Puedes mantener CC Tools de TitoTB instalado desde su repositorio en el puerto
-8080 y CC Tools Dev como aplicación local en `/addons/cc_tools` en el puerto 8088.
+8080 y CC Tools Dev desde su propio repositorio en el puerto 8088.
 Cada aplicación conserva sus propios datos y su sesión. Inicia sesión en ambas y
 reparte los módulos: por ejemplo, MakeNow en Dev y las descargas en la principal.
 Activa cada tarea en una sola instalación para evitar ejecuciones simultáneas
@@ -28,19 +28,15 @@ catálogos de diseños y la configuración no se comparten entre las dos aplicac
 
 ## Instalar y actualizar Dev
 
-Descarga `cc-tools-dev-X.Y.Z.zip` de los Assets de una
-[release Dev](https://github.com/micasadomotica/CC-Tools-HA/releases),
-descomprímelo y copia `cc_tools` dentro de `/addons`. El archivo de configuración
-debe quedar en `/addons/cc_tools/config.yaml`. Busca actualizaciones en la tienda
-e instala **CC Tools Dev** desde las aplicaciones locales.
+Añade `https://github.com/micasadomotica/CC-Tools-Dev-HA` en los repositorios de la tienda de Apps e instala **CC Tools Dev**. La versión **1.0.50** parte de **1.0.49**, validada en Home Assistant. La app se construye en tu equipo y utiliza el puerto externo **8088**.
 
-Para actualizar, detén Dev, sustituye los archivos de la misma carpeta y pulsa
-**Actualizar** en la instalación existente. Revisa el puerto 8088 antes de
-iniciarla. Conserva la instalación y su carpeta para mantener los datos.
+Para las siguientes versiones, utiliza **Actualizar** desde Home Assistant. Crea antes una copia de seguridad y espera a que terminen las tareas en curso. No necesitas descargar ZIP.
+
+Si vienes de `/addons/cc_tools`, sigue [MIGRACION.md](https://github.com/micasadomotica/CC-Tools-Dev-HA/blob/main/MIGRACION.md) antes de usar la nueva app. El almacenamiento privado cambia de identificador y requiere una copia inicial. Conserva también `/media/cctools_3d_models`.
 
 ## Primer acceso
 
-1. Guarda la configuración del complemento.
+1. Guarda la configuración de la app.
 2. Inicia CC Tools.
 3. Pulsa **Abrir interfaz web**.
 4. Completa el asistente para iniciar sesión en Creality Cloud y, opcionalmente, configurar Telegram.
@@ -53,7 +49,7 @@ El identificador del modelo se obtiene exclusivamente del bloque `__NUXT_DATA__`
 
 La API local expone esta herramienta como `collections` en `/api/integration/status` y en los eventos de `/api/integration/events`. Permite activar o desactivar su programación con `PATCH /api/integration/tasks/collections` (`{"enabled": true}` o `false`) y ejecutarla con `POST /api/integration/tasks/collections/run`. Al desactivar Descubrir diseños se desactiva también la programación de colecciones.
 
-La creación de entidades y controles en Home Assistant depende de que la integración cliente admita esta tarea; este complemento proporciona su API.
+La creación de entidades y controles en Home Assistant depende de que la integración cliente admita esta tarea; esta app proporciona su API.
 
 ## Recordatorio de reposición del check-in
 
@@ -65,11 +61,11 @@ Las pruebas del diálogo se ejecutan con `npm run test:checkin:browser`. Requier
 
 ## Datos persistentes
 
-La configuración, la sesión del navegador, el historial y las capturas se almacenan en `/data`. Home Assistant conserva estos datos durante las actualizaciones y los incluye en las copias de seguridad del complemento.
+La configuración, la sesión del navegador, el historial y las capturas se almacenan en `/data`. Home Assistant conserva estos datos durante las actualizaciones y los incluye en las copias de seguridad de la app.
 
 ## Soporte
 
-Puedes comunicar dudas, fallos y sugerencias en la [comunidad de Aguacatec en Telegram](https://t.me/aguacatec_es/13374).
+Comunica los problemas de esta edición en [Issues](https://github.com/micasadomotica/CC-Tools-Dev-HA/issues).
 
 ## Aviso
 
@@ -83,7 +79,7 @@ El flujo consulta Use MakeNow, elige una herramienta permitida con espacio dispo
 
 Log muestra los pasos y si Creality Cloud confirmó la recompensa. Si ya estaba completada, no abre otro proyecto. Tras intentar el clic no se repite automáticamente ese día, incluso si la confirmación tarda o se reinicia la app. Ejecutar ahora consulta de nuevo la recompensa y permite otro intento si confirma 0/1. El reintento puede consumir otro espacio y conserva el proyecto anterior. Si la lectura es incierta o la recompensa ya está en 1/1, no repite el clic. El identificador del editor no confirma la aprobación de la recompensa. El día se determina según la zona horaria configurada. No se eliminan proyectos existentes.
 
-Instalación local: sustituye la carpeta cc_tools de la app local por la de este ZIP y actualiza/reconstruye CC Tools Dev desde Home Assistant. Conserva el slug y los datos de la instalación existente.
+Instala y actualiza desde la tienda de Apps. Para pasar desde una instalación local, sigue la guía de migración enlazada arriba.
 
 ## Pedidos y boosts (Dev 1.0.48)
 
@@ -102,7 +98,7 @@ Una impresión sin recompensa conserva el G-code seleccionado. Al volver a progr
 
 Subir diseños muestra las recompensas sobre 5. Mis diseños conserva la fecha de entrega debajo de Entregado. Limpiar diseños se guarda al marcarlo y funciona también con las subidas desactivadas: desde el día siguiente a la entrega, comprueba la publicación en el perfil antes de eliminar los archivos locales que no hayan cambiado.
 
-## Categorías y capacidad de impresión (Dev 1.0.49, en pruebas)
+## Categorías y capacidad de impresión (desde Dev 1.0.49, validada)
 
 Subir diseños admite .3mf con configuración de Creality Print, Bambu Studio u Orca Slicer. Los selectores Categoría y Subcategoría se guardan al cambiar y se aplican a subidas manuales y programadas. El valor inicial es Impresoras 3D / Otro.
 

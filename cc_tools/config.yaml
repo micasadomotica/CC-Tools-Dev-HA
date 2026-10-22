@@ -1,8 +1,8 @@
 name: CC Tools Dev
-version: "1.0.49"
+version: "1.0.50"
 slug: cc_tools
 description: Automatiza tareas de Creality Cloud desde Home Assistant.
-url: https://github.com/micasadomotica/CC-Tools-HA/tree/dev
+url: https://github.com/micasadomotica/CC-Tools-Dev-HA
 arch:
   - amd64
   - aarch64

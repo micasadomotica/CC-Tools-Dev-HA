@@ -1,81 +1,60 @@
 # CC Tools Dev para Home Assistant
 
-CC Tools Dev es la edición de desarrollo de este fork de [CC Tools de TitoTB](https://github.com/TitoTB/CC-Tools-HA). Permite probar funciones y mantener cambios propios para automatizar tareas de Creality Cloud desde Home Assistant.
+CC Tools Dev automatiza tareas de Creality Cloud desde Home Assistant. Es una edición independiente basada en [CC Tools de TitoTB](https://github.com/TitoTB/CC-Tools-HA) y en el trabajo de la comunidad de Aguacatec.
 
-Se instala como aplicación local y utiliza el puerto **8088**. Puede convivir con la aplicación de TitoTB instalada desde su repositorio, que utiliza el puerto **8080** por defecto.
+**Versión 1.0.50**, basada en la [1.0.49 validada en Home Assistant](https://github.com/micasadomotica/CC-Tools-HA/releases/tag/dev-v1.0.49). Esta versión estrena el repositorio propio y permite instalar y actualizar desde la tienda de Apps. Mantiene las funciones, el formato de datos y la API de 1.0.49. La instalación y migración de 1.0.50 requieren su comprobación final en Home Assistant.
 
-**Versión de prueba: [CC Tools Dev 1.0.49](https://github.com/micasadomotica/CC-Tools-HA/releases/tag/dev-v1.0.49)**. Añade categorías y subcategorías para subir diseños, prioridad de `CATEGORIA:` en `info.txt`, requisitos de Orca Slicer y un aviso que distingue impresiones pendientes de las que caben por tiempo. Pendiente de validación real en Home Assistant.
+[![Añadir repositorio a Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fmicasadomotica%2FCC-Tools-Dev-HA)
 
-[Descargar ZIP 1.0.49 para probar](https://github.com/micasadomotica/CC-Tools-HA/releases/download/dev-v1.0.49/cc-tools-dev-1.0.49.zip) · [Versión estable validada y Latest: 1.0.48](https://github.com/micasadomotica/CC-Tools-HA/releases/tag/dev-v1.0.48)
+[Novedades](cc_tools/CHANGELOG.md) · [Migrar desde la instalación local](MIGRACION.md) · [Versiones publicadas](https://github.com/micasadomotica/CC-Tools-Dev-HA/releases)
 
-Las novedades y correcciones de cada versión se describen en su release. Las publicaciones marcadas como **Pre-release** están pendientes de validación completa en Home Assistant.
+## Instalación desde la tienda
 
-## Instalación
+Necesitas Home Assistant con Supervisor, conexión a Internet y un equipo **amd64** o **aarch64**.
 
-Necesitas Home Assistant con Supervisor y acceso a la carpeta `addons`, por ejemplo mediante Samba o SSH.
+**Si ya utilizas Dev como app local, sigue primero [la guía de migración](MIGRACION.md).** Añadir este repositorio crea otra instalación: no transfiere los datos de la local.
 
-1. Abre las [Releases de Dev](https://github.com/micasadomotica/CC-Tools-HA/releases) y selecciona la versión que quieras instalar.
-2. En **Assets**, descarga el archivo adjunto **`cc-tools-dev-X.Y.Z.zip`**. El archivo **Source code (zip)** es la descarga automática del repositorio y no es el paquete preparado para esta instalación.
-3. Descomprime el ZIP. Dentro encontrarás la carpeta **`cc_tools`**.
-4. Copia esa carpeta dentro de **`/addons`** de Home Assistant. Si usas Samba, corresponde al recurso compartido **`addons`**. La estructura debe quedar así:
+1. Entra en **Ajustes > Apps > Instalar app** (en algunas versiones, **Aplicaciones > Tienda de aplicaciones**).
+2. Abre **⋮ > Repositorios**, añade `https://github.com/micasadomotica/CC-Tools-Dev-HA` y pulsa **Añadir**. También puedes usar el botón anterior.
+3. Busca **CC Tools Dev** dentro del repositorio **CC Tools Dev** e instala la app. Home Assistant construye la imagen en tu equipo; la primera instalación necesita descargar sus dependencias.
+4. Revisa la zona horaria y el puerto externo **8088** en **Configuración > Red**.
+5. Inicia la app y abre `http://IP_DE_HOME_ASSISTANT:8088`, o pulsa **Abrir interfaz web**.
+6. Completa el asistente e inicia sesión en Creality Cloud. Si has migrado, comprueba los datos restaurados en lugar de configurar otra cuenta.
 
-   ```text
-   /addons/
-   └── cc_tools/
-       ├── config.yaml
-       ├── Dockerfile
-       ├── run.sh
-       └── ...
-   ```
+Utiliza la URL del repositorio tal como aparece arriba, sin `#main` ni `.git`. La rama predeterminada es **main**. Mantener la misma URL evita crear otro identificador de instalación.
 
-   Comprueba que el archivo quede en `/addons/cc_tools/config.yaml`, sin carpetas intermedias adicionales.
-5. En Home Assistant, entra en **Ajustes > Aplicaciones > Tienda de aplicaciones**. En algunas versiones este apartado se llama **Complementos**.
-6. Abre el menú de los tres puntos y pulsa **Buscar actualizaciones**. Recarga la página si hace falta.
-7. Busca **CC Tools Dev** en **Aplicaciones locales** y pulsa **Instalar**. La aplicación se compila en tu equipo.
-8. Revisa la zona horaria y comprueba en **Configuración > Red** que el puerto externo sea **8088**.
-9. Inicia la aplicación y pulsa **Abrir interfaz web**, o entra en `http://IP_DE_HOME_ASSISTANT:8088`.
-10. Completa el asistente e inicia sesión en Creality Cloud.
+## Actualizar desde Home Assistant
 
-Este método instala Dev desde el ZIP; no requiere añadir este fork a la lista de repositorios de la tienda. La carpeta `addons` está separada de `/config`.
+1. Cuando haya una nueva versión, abre **CC Tools Dev** y revisa el changelog. Si no aparece, pulsa **Buscar actualizaciones** en la tienda.
+2. Espera a que termine cualquier tarea en curso y crea una copia de seguridad de la app. Incluye también **media** si quieres respaldar los archivos de diseños.
+3. Pulsa **Actualizar**. Home Assistant obtiene los archivos del repositorio y construye la nueva versión.
+4. Comprueba que la app arranca y recarga la interfaz web.
 
-## Actualización
+Las actualizaciones de esta misma instalación conservan los datos de `/data`. Ya no necesitas descargar ZIP ni sustituir `/addons/cc_tools`. La detección de una versión nueva no implica que se instale automáticamente: puedes pulsar **Actualizar** desde HA.
 
-1. Descarga y descomprime el ZIP de la nueva release.
-2. Detén **CC Tools Dev** y sustituye los archivos de `/addons/cc_tools` por los de la carpeta `cc_tools` del nuevo ZIP.
-3. Busca actualizaciones en la tienda y pulsa **Actualizar** en la instalación existente de CC Tools Dev.
-4. Revisa el puerto externo en **Configuración > Red**. Si tu instalación anterior tenía guardado **8080**, cámbialo a **8088** y guarda: una actualización puede conservar el puerto que ya tenías configurado.
-5. Inicia Dev y recarga su interfaz web.
+## Convivencia con CC Tools de TitoTB
 
-Mantén la carpeta `cc_tools` y la instalación existente para conservar la configuración, la sesión y el historial en sus datos persistentes. No es necesario desinstalar Dev. Si tienes accesos o una integración apuntando al puerto anterior de Dev, actualiza su dirección a `http://IP_DE_HOME_ASSISTANT:8088`.
-
-## Usar Dev junto a CC Tools de TitoTB
-
-| Instalación | Origen | Dirección predeterminada |
+| App | Instalación | Puerto habitual |
 |---|---|---|
-| CC Tools | Repositorio de TitoTB en la tienda | `http://IP_DE_HOME_ASSISTANT:8080` |
-| CC Tools Dev | ZIP de Releases en `/addons/cc_tools` | `http://IP_DE_HOME_ASSISTANT:8088` |
+| CC Tools | Repositorio de TitoTB | 8080 |
+| CC Tools Dev | Este repositorio | 8088 |
 
-Ambas pueden estar instaladas y ejecutándose a la vez. Cada una mantiene su propia configuración, sesión de Creality Cloud, diseños, programación y Log. Inicia sesión por separado en cada aplicación.
+Cada app tiene sus propios datos, sesión y programación. Reparte las tareas entre ellas para evitar acciones duplicadas sobre la misma cuenta. Las recompensas y los límites diarios pertenecen a la cuenta de Creality Cloud.
 
-Puedes activar los módulos **Añadir a la colección** y **Crear un proyecto (MakeNow) en Dev** y mantener **check-in o impresiones en la principal de TitoTB**. Elige en qué instalación ejecutar cada módulo y desactívalo en la otra. Evita programar la misma tarea en ambas para la misma cuenta; sus programadores no comparten un bloqueo y podrían actuar a la vez. Las recompensas y sus límites diarios pertenecen a la cuenta de Creality Cloud, no a cada instalación.
+Likes y colecciones requieren **Descubrir diseños** activado en la misma app. Los catálogos y configuraciones privados no se sincronizan. La biblioteca `/media/cctools_3d_models` está en el almacenamiento compartido de HA; evita que varias instalaciones suban o limpien los mismos archivos a la vez.
 
-Al repartir módulos, ten en cuenta sus dependencias: **likes y colecciones requieren Descubrir diseños activado en la misma instalación**, y los diseños descargados por una aplicación no se transfieren automáticamente a la otra. La sincronización de recompensas de Dev actualiza sus contadores y pendientes; no copia la configuración ni el catálogo de la aplicación principal.
+La instalación local anterior debe permanecer detenida después de migrar. La guía explica cómo conservarla como respaldo temporal sin interferir con la nueva.
 
-La convivencia descrita utiliza la principal instalada desde el repositorio de TitoTB y Dev como aplicación local. Si ya tienes otra aplicación local ocupando `/addons/cc_tools`, no la sobrescribas para crear una segunda instalación: esa carpeta identifica tu aplicación local existente.
+## Conectar Creality Cloud Dev
 
-## Usar Dev junto a Creality Cloud HA
+Utiliza [Creality Cloud Dev 1.0.6-dev.1](https://github.com/micasadomotica/Creality-Cloud-Dev-HA/releases/tag/v1.0.6-dev.1), integración independiente con dominio `creality_cloud_dev`, compatible con tener también la integración original.
 
-Utiliza [**Creality Cloud Dev 1.0.6-dev.1**](https://github.com/micasadomotica/Creality-Cloud-Dev-HA/releases/tag/v1.0.6-dev.1) para CC Tools Dev. Esta versión está probada y validada en Home Assistant. Es una integración independiente con dominio `creality_cloud_dev`, compatible con tener instalada [Creality Cloud de TitoTB](https://github.com/TitoTB/Creality-Cloud-HA), cuyo dominio es `creality_cloud`. El mismo perfil de Creality puede aparecer en ambas sin que se sustituya la conexión del otro hub.
+1. Añade `https://github.com/micasadomotica/Creality-Cloud-Dev-HA` en HACS como repositorio personalizado de tipo **Integración**, instálala y reinicia Home Assistant. Requiere HA **2026.8 o posterior**.
+2. En **Ajustes > Dispositivos y servicios > Añadir integración**, selecciona **Creality Cloud Dev** y usa `http://IP_DE_HOME_ASSISTANT:8088`.
+3. Si ya tenías el hub y conservas esa dirección, utiliza el existente. Para cambiar la dirección, usa **Reconfigurar**; no borres el hub ni lo añadas de nuevo.
+4. Antes de activar **Reinicio automático**, comprueba que `restart_app` identifica la app del nuevo repositorio, con formato `<id_repositorio>_cc_tools`, y que `restart_app_name` es **CC Tools Dev**. Ya no debe apuntar a `local_cc_tools`.
 
-1. En HACS, añade `https://github.com/micasadomotica/Creality-Cloud-Dev-HA` como repositorio personalizado de tipo **Integración**.
-2. Descarga [**1.0.6-dev.1**](https://github.com/micasadomotica/Creality-Cloud-Dev-HA/releases/tag/v1.0.6-dev.1). Requiere **Home Assistant 2026.8 o posterior**. Reinicia Home Assistant tras instalarla.
-3. En **Ajustes > Dispositivos y servicios > Añadir integración**, selecciona **Creality Cloud Dev** e introduce `http://IP_DE_HOME_ASSISTANT:8088`, o el puerto configurado para Dev. Siempre pide la URL; no necesitas detener CC Tools original.
-4. Comprueba el hub con el nombre del perfil y el sufijo **Dev**. Para cambiar su dirección, utiliza **Reconfigurar**. Añadir la misma cuenta otra vez no cambia silenciosamente su URL.
-5. Si activas **Reinicio automático**, comprueba que los atributos `restart_app` y `restart_app_name` correspondan a Dev, normalmente `local_cc_tools` / CC Tools Dev. Se verifica el destino con Supervisor por dirección y puerto; si es ambiguo o remoto, no se reinicia ninguna aplicación.
-
-Mantén la integración de TitoTB conectada a CC Tools original y Creality Cloud Dev conectada a Dev. Las tareas programadas deben repartirse entre ambas aplicaciones para no duplicar acciones sobre la misma cuenta.
-
-La integración incluye el sensor **Sesión**, los vínculos de las impresoras de TitoTB 1.0.5 y el reinicio por destino configurado. CC Tools Dev **1.0.48** es la versión estable recomendada y proporciona los datos necesarios. La versión **1.0.6-dev.1** corresponde a la integración HACS independiente Creality Cloud Dev y está publicada como **Latest**.
+La integración resuelve el destino por dirección y puerto. Si la app local conserva también 8088, la coincidencia es ambigua aunque esté detenida: cámbiale el puerto a uno libre, por ejemplo 8089, y deja 8088 únicamente en la nueva. Durante la migración mantén desactivado **Reinicio automático**.
 
 ## Añadir a la colección (Collection Models)
 
@@ -124,20 +103,19 @@ La tarjeta muestra la recompensa **Upload Models** sobre **5**, aunque hayas pro
 
 La entrega queda registrada por cuenta para evitar duplicados. Si el resultado es incierto, revisa el **Banco de trabajo** de Creality antes de repetirla. Entregar un diseño no confirma la recompensa **Upload Models**: queda pendiente de aprobación. La limpieza local es opcional y está desactivada por defecto. **Limpiar diseños** se guarda al marcar la casilla y funciona también con las subidas desactivadas, sin tener que seleccionar diseños ni pulsar Programar. Desde el día siguiente a la entrega comprueba que el diseño esté publicado en el perfil antes de eliminar sus archivos. Conserva los archivos adicionales, modificados o sin confirmación pública.
 
-## Organización del fork
+## Desarrollo y publicaciones
 
-- **`dev`** es la rama predeterminada del repositorio y contiene la edición Dev completa, incluidas funciones propias que no se enviarán al proyecto original.
-- **`feat/nombre-del-cambio`** contiene únicamente los cambios de una aportación concreta.
-- Las releases Dev usan etiquetas **`dev-vX.Y.Z`** y adjuntan el ZIP de instalación. Los ZIP no se guardan dentro del código.
-
-La rama `main` de este fork se ha retirado; su historial permanece incluido en `dev`. Para revisar cambios de TitoTB o preparar una aportación, se utiliza la rama `main` de su repositorio original (`upstream/main`) y se trasladan solo los cambios necesarios a una rama específica. Se conserva la atribución y la licencia del proyecto original.
+- **main** es la rama predeterminada y contiene la versión que ofrece la tienda de Home Assistant.
+- Las ramas de trabajo se integran después de las comprobaciones. Para publicar, sigue [PUBLICACION.md](PUBLICACION.md).
+- Las versiones de este repositorio usan etiquetas **vX.Y.Z**. El historial anterior se conserva, partiendo del commit `07fbf22ae26969877eda19a551d9c923c98fb71d` de **dev-v1.0.49**.
+- El [repositorio anterior](https://github.com/micasadomotica/CC-Tools-HA) conserva las publicaciones históricas.
 
 ## Soporte
 
-Comunica los problemas específicos de Dev en los [Issues de este fork](https://github.com/micasadomotica/CC-Tools-HA/issues), indicando la versión y los pasos para reproducirlos. Para la edición principal, consulta el [repositorio de TitoTB](https://github.com/TitoTB/CC-Tools-HA).
+Comunica los problemas de Dev en [Issues](https://github.com/micasadomotica/CC-Tools-Dev-HA/issues), indicando la versión y los pasos para reproducirlos. Para la edición original, consulta el [repositorio de TitoTB](https://github.com/TitoTB/CC-Tools-HA).
 
 ## Aviso y licencia
 
 CC Tools no es una aplicación oficial ni está afiliada con Creality o Creality Cloud. Respeta las normas de la plataforma.
 
-Este fork parte del trabajo de TitoTB y la comunidad de Aguacatec. Se distribuye bajo la [licencia MIT](LICENSE).
+Se conserva el trabajo de TitoTB y la comunidad de Aguacatec, su historial y la [licencia MIT](LICENSE).

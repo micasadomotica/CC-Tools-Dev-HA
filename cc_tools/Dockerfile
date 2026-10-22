@@ -1,6 +1,6 @@
 FROM mcr.microsoft.com/playwright:v1.63.0-noble
 
-ARG BUILD_VERSION=1.0.49
+ARG BUILD_VERSION=1.0.50
 ARG BUILD_ARCH
 
 LABEL \
