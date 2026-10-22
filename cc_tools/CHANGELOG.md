@@ -9,7 +9,7 @@
 - Limita los boosts a uno por día, manual o programado, aunque sobren boletos. Comprueba el progreso de la cuenta antes de gastar y bloquea nuevas ejecuciones tras consumirlo, incluso si falla la lotería.
 - Muestra Upload Models sobre 5 y la fecha de entrega debajo de Entregado. La limpieza usa esa fecha, conserva las entregas antiguas y funciona aunque la subida programada esté desactivada.
 - Guarda la opción Limpiar diseños al marcarla, sin exigir modelos nuevos. Mantiene la comprobación de publicación y las protecciones de archivos antes de eliminar.
-- Mantiene el puerto 8088 y la compatibilidad con Creality Cloud Dev 1.0.6-dev.1. Pendiente de confirmar los cambios de esta versión en una instalación real de Home Assistant.
+- Mantiene el puerto 8088 y la compatibilidad con Creality Cloud Dev 1.0.6-dev.1. Versión probada y validada por el usuario en Home Assistant, publicada como Latest.
 
 ## 1.0.47 — selector de archivos de las portadas
 

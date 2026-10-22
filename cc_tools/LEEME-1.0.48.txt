@@ -9,7 +9,7 @@ CC Tools Dev 1.0.48
 - Limita los boosts a uno por día, manual o programado, aunque sobren boletos. Comprueba el progreso de la cuenta antes de gastar y bloquea nuevas ejecuciones tras consumirlo, incluso si falla la lotería.
 - Muestra Upload Models sobre 5 y la fecha de entrega debajo de Entregado. La limpieza usa esa fecha, conserva las entregas antiguas y funciona aunque la subida programada esté desactivada.
 - Guarda la opción Limpiar diseños al marcarla, sin exigir modelos nuevos. Mantiene la comprobación de publicación y las protecciones de archivos antes de eliminar.
-- Mantiene el puerto 8088 y la compatibilidad con Creality Cloud Dev 1.0.6-dev.1. Pendiente de confirmar los cambios de esta versión en una instalación real de Home Assistant.
+- Mantiene el puerto 8088 y la compatibilidad con Creality Cloud Dev 1.0.6-dev.1. Versión probada y validada por el usuario en Home Assistant, publicada como Latest.
 
 INSTALACIÓN Y ACTUALIZACIÓN
 1. Detén CC Tools Dev cuando no haya una tarea en curso.
@@ -58,4 +58,4 @@ El historial permanece en los datos del complemento aunque se limpien las carpet
 
 
 VERIFICACIÓN
-Las pruebas automáticas utilizan datos y formularios controlados. Esta versión queda pendiente de confirmar en Home Assistant. La versión anterior 1.0.47 tiene la subida real validada por el usuario.
+El usuario ha confirmado la validación de esta versión en Home Assistant. También han pasado 500 pruebas automáticas, 69 pruebas de navegador y la validación completa en GitHub, incluidas las compilaciones para amd64 y aarch64.
