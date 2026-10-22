@@ -70,7 +70,7 @@ test('activa por defecto la prioridad de favoritos y todo el catálogo', async (
   assert.equal(config.tasks.modelDownloads.prioritizeFavorites, true);
   assert.deepEqual(config.tasks.modelDownloads.catalogCategories, []);
   assert.equal(config.tasks.modelDownloads.cleanupAfterHours, 1);
-  assert.equal(config.tasks.modelDownloads.dailyLimit, 30);
+  assert.equal(config.tasks.modelDownloads.dailyLimit, 10);
   assert.equal(config.tasks.modelDownloads.windowStart, '08:00');
   assert.equal(config.tasks.modelDownloads.windowEnd, '14:00');
 });
@@ -489,4 +489,28 @@ test('conserva la fecha de descubrimiento al volver a indexar un favorito', asyn
   const designs = await storage.readDesigns();
   const indexed = designs.find((design) => design.title === model.title);
   assert.equal(indexed.discoveredAt, initialDate);
+});
+
+test('observar un boost anterior marca el listado sin inventar consumo ni fecha de hoy', async () => {
+  const { record } = await storage.appendDesign({ url: 'https://www.crealitycloud.com/es/model-detail/boost-regression', title: 'Boost regression' });
+  const first = await storage.markDesignBoosted(record.id, { previouslyApplied: true });
+  assert.equal(first.boostCount, 1);
+  assert.equal(first.boostLastAt || '', '');
+  const again = await storage.markDesignBoosted(record.id, { previouslyApplied: true });
+  assert.equal(again.boostCount, 1);
+  const applied = await storage.markDesignBoosted(record.id);
+  assert.equal(applied.boostCount, 2);
+  assert.ok(applied.boostLastAt);
+  const observed = await storage.markDesignBoosted(record.id, { previouslyApplied: true });
+  assert.equal(observed.boostCount, 2);
+  assert.equal(observed.boostLastAt, applied.boostLastAt);
+});
+
+test('migra el cupo antiguo de 30 descargas a 10 y conserva objetivos menores', async () => {
+  for (const [stored, expected] of [[30, 10], [20, 10], [10, 10], [7, 7], [0, 0]]) {
+    const config = await storage.readConfig();
+    config.tasks.modelDownloads.dailyLimit = stored;
+    await fs.writeFile(path.join(temporaryDataDir, 'config.json'), JSON.stringify(config));
+    assert.equal((await storage.readConfig()).tasks.modelDownloads.dailyLimit, expected);
+  }
 });

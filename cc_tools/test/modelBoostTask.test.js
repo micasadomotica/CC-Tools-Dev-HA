@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  BOOST_BUTTON_TEXT,
   boostAttemptDisposition,
   boostCandidatesForRun,
   boostConsumedToday,
@@ -31,14 +32,14 @@ test('excluye los diseños propios de los candidatos para boost', () => {
   assert.deepEqual(candidates.map((design) => design.id), ['external']);
 });
 
-test('incluye otros diseños descargados cuando se desactiva el modo solo favoritos', () => {
+test('prioriza los descargados sobre los favoritos que solo están indexados', () => {
   const candidates = selectBoostCandidates([
     { id: 'favorite', favoriteActive: true, indexedOnly: true, url: 'https://example.test/favorite' },
     { id: 'downloaded', indexedOnly: false, url: 'https://example.test/downloaded' },
     { id: 'indexed', indexedOnly: true, url: 'https://example.test/indexed' }
   ], '', false);
 
-  assert.deepEqual(candidates.map((design) => design.id), ['favorite', 'downloaded']);
+  assert.deepEqual(candidates.map((design) => design.id), ['downloaded', 'favorite']);
 });
 
 test('considera utilizado el boost aunque falle la verificación posterior', () => {
@@ -53,13 +54,14 @@ test('considera utilizado el boost aunque falle la verificación posterior', () 
   assert.equal(boostConsumedToday(runs, 'Europe/Madrid', new Date('2026-09-24T12:00:00.000Z')), false);
 });
 
-test('limita el boost diario solo en ejecuciones programadas', () => {
+test('limita el boost diario tanto en ejecuciones manuales como programadas', () => {
   assert.equal(shouldSkipBoostForDailyPreference(true, 'schedule'), true);
-  assert.equal(shouldSkipBoostForDailyPreference(true, 'manual'), false);
+  assert.equal(shouldSkipBoostForDailyPreference(true, 'manual'), true);
+  assert.equal(shouldSkipBoostForDailyPreference(false, 'manual'), false);
   assert.equal(shouldSkipBoostForDailyPreference(false, 'schedule'), false);
 });
 
-test('limita los candidatos y rota después de un intento fallido', () => {
+test('revisa todos los candidatos y conserva la prioridad después de un intento fallido', () => {
   const designs = ['a', 'b', 'c', 'd'].map((id) => ({ id }));
   const runs = [{
     taskId: 'modelBoosts',
@@ -70,7 +72,7 @@ test('limita los candidatos y rota después de un intento fallido', () => {
 
   assert.deepEqual(
     boostCandidatesForRun(designs, runs, 'Europe/Madrid', new Date('2026-10-18T10:00:00.000Z')).map((item) => item.id),
-    ['b', 'c', 'd']
+    ['a', 'b', 'c', 'd']
   );
 });
 
@@ -103,4 +105,9 @@ test('la ausencia de boletos prevalece sobre el rechazo de permiso del diseño',
     ticketsAvailable: 2,
     permissionAccepted: true
   }), 'allowed');
+});
+
+test('reconoce las variantes de TitoTB 1.0.36 sin confundir indicadores con botones', () => {
+  for (const label of ['Impulso', 'Impulsar', 'Impulsar de nuevo', 'Impulsar nuevamente', 'Volver a impulsar', 'Boost', 'Boost again', 'Boost it again']) assert.equal(BOOST_BUTTON_TEXT.test(label), true, label);
+  for (const label of ['Potenciado', 'Boost disponible', '2 Boosts', 'Comentario Boost']) assert.equal(BOOST_BUTTON_TEXT.test(label), false, label);
 });

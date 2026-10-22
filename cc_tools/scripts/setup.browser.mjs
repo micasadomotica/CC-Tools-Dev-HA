@@ -47,7 +47,7 @@ after(async () => {
   if (dataDir) await fs.rm(dataDir, { recursive: true, force: true });
 });
 
-test('Telegram conserva el paso del asistente y las descargas parten de 30', async () => {
+test('Telegram conserva el paso del asistente y las descargas parten de 10', async () => {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1050 } });
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -77,10 +77,10 @@ test('Telegram conserva el paso del asistente y las descargas parten de 30', asy
     await page.locator('#wizard-next').click();
     await page.waitForSelector('#wizard-modal', { state: 'hidden' });
     await page.reload();
-    await page.waitForFunction(() => document.querySelector('#models-daily-limit').value === '30');
+    await page.waitForFunction(() => document.querySelector('#models-daily-limit').value === '10');
     assert.equal(await page.locator('#wizard-modal').isVisible(), false);
     await page.locator('#open-models-config svg').click();
-    assert.equal(await page.locator('#models-daily-limit').inputValue(), '30');
+    assert.equal(await page.locator('#models-daily-limit').inputValue(), '10');
     assert.equal(await page.locator('#models-window-end').inputValue(), '14:00');
     await page.locator('#close-models-config').click();
     await page.locator('#open-collections-config svg').click();

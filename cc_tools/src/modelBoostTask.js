@@ -11,6 +11,7 @@ import { forwardAuthenticationHeaders } from './finishPrintDiscovery.js';
 import { readPointsSummary } from './pointsCounter.js';
 import { markDesignBoosted, readDesigns, readRuns, updateDesignOwnership } from './storage.js';
 import { isOwnModel, readModelOwnership } from './modelOwnership.js';
+import { readIncentiveProgressBatch } from './incentiveTasks.js';
 
 const BOOST_PAGE_URL = 'https://www.crealitycloud.com/es/user/boost';
 const BOOST_COUNT_URL = 'https://www.crealitycloud.com/api/cxy/v2/boost/count';
@@ -19,11 +20,13 @@ const BOOST_PERMISSION_PATH = '/api/cxy/v2/boost/checkPermission';
 const BOOST_URL = 'https://www.crealitycloud.com/api/cxy/v2/boost/boost';
 const GREEN_CONTENT_URL = 'https://www.crealitycloud.com/api/cxy/v2/green/content';
 const COMMENT_URL = 'https://www.crealitycloud.com/api/cxy/comment/postComment';
-const MAX_BOOST_CANDIDATES_PER_RUN = 3;
+export const BOOST_BUTTON_TEXT = /^(Impulso|Impulsar|Boost|Impulsar\s+de\s*nuevo|Impulsar\s+nuevamente|Volver\s+a\s+impulsar|Boost\s+(?:it\s+)?again)$/i;
+const REPEAT_BOOST_TEXT = /^(Impulsar\s+de\s*nuevo|Impulsar\s+nuevamente|Volver\s+a\s+impulsar|Boost\s+(?:it\s+)?again)$/i;
 
 export async function runModelBoost(taskConfig = {}) {
+  const allDesigns = await readDesigns();
   const designs = selectBoostCandidates(
-    await readDesigns(),
+    allDesigns,
     taskConfig.ownUserId,
     taskConfig.favoriteOnly !== false
   );
@@ -31,10 +34,11 @@ export async function runModelBoost(taskConfig = {}) {
 
   const runs = await readRuns();
   const alreadyUsedToday = boostConsumedToday(runs, taskConfig.timezone)
-    || designs.some((design) => isToday(design.boostLastAt, taskConfig.timezone));
+    || allDesigns.some((design) => isToday(design.boostLastAt, taskConfig.timezone));
   const executionSource = taskConfig.executionSource === 'manual' ? 'manual' : 'schedule';
   if (shouldSkipBoostForDailyPreference(alreadyUsedToday, executionSource)) {
-    return skipped('El boost diario programado ya se ha utilizado.', {
+    return skipped('Ya se ha utilizado el boost de hoy. Solo se recompensa uno al día; la ejecución manual y la programada están bloqueadas hasta mañana.', {
+      reason: 'BOOST_DAILY_LIMIT',
       alreadyUsedToday: true,
       executionSource
     });
@@ -50,13 +54,27 @@ export async function runModelBoost(taskConfig = {}) {
     let ticketsAvailable = 0;
     let availabilityKnown = false;
     try {
+      const progress = (await readIncentiveProgressBatch(page, observer, ['Model Boost']))['Model Boost'];
+      if (!progress?.found || !Number.isInteger(progress.done) || progress.done < 0 || !(progress.valid > 0)) {
+        throw taskError('BOOST_DAILY_PROGRESS_UNAVAILABLE', 'No se pudo comprobar el boost diario en Creality Cloud. No se ha gastado ningún boleto.');
+      }
+      if (progress.done >= 1) return skipped('El boost diario ya está completado en Creality Cloud. Solo se recompensa uno al día; las ejecuciones quedan bloqueadas hasta mañana.', {
+        reason: 'BOOST_DAILY_LIMIT', alreadyUsedToday: true,
+        rewardVerification: { before: progress }
+      });
       let resolved = null;
       let ownModelsSkipped = 0;
       let rejectedModels = 0;
       let unresolvedModels = 0;
       const permissionRejections = [];
       const attemptedModels = [];
+      const repeatedCandidates = [];
+      // Inspect unboosted designs first. Repeated boosts are only a fallback.
       for (const candidate of candidates) {
+        if (Number(candidate.boostCount) > 0) {
+          repeatedCandidates.push(candidate);
+          continue;
+        }
         design = candidate;
         attemptedModels.push({
           designId: candidate.id || '',
@@ -64,6 +82,12 @@ export async function runModelBoost(taskConfig = {}) {
           url: candidate.url || ''
         });
         const target = await resolveBoostTarget(page, candidate, observer, taskConfig.ownUserId);
+        attemptedModels.at(-1).state = target?.alreadyBoosted ? 'already_boosted'
+          : target?.ownModel ? 'own_model' : target ? 'permission_checked' : 'button_or_permission_not_found';
+        if (target?.alreadyBoosted) {
+          repeatedCandidates.push(candidate);
+          continue;
+        }
         if (target?.ownModel) {
           ownModelsSkipped += 1;
           continue;
@@ -100,10 +124,34 @@ export async function runModelBoost(taskConfig = {}) {
         resolved = target;
         if (resolved) break;
       }
+      if (!resolved && !unresolvedModels && !rejectedModels) {
+        for (const candidate of repeatedCandidates) {
+          design = candidate;
+          const target = await resolveBoostTarget(page, candidate, observer, taskConfig.ownUserId, { allowRepeat: true });
+          if (target?.ownModel) { ownModelsSkipped += 1; continue; }
+          attemptedModels.push({ designId: candidate.id || '', title: candidate.title || '', url: candidate.url || '', repeat: true });
+          if (!target) { unresolvedModels += 1; continue; }
+          if (!availabilityKnown) {
+            ({ ticketsAvailable } = await readBoostAvailability(page, target.authenticationHeaders));
+            availabilityKnown = true;
+          }
+          if (!ticketsAvailable) return skipped('No hay boletos boost disponibles.', {
+            ticketsAvailable: 0, availabilityCheckedAt: new Date().toISOString()
+          });
+          if (!boostResponseAccepted(target.permission)) {
+            rejectedModels += 1;
+            permissionRejections.push({ designId: candidate.id || '', modelGroupId: target.modelGroupId, permission: target.permission });
+            continue;
+          }
+          resolved = target;
+          break;
+        }
+      }
       const attemptDetails = {
         executionSource,
         totalCandidates: designs.length,
-        candidateLimit: MAX_BOOST_CANDIDATES_PER_RUN,
+        candidateLimit: candidates.length,
+        previouslyBoostedModels: repeatedCandidates.length,
         attemptedModels,
         ownModelsSkipped,
         rejectedModels,
@@ -257,7 +305,7 @@ export async function checkModelBoostAvailability(taskConfig = {}) {
     try {
       let resolved = null;
       for (const design of designs) {
-        const target = await resolveBoostTarget(page, design, observer, taskConfig.ownUserId);
+        const target = await resolveBoostTarget(page, design, observer, taskConfig.ownUserId, { allowRepeat: true });
         if (target?.ownModel) continue;
         resolved = target;
         if (resolved) break;
@@ -298,6 +346,8 @@ export function selectBoostCandidates(designs = [], ownUserId = '', favoriteOnly
       && design.url
       && !isOwnModel(design, ownUserId))
     .sort((left, right) => {
+      const downloadedDifference = Number(left.indexedOnly === true) - Number(right.indexedOnly === true);
+      if (downloadedDifference) return downloadedDifference;
       const countDifference = (Number(left.boostCount) || 0) - (Number(right.boostCount) || 0);
       if (countDifference) return countDifference;
       return Date.parse(left.downloadedAt || 0) - Date.parse(right.downloadedAt || 0);
@@ -312,7 +362,7 @@ export function boostConsumedToday(runs = [], timezone = 'Europe/Madrid', now = 
 }
 
 export function shouldSkipBoostForDailyPreference(alreadyUsedToday, executionSource = 'schedule') {
-  return executionSource !== 'manual' && alreadyUsedToday === true;
+  return alreadyUsedToday === true;
 }
 
 export function boostCandidatesForRun(
@@ -320,19 +370,13 @@ export function boostCandidatesForRun(
   runs = [],
   timezone = 'Europe/Madrid',
   now = new Date(),
-  limit = MAX_BOOST_CANDIDATES_PER_RUN
+  limit = designs.length
 ) {
   if (!designs.length) return [];
-  const failedAttemptsToday = runs.filter((run) => run.taskId === 'modelBoosts'
-    && run.details?.boostConsumed !== true
-    && ['error', 'failed'].includes(run.status)
-    && dayKey(timezone, new Date(run.finishedAt || run.createdAt)) === dayKey(timezone, now)).length;
-  const offset = failedAttemptsToday % designs.length;
-  const rotated = [...designs.slice(offset), ...designs.slice(0, offset)];
-  return rotated.slice(0, Math.max(1, Number(limit) || MAX_BOOST_CANDIDATES_PER_RUN));
+  return designs.slice(0, Math.max(1, Number(limit) || designs.length));
 }
 
-async function resolveBoostTarget(page, design, observer, ownUserId = '') {
+export async function resolveBoostTarget(page, design, observer, ownUserId = '', { allowRepeat = false } = {}) {
   await page.goto(design.url, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(3000);
   const pageDiagnostic = await inspectCrealityPage(page, observer, { requireBody: true });
@@ -342,6 +386,14 @@ async function resolveBoostTarget(page, design, observer, ownUserId = '') {
   await updateDesignOwnership(design.id, ownership, ownUserId);
   if (isOwnModel(ownership, ownUserId)) return { ownModel: true };
 
+  const button = page.getByText(BOOST_BUTTON_TEXT, { exact: true }).last();
+  if (!await button.isVisible().catch(() => false)) return null;
+  const alreadyBoosted = REPEAT_BOOST_TEXT.test((await button.innerText()).trim());
+  if (alreadyBoosted) {
+    await markDesignBoosted(design.id, { previouslyApplied: true });
+    if (!allowRepeat) return { alreadyBoosted: true };
+  }
+
   const permissionRequest = page.waitForRequest((request) =>
     request.method() === 'POST' && request.url().includes(BOOST_PERMISSION_PATH),
   { timeout: 12000 }).catch(() => null);
@@ -349,8 +401,6 @@ async function resolveBoostTarget(page, design, observer, ownUserId = '') {
     response.request().method() === 'POST' && response.url().includes(BOOST_PERMISSION_PATH),
   { timeout: 12000 }).catch(() => null);
 
-  const button = page.getByText(/^(Impulso|Boost)$/i, { exact: true }).last();
-  if (!await button.isVisible().catch(() => false)) return null;
   await button.click({ timeout: 6000 });
 
   const request = await permissionRequest;

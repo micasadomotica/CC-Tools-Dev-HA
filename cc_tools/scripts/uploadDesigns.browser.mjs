@@ -60,13 +60,13 @@ test('programación exige cantidad exacta y horario; persiste y se desactiva',as
   await page.locator('#uploads-limit').fill('2');const inputs=page.locator('#uploads-plan-list input');await inputs.nth(0).check();assert.equal(await page.locator('#uploads-program').isDisabled(),true);
   await inputs.nth(1).check();assert.equal(await page.locator('#uploads-program').isEnabled(),true);
   await page.locator('#uploads-end').fill('07:00');assert.equal(await page.locator('#uploads-program').isDisabled(),true);await page.locator('#uploads-end').fill('12:00');
-  assert.equal(await page.locator('#uploads-cleanup').isChecked(),false);await page.locator('#uploads-cleanup').check();
+  assert.equal(await page.locator('#uploads-cleanup').isChecked(),false);await page.locator('#uploads-cleanup').check();await ready(page);
   await page.locator('#uploads-program').click();await ready(page);assert.equal(config.tasks.uploadDesigns.enabled,true);assert.ok(config.tasks.uploadDesigns.nextRunAt);assert.equal(config.tasks.uploadDesigns.cleanupEnabled,true);
-  assert.equal(await page.locator('#uploads-daily-badge').innerText(),'0/2');
+  assert.equal(await page.locator('#uploads-daily-badge').innerText(),'0/5');
   assert.match(await page.locator('#uploads-next-run').innerText(),/^\d{2}\/\d{2}\/\d{4}, \d{2}:\d{2}$/);
   await page.locator('#uploads-plan-list input').nth(1).uncheck();await page.locator('#uploads-limit').fill('1');
   await page.locator('#uploads-program').click();await ready(page);
-  assert.equal(await page.locator('#uploads-daily-badge').innerText(),'0/1');
+  assert.equal(await page.locator('#uploads-daily-badge').innerText(),'0/5');
   await page.locator('#uploads-plan').scrollIntoViewIfNeeded();await capture(page,'03-programacion');
   await page.locator('#close-uploads').click();await page.locator('#uploads-card .tool-switch').click();await ready(page);assert.equal(config.tasks.uploadDesigns.enabled,false);
 });
@@ -97,4 +97,32 @@ test('el explorador importa portada2 y nueve imágenes junto con los archivos ob
   assert.match(help,/portada2/);assert.match(help,/3:4/);assert.match(help,/futuras versiones/);
   assert.match(help,/ETIQUETAS: caja, organizador \[Añade etiquetas separadas por coma\]/);
   assert.match(help,/DESCRIPCION: Descripción del modelo \[Añade una breve descripción\]/);
+});
+
+test('muestra la fecha de entrega y permite activar la limpieza sin nuevos modelos ni programación',async t=>{
+  config.tasks.uploadDesigns.enabled=false;
+  config.tasks.uploadDesigns.cleanupEnabled=false;
+  config.tasks.uploadDesigns.nextRunAt='';
+  await library.disableSchedule();await library.saveCleanup(false);
+  const items=(await library.scan()).inventory.filter(item=>item.valid);
+  for(const [index,item] of items.entries())await library.record('test',item,{status:'submitted',id:'confirmed-'+index,
+    day:'2020-01-01',...(index===0?{submittedAt:'2020-01-01T10:30:00.000Z',submittedDay:'2020-01-01'}:{})});
+  const page=await pageFor(t);
+  assert.equal(await page.locator('#uploads-daily-badge').innerText(),'0/5');
+  await page.locator('#open-uploads-config svg').click();await ready(page);
+  const dates=page.locator('.upload-status time');
+  assert.equal(await dates.count(),items.length);
+  assert.ok((await dates.allTextContents()).every(value=>value==='01/01/2020'));
+  await page.locator('#uploads-scan').click();await ready(page);
+  assert.ok((await dates.allTextContents()).every(value=>value==='01/01/2020'));
+  await page.locator('#uploads-plan-toggle').click();
+  assert.equal(await page.locator('#uploads-program').isDisabled(),true);
+  await page.locator('#uploads-cleanup').check();await ready(page);
+  assert.equal(config.tasks.uploadDesigns.cleanupEnabled,true);
+  assert.equal(config.tasks.uploadDesigns.enabled,false);
+  assert.equal(config.tasks.uploadDesigns.nextRunAt,'');
+  assert.equal(config.tasks.uploadDesigns.cleanupCheckedDay,'');
+  assert.equal((await library.status()).schedule.cleanupEnabled,true);
+  await page.reload();await page.locator('#open-uploads-config svg').click();await ready(page);
+  assert.equal(await page.locator('#uploads-cleanup').isChecked(),true);
 });

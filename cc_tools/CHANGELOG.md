@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.48 — descargas, impresiones, boosts y limpieza
+
+- Adapta las descargas al máximo diario de 10, incluidos ajustes antiguos, planes pendientes, contadores, API y formulario. Conserva los objetivos inferiores elegidos por el usuario. Incorpora la adaptación de TitoTB 1.0.37.
+- Completa los textos del botón de boost de TitoTB 1.0.36, incluidas las variantes para impulsar de nuevo en español e inglés.
+- Conserva el G-code seleccionado cuando una impresión no acredita puntos. Al volver a programar, descuenta las impresiones recompensadas de la cuenta, sin restar los intentos fallidos.
+- Prioriza los diseños descargados sin boost y revisa toda la lista de candidatos. Al detectar un boost anterior lo refleja en el listado; si todos los candidatos elegibles ya lo tienen, permite impulsar de nuevo.
+- Limita los boosts a uno por día, manual o programado, aunque sobren boletos. Comprueba el progreso de la cuenta antes de gastar y bloquea nuevas ejecuciones tras consumirlo, incluso si falla la lotería.
+- Muestra Upload Models sobre 5 y la fecha de entrega debajo de Entregado. La limpieza usa esa fecha, conserva las entregas antiguas y funciona aunque la subida programada esté desactivada.
+- Guarda la opción Limpiar diseños al marcarla, sin exigir modelos nuevos. Mantiene la comprobación de publicación y las protecciones de archivos antes de eliminar.
+- Mantiene el puerto 8088 y la compatibilidad con Creality Cloud Dev 1.0.6-dev.1. Pendiente de confirmar los cambios de esta versión en una instalación real de Home Assistant.
+
 ## 1.0.47 — selector de archivos de las portadas
 
 - Versión estable recomendada tras confirmar el usuario la subida real de diseños en Home Assistant.

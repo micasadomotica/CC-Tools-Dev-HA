@@ -21,7 +21,8 @@ function updateCard() {
   $('uploads-last-run').classList.toggle('is-error', ['failed', 'error'].includes(library?.lastStatus));
   $('uploads-last-run').classList.toggle('is-success', library?.lastStatus === 'success');
   $('uploads-next-run').textContent = library?.schedule.enabled ? date(library.nextRunAt) : '-';
-  $('uploads-daily-badge').textContent = `${library?.rewardCount || 0}/${library?.schedule.dailyLimit || 5}`;
+  $('uploads-daily-badge').textContent = `${library?.rewardCount || 0}/5`;
+  $('uploads-daily-badge').title = `Recompensas de Upload Models: máximo 5 al día. Objetivo de subida programado: ${library?.schedule.dailyLimit || 0}.`;
   $('uploads-next').textContent = library?.schedule.enabled ? 'Próxima ejecución: ' + date(library.nextRunAt) : 'Programación desactivada.';
 }
 function accept(result, reset = false) {
@@ -50,13 +51,24 @@ function controls() {
     input.disabled = busy || !item?.available || (!input.checked && draft[mode].length >= (mode === 'manual' ? 5 : n));
   }
 }
+function deliveryDateMarkup(delivery) {
+  const day = delivery?.submittedDay || delivery?.day || '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(day)) {
+    return `<time datetime="${escape(day)}">${day.split('-').reverse().join('/')}</time>`;
+  }
+  const timestamp = delivery?.submittedAt;
+  if (timestamp && Number.isFinite(Date.parse(timestamp))) {
+    return `<time datetime="${escape(timestamp)}">${escape(date(timestamp))}</time>`;
+  }
+  return '<small>Fecha no disponible</small>';
+}
 function render() {
   const items = library?.inventory || [];
   $('uploads-library-error').hidden = !library?.libraryError; $('uploads-library-error').textContent = library?.libraryError || '';
   const check = (item,mode) => `<input type="checkbox" data-upload-id="${item.id}" data-mode="${mode}" aria-label="Seleccionar ${escape(item.name)}${mode === 'schedule' ? ' para programar' : ''}" ${draft[mode].some(entry => entry.id === item.id) ? 'checked' : ''}>`;
   $('uploads-list').innerHTML = items.length ? items.map(item => {
     const status = item.delivery?.status;
-    const label = status === 'submitted' ? 'Entregado' : ['submitting','uncertain'].includes(status) ? 'Pendiente de comprobar' : item.valid ? 'Disponible' : 'Revisar';
+    const label = status === 'submitted' ? `Entregado${deliveryDateMarkup(item.delivery)}` : ['submitting','uncertain'].includes(status) ? 'Pendiente de comprobar' : item.valid ? 'Disponible' : 'Revisar';
     return `<article class="upload-model">${check(item,'manual')}${item.coverFile ? `<img class="upload-cover" loading="lazy" src="/api/upload-designs/cover/${item.id}?v=${encodeURIComponent(library.scannedAt)}" alt="Portada de ${escape(item.name)}">` : '<div class="upload-cover upload-cover-empty">Sin portada</div>'}<div class="upload-model-body"><div class="upload-model-heading"><strong>${escape(item.name)}</strong><span class="upload-status ${item.available ? 'is-valid' : 'is-invalid'}">${label}</span></div><small class="muted">${escape(item.folder)}</small>${item.errors.map(error=>`<p class="upload-error">${escape(error)}</p>`).join('')}${item.tags ? `<details><summary>Ver información del diseño</summary><p class="upload-tags">${item.tags.map(escape).join(' · ')}</p><p class="upload-description">${escape(item.description)}</p>${(item.warnings||[]).map(w=>`<p class="muted">${escape(w)}</p>`).join('')}</details>`:''}${['submitting','uncertain'].includes(status) ? '<p>Comprueba el Banco de trabajo de Creality antes de volver a enviar este diseño.</p>' : ''}</div></article>`;
   }).join('') : '<div class="upload-empty">No hay diseños en la biblioteca. Pulsa el botón de carpeta para añadir un diseño.</div>';
   $('uploads-plan-list').innerHTML = items.filter(item=>item.available).map(item=>`<label class="upload-plan-option">${check(item,'schedule')}<span>${escape(item.name)}</span></label>`).join('') || '<p class="muted">No hay nuevos diseños disponibles.</p>';
@@ -68,6 +80,14 @@ async function work(action) {
   finally { busy=false; modal.removeAttribute('aria-busy'); updateCard(); controls(); }
 }
 const changed = () => window.dispatchEvent(new Event('uploads-changed'));
+$('uploads-cleanup').addEventListener('change', () => work(async () => {
+  const enabled = $('uploads-cleanup').checked;
+  try {
+    accept(await api('/cleanup', 'PUT', { enabled }));
+    changed();
+    message(enabled ? 'Limpieza activada. Se comprobarán las entregas de días anteriores aunque la subida esté desactivada.' : 'Limpieza desactivada.');
+  } finally { $('uploads-cleanup').checked = library?.schedule.cleanupEnabled === true; }
+}));
 async function scan() { message('Escaneando y validando archivos…'); accept(await api('/scan','POST')); message(library.libraryError || `${library.inventory.filter(i=>i.available).length} diseños disponibles.`,!!library.libraryError); }
 function expand(id,button,value) { $(id).hidden=!value; $(button).setAttribute('aria-expanded',String(value)); }
 async function open(plan=false) {

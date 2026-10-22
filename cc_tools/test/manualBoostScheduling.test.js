@@ -33,16 +33,18 @@ function harness(completed = true) {
   return { state, run: (task, source) => context.executePendingTask(task, { timezone: 'Europe/Madrid' }, { source }, config) };
 }
 
-test('boost manual repetido atraviesa el objetivo completado y comprueba los boletos', async () => {
-  const h = harness();
-  for (let i = 0; i < 2; i++) {
-    const result = await h.run('modelBoosts', 'manual');
-    assert.equal(result.skipped, true);
-    assert.equal(result.details.ticketsAvailable, 0);
-    assert.match(result.message, /No hay boletos/);
+test('boost manual repetido queda bloqueado incluso si el contador aún no se sincronizó', async () => {
+  for (const completed of [true, false]) {
+    const h = harness(completed);
+    for (let i = 0; i < 2; i++) {
+      const result = await h.run('modelBoosts', 'manual');
+      assert.equal(result.skipped, true);
+      assert.equal(result.details.reason, 'BOOST_DAILY_LIMIT');
+      assert.match(result.message, /hasta mañana/);
+    }
+    assert.equal(h.state.launches, 0);
+    assert.equal(h.state.availabilityChecks, 0);
   }
-  assert.equal(h.state.launches, 2);
-  assert.equal(h.state.availabilityChecks, 2);
 });
 
 test('boost programado completado no abre navegador, incluso si el progreso aún no se sincronizó', async () => {

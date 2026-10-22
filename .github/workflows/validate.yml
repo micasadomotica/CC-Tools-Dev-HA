@@ -47,6 +47,8 @@ jobs:
         run: npm run test:logs:browser
       - name: Test design uploads in browser
         run: npm run test:uploads:browser
+      - name: Test boost and repeat boost controls in browser
+        run: npm run test:boosts:browser
 
   build:
     runs-on: ubuntu-latest

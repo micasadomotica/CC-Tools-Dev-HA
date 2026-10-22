@@ -1,6 +1,5 @@
 import { verifyVirtualPrint } from './finishPrintExecution.js';
 import { applyRewardResult } from './dailyProgress.js';
-import { buildPrintShuffleBag } from './finishPrintSelection.js';
 import { mergePointsState } from './pointsCounter.js';
 import { appendRun, readConfig, readRuns, writeConfig } from './storage.js';
 import { sendTelegram } from './telegram.js';
@@ -132,13 +131,12 @@ export async function checkPendingFinishPrint() {
     const file = current.file || {};
     const printerProfile = finishPrintProfileForPending(freshConfig.tasks.finishPrint, current);
     learnPrintDuration(printerProfile, file, result.printRecord);
-    if (!credited) removeUncreditedPrintFile(printerProfile, file);
     freshConfig.tasks.finishPrint.pendingVerification = null;
     freshConfig.tasks.finishPrint.lastRunAt = new Date().toISOString();
     freshConfig.tasks.finishPrint.lastStatus = credited ? 'success' : 'failed';
     freshConfig.tasks.finishPrint.lastMessage = credited
       ? `Impresión verificada: ${file.name || 'G-code'} acreditó la recompensa.`
-      : `Impresión no acreditada: ${file.name || 'G-code'} se retiró de la selección automática.`;
+      : `Impresión no acreditada: ${file.name || 'G-code'}. Se conserva el archivo seleccionado; revisa la impresión y su recompensa.`;
     const points = result.rewardVerification?.after?.pointsSummary;
     if (points) freshConfig.points = mergePointsState(freshConfig.points, points);
     await writeConfig(freshConfig);
@@ -154,7 +152,7 @@ export async function checkPendingFinishPrint() {
         printerName: current.printerName || '',
         printRecord: result.printRecord,
         rewardVerification: result.rewardVerification,
-        removedFromAutomaticSelection: !credited
+        removedFromAutomaticSelection: false
       }
     });
     const notificationEnabled = credited
@@ -163,7 +161,7 @@ export async function checkPendingFinishPrint() {
     if (notificationEnabled) {
       const message = credited
         ? `🎉 CC Tools Dev: Impresión virtual completada\n${file.name || 'G-code'}\nRecompensa verificada.`
-        : `❌ CC Tools Dev: Impresión virtual sin recompensa\n${file.name || 'G-code'}\nEl archivo se ha retirado de la selección automática.`;
+        : `❌ CC Tools Dev: Impresión virtual sin recompensa\n${file.name || 'G-code'}\nSe conserva el archivo seleccionado. Revisa la impresión y su recompensa.`;
       await sendTelegram(freshConfig, message).catch((error) => {
         console.error('[telegram]', error.message);
       });
@@ -365,17 +363,6 @@ export function printRewardPointsPending(before, after, expectedPoints = 5) {
   const expected = Math.max(0, Number(expectedPoints) || 0);
   if (!Number.isFinite(beforeTotal) || !Number.isFinite(afterTotal) || expected <= 0) return false;
   return afterTotal < beforeTotal + expected;
-}
-
-export function removeUncreditedPrintFile(finishPrint, file, random = Math.random) {
-  const id = String(file?.id || '').trim();
-  const name = String(file?.name || '').trim();
-  finishPrint.cloudFiles = (finishPrint.cloudFiles || []).filter((item) => item !== name);
-  finishPrint.cloudFileRecords = (finishPrint.cloudFileRecords || [])
-    .filter((item) => (id && item?.id !== id) || (!id && item?.name !== name));
-  finishPrint.shuffleBag = buildPrintShuffleBag(finishPrint, random);
-  finishPrint.shuffleBagCursor = 0;
-  return finishPrint;
 }
 
 export function learnPrintDuration(finishPrint, file, printRecord) {

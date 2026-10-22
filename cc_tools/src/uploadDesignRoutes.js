@@ -16,7 +16,7 @@ export function uploadDesignRoutes(library = uploadLibrary, services = {}) {
   async function view(state) {
     const config = await read(), task = config.tasks.uploadDesigns;
     const ledger = state.ledger?.[config.crealityProfile?.userId] || {};
-    return { ...state, ledger: undefined, schedule: { ...state.schedule, enabled: task?.enabled === true },
+    return { ...state, ledger: undefined, schedule: { ...state.schedule, enabled: task?.enabled === true, cleanupEnabled: task?.cleanupEnabled === true },
       nextRunAt: task?.nextRunAt || '', lastRunAt: task?.lastRunAt || '',
       lastStatus: task?.lastStatus || '', timezone: config.timezone,
       rewardCount: dailyProgress(config).counters.uploadDesigns || 0,
@@ -53,6 +53,20 @@ export function uploadDesignRoutes(library = uploadLibrary, services = {}) {
     const config = await read(); config.tasks.uploadDesigns.enabled = false;
     config.tasks.uploadDesigns.nextRunAt = ''; await write(config);
     return view(await library.disableSchedule());
+  }));
+  router.put('/cleanup', json(async req => {
+    if (typeof req.body?.enabled !== 'boolean') throw new Error('Indica si quieres activar la limpieza.');
+    const config = await read(), task = config.tasks.uploadDesigns;
+    if (req.body.enabled && !config.crealityProfile?.userId) throw new Error('Actualiza el perfil de Creality antes de activar la limpieza.');
+    if (req.body.enabled && task.enabled && task.accountId && task.accountId !== config.crealityProfile.userId) {
+      throw new Error('La programación pertenece a otra cuenta. Desactívala o vuelve a configurarla antes de activar la limpieza.');
+    }
+    const state = await library.saveCleanup(req.body.enabled);
+    task.cleanupEnabled = req.body.enabled;
+    task.cleanupCheckedDay = '';
+    task.cleanupRetryAt = '';
+    if (req.body.enabled) task.accountId = config.crealityProfile.userId;
+    await write(config); return view(state);
   }));
   router.post('/preview', json(async () => view(await library.preview())));
   router.get('/cover/:id', async (req, res) => {

@@ -875,6 +875,10 @@ app.patch('/api/config', async (req, res) => {
     if (Object.hasOwn(input.finishPrint, 'discoveryUpdatedAt')) {
       config.tasks.finishPrint.discoveryUpdatedAt = String(input.finishPrint.discoveryUpdatedAt || '');
     }
+    if (config.tasks.finishPrint.enabled && config.tasks.finishPrint.dailyLimit > 0
+      && !config.tasks.finishPrint.cloudFileRecords.length) {
+      return res.status(400).json({ ok: false, error: 'FINISH_PRINT_FILE_REQUIRED' });
+    }
     const requiredMinutes = requiredFinishPrintWindowMinutes(config.tasks.finishPrint);
     if (windowDurationMinutes(config.tasks.finishPrint) < requiredMinutes) {
       return res.status(400).json({ ok: false, error: 'WINDOW_TOO_SHORT', requiredMinutes });
@@ -882,7 +886,8 @@ app.patch('/api/config', async (req, res) => {
     if (config.tasks.finishPrint.enabled) {
       const runs = await readRuns();
       const attemptsToday = countTodayFinishPrintStarts(runs, config.tasks.finishPrint);
-      const remainingCount = Math.max(0, config.tasks.finishPrint.dailyLimit - attemptsToday);
+      // Attempts only track consumed schedule slots. Account rewards trim the new plan below.
+      const remainingCount = config.tasks.finishPrint.dailyLimit;
       const plan = generateDownloadPlan(config.tasks.finishPrint, new Date(), {
         remainingCount,
         minimumSlotMinutes: finishPrintSlotMinutes(config.tasks.finishPrint)
@@ -965,7 +970,7 @@ app.patch('/api/config', async (req, res) => {
     config.tasks.modelDownloads.windowStart = validClock(input.modelDownloads.windowStart, '08:00');
     config.tasks.modelDownloads.windowEnd = validClock(input.modelDownloads.windowEnd, '12:00');
     config.tasks.modelDownloads.timezone = config.timezone || 'Europe/Madrid';
-    config.tasks.modelDownloads.dailyLimit = clamp(Number(input.modelDownloads.dailyLimit), 0, 30, 1);
+    config.tasks.modelDownloads.dailyLimit = clamp(Number(input.modelDownloads.dailyLimit), 0, 10, 1);
     config.tasks.modelDownloads.minIntervalMinutes = clamp(Number(input.modelDownloads.minIntervalMinutes), 10, 1440, 10);
     config.tasks.modelDownloads.cleanupAfterHours = clamp(Number(input.modelDownloads.cleanupAfterHours), 1, 168, 1);
     config.tasks.modelDownloads.prioritizeFavorites = input.modelDownloads.prioritizeFavorites !== false;
@@ -1492,7 +1497,7 @@ function buildSchedulePreview(config, runs = []) {
   const today = dayKey(downloads.timezone || 'Europe/Madrid');
   const plan = Array.isArray(downloads.downloadPlan) ? downloads.downloadPlan : [];
   const downloadEvents = todayDownloadEvents(runs, downloads);
-  const dailyLimit = Math.max(0, Math.min(30, Number(downloads.dailyLimit) || 0));
+  const dailyLimit = Math.max(0, Math.min(10, Number(downloads.dailyLimit) || 0));
 
   if (downloads.enabled) {
     downloadEvents.forEach((event, index) => {
@@ -1647,13 +1652,16 @@ function addPlannedTaskItems({
   });
 
   const cursor = Math.max(0, Number(taskConfig[cursorKey]) || 0);
-  effectivePendingPlan(taskConfig, plan, cursor)
-    .filter((runAt) => dayKey(timezone, new Date(runAt)) === today)
+  const pending = effectivePendingPlan(taskConfig, plan, cursor)
+    .filter((runAt) => dayKey(timezone, new Date(runAt)) === today);
+  pending
     .forEach((runAt, index) => {
       items.push({
         taskId,
         label: pendingLabel?.(runAt, index, cursor) || label,
-        detail: `${itemLabel} ${events.length + index + 1} de ${dailyLimit}`,
+        detail: taskId === 'finishPrint'
+          ? `${itemLabel} pendiente ${index + 1} de ${pending.length}`
+          : `${itemLabel} ${events.length + index + 1} de ${dailyLimit}`,
         runAt,
         status: 'pending'
       });
@@ -1718,7 +1726,7 @@ function ensureCurrentDownloadPlan(downloads, runs = []) {
   if (!downloads?.enabled) return false;
   const timezone = downloads.timezone || 'Europe/Madrid';
   const today = dayKey(timezone);
-  const dailyLimit = Math.max(0, Math.min(30, Number(downloads.dailyLimit) || 0));
+  const dailyLimit = Math.max(0, Math.min(10, Number(downloads.dailyLimit) || 0));
   if (downloads.downloadPlanDate === today) return false;
 
   const attemptsToday = todayDownloadAttempts(runs, downloads).length;
@@ -1843,7 +1851,7 @@ async function rebuildSchedulesForTimezone(config) {
       profile.timezone = finishPrint.timezone;
       const attempts = countTodayFinishPrintStarts(runs, profile, profile.id, index === 0);
       const generated = generateDownloadPlan(profile, new Date(), {
-        remainingCount: Math.max(0, profile.dailyLimit - attempts),
+        remainingCount: profile.dailyLimit,
         minimumSlotMinutes: finishPrintSlotMinutes(profile)
       });
       profile.printPlanDate = generated.date;
@@ -1894,6 +1902,9 @@ async function applyFinishPrintProfilesConfig(config, input) {
   }
 
   for (const profile of profiles) {
+    if (input.enabled && profile.dailyLimit > 0 && !profile.cloudFileRecords.length) {
+      return { error: 'FINISH_PRINT_FILE_REQUIRED', printerName: profile.printerName };
+    }
     const previousProfile = previousById.get(profile.id);
     const selectionChanged = !previousProfile
       || previousProfile.printerName !== profile.printerName
@@ -1920,7 +1931,8 @@ async function applyFinishPrintProfilesConfig(config, input) {
     profiles.forEach((profile, index) => {
       const attempts = countTodayFinishPrintStarts(runs, profile, profile.id, index === 0);
       const generated = generateDownloadPlan(profile, new Date(), {
-        remainingCount: Math.max(0, profile.dailyLimit - attempts),
+        // Reconciliation subtracts credited account progress, never failed attempts.
+        remainingCount: profile.dailyLimit,
         minimumSlotMinutes: finishPrintSlotMinutes(profile)
       });
       profile.printPlanDate = generated.date;
@@ -1947,7 +1959,7 @@ function clamp(value, min, max, fallback) {
 }
 
 function requiredModelDownloadWindowMinutes(taskConfig) {
-  const dailyLimit = clamp(Number(taskConfig.dailyLimit), 0, 30, 1);
+  const dailyLimit = clamp(Number(taskConfig.dailyLimit), 0, 10, 1);
   const minIntervalMinutes = clamp(Number(taskConfig.minIntervalMinutes), 10, 1440, 10);
   return dailyLimit * (minIntervalMinutes + 2);
 }

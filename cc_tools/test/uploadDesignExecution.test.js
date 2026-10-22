@@ -60,6 +60,10 @@ test('envío manual completo persiste IDs, mantiene recompensa pendiente e impid
   const result=await runUploadDesigns({}, {ownUserId:'user',selected:items},deps(library));
   assert.equal(result.details.uploaded.length,2);assert.equal(result.details.rewardPending,true);
   const state=await library.status();assert.ok(Object.values(state.ledger.user).every(entry=>entry.status==='submitted'));
+  for (const entry of Object.values(state.ledger.user)) {
+    assert.ok(Number.isFinite(Date.parse(entry.submittedAt)));
+    assert.equal(entry.submittedDay,progressDay());
+  }
   assert.equal((await runUploadDesigns({}, {ownUserId:'user',selected:items},deps(library))).details.emptyLibrary,true);
   assert.equal(dailyProgress({tasks:{uploadDesigns:{dailyLimit:5}}},[{taskId:'uploadDesigns',status:'success',finishedAt:new Date().toISOString(),details:result.details}]).counters.uploadDesigns,0);
   assert.equal((await library.candidates({account:'another',source:'manual',day:progressDay(),limit:5,selected:items})).items.length,2);
@@ -124,6 +128,32 @@ test('limpieza conserva archivos editados, carpetas con extras, envíos incierto
   await assert.rejects(library.removePublished('other',{...items[0],id:'id-0'},proof,progressDay()),/confirmación/);
   const result=await runUploadCleanup({accountId:'user',cleanupEnabled:true},{ownUserId:'user'},{library,verify:async()=>proof});
   assert.equal(result.details.cleaned.length,0);assert.equal((await fs.readdir(root)).length,3);
+});
+
+test('la entrega confirmada conserva su fecha y se limpia aunque el escaneo sea de hoy', async t => {
+  const {library,items,root} = await fixture(t,1), entry = items[0];
+  const submittedAt = '2020-01-01T10:30:00.000Z';
+  await library.record('user',entry,{status:'submitted',id:'old-upload',day:progressDay(),submittedDay:'2020-01-01',submittedAt});
+  await library.scan();
+  await library.record('user',entry,{status:'submitted',id:'old-upload',day:progressDay(),submittedDay:progressDay(),submittedAt:new Date().toISOString()});
+  const state = await library.status();
+  assert.equal(state.ledger.user[entry.modelHash].submittedAt,submittedAt);
+  assert.equal(state.ledger.user[entry.modelHash].submittedDay,'2020-01-01');
+  assert.ok(state.scannedAt.startsWith(new Date().toISOString().slice(0,10)));
+  assert.equal((await library.cleanupCandidates('user',progressDay())).length,1);
+  const result = await runUploadCleanup({enabled:false,accountId:'user',cleanupEnabled:true},{ownUserId:'user'},
+    {library,verify:async()=>({account:'user',ids:['old-upload'],checkedAt:new Date().toISOString()})});
+  assert.equal(result.details.cleaned.length,1);
+  await assert.rejects(fs.stat(path.join(root,entry.folder)),{code:'ENOENT'});
+});
+
+test('una entrega sin fecha conocida se conserva aunque esté publicada', async t => {
+  const {library,items,root} = await fixture(t,1), entry = items[0];
+  await library.record('user',entry,{status:'submitted',id:'unknown-date'});
+  assert.equal((await library.cleanupCandidates('user',progressDay())).length,0);
+  assert.equal(await library.removePublished('user',{...entry,id:'unknown-date'},
+    {account:'user',ids:['unknown-date'],checkedAt:new Date().toISOString()},progressDay()),false);
+  assert.ok(await fs.stat(path.join(root,entry.folder)));
 });
 test('comprobación pública exige identidad y enlace en la lista del perfil, no recomendaciones',async()=>{
   const id='6a60842144eb4483e2202bed';let visible='ID: 12345',listed=true,current='';

@@ -85,8 +85,19 @@ Log muestra los pasos y si Creality Cloud confirmó la recompensa. Si ya estaba 
 
 Instalación local: sustituye la carpeta cc_tools de la app local por la de este ZIP y actualiza/reconstruye CC Tools Dev desde Home Assistant. Conserva el slug y los datos de la instalación existente.
 
-## Pedidos y boosts (Dev 1.0.46)
+## Pedidos y boosts (Dev 1.0.48)
 
 En el seguimiento de pedidos, Actualizar pedidos permite consultar el estado sin esperar al intervalo automático de 24 horas. El botón indica cuándo está consultando. Si falla la consulta, se conservan los pedidos conocidos. El botón de histórico abre los pedidos en Creality Cloud.
 
-Los boosts manuales pueden repetirse el mismo día aunque el objetivo diario ya esté completo, siempre que queden boletos y Creality Cloud permita impulsar el modelo. La programación mantiene el límite diario: si ya se consumió un boost, no realiza otro automáticamente. Cada intento revisa hasta tres modelos; tras un fallo, cambia el punto de inicio de la búsqueda y registra los modelos revisados y los motivos de rechazo.
+Se permite un solo boost al día, manual o programado, aunque queden más boletos. La tarjeta muestra 0/1 o 1/1 y los boletos se indican por separado. Si ya está completado, Ejecutar ahora queda bloqueado y Programar prepara el día siguiente. Antes de gastar se comprueba también el contador de Creality Cloud.
+
+Se revisan primero los candidatos descargados sin boost, respetando el filtro de favoritos elegido. Al detectar «Impulsar de nuevo» se marca el diseño como impulsado en el listado. Si todos los candidatos elegibles ya lo tienen, se permite repetir en uno. Un botón ausente o una comprobación fallida no se interpreta como boost confirmado.
+
+
+## Descargas, impresiones y entregas (Dev 1.0.48)
+
+El máximo de descargas es 10 al día. Los ajustes antiguos de 30 se reducen a 10; se conservan los límites menores y se recortan los planes pendientes según el contador de la cuenta.
+
+Una impresión sin recompensa conserva el G-code seleccionado. Al volver a programar se descuentan las impresiones recompensadas, sin consumir el objetivo con los intentos fallidos.
+
+Subir diseños muestra las recompensas sobre 5. Mis diseños conserva la fecha de entrega debajo de Entregado. Limpiar diseños se guarda al marcarlo y funciona también con las subidas desactivadas: desde el día siguiente a la entrega, comprueba la publicación en el perfil antes de eliminar los archivos locales que no hayan cambiado.

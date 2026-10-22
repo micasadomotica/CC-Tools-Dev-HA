@@ -55,7 +55,7 @@ const CATALOG_SORTS = [
 ];
 
 export async function runModelDownloads(taskConfig = {}, options = {}) {
-  let dailyLimit = options.test || options.single ? 1 : clamp(Number(taskConfig.dailyLimit), 0, 30, 1);
+  let dailyLimit = options.test || options.single ? 1 : clamp(Number(taskConfig.dailyLimit), 0, 10, 1);
   const minIntervalMinutes = clamp(Number(taskConfig.minIntervalMinutes), 10, 1440, 10);
   const catalogCategories = normalizeCatalogCategories(taskConfig.catalogCategories);
   const cleanupAfterHours = Math.min(168, Math.max(1, Number(taskConfig.cleanupAfterHours) || 1));
@@ -110,7 +110,7 @@ export async function runModelDownloads(taskConfig = {}, options = {}) {
             false
           );
         }
-        if (incentiveBefore.completed) {
+        if (incentiveBefore.completed || incentiveBefore.done >= 10) {
           return {
             success: true,
             skipped: true,
@@ -130,7 +130,7 @@ export async function runModelDownloads(taskConfig = {}, options = {}) {
           };
         }
 
-        dailyLimit = Math.min(dailyLimit, Math.max(0, incentiveBefore.valid - incentiveBefore.done));
+        dailyLimit = Math.min(dailyLimit, Math.max(0, Math.min(10, incentiveBefore.valid) - incentiveBefore.done));
         let candidateIndex = 0;
         let randomCandidatesLoaded = false;
         let silentlySkipped = 0;

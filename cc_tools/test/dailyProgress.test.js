@@ -21,43 +21,64 @@ function config(tasks = {}) {
 }
 const localDownload = { taskId: 'modelDownloads', finishedAt: now.toISOString(), status: 'success', details: { downloaded: [{ rewardStatus: 'credited' }] } };
 
-test('24 descargas remotas y una local son 24/30, con seis pendientes', () => {
-  const c = config({ modelDownloads: observed(24, 30) });
-  assert.equal(dailyProgress(c, [localDownload], now).counters.modelDownloads, 24);
-  assert.equal(dailyProgress(c, [localDownload], now).limits.modelDownloads, 30);
+test('Model Boost usa un objetivo diario aunque sobren boletos y aplaza la programación completada', () => {
+  for (const done of [0, 1]) {
+    const c = config({ modelBoosts: { ...observed(done, 1), title: 'Model Boost' } });
+    c.tasks.modelBoosts.availableBoosts = 2;
+    const progress = dailyProgress(c, [], now);
+    assert.equal(progress.counters.modelBoosts, done);
+    assert.equal(progress.limits.modelBoosts, 1);
+    assert.equal(progress.remaining.modelBoosts, 1 - done);
+    const previousNext = c.tasks.modelBoosts.nextRunAt;
+    reconcileDailyPlans(c, [], now);
+    if (done) assert.ok(c.tasks.modelBoosts.nextRunAt.startsWith('2026-10-05'));
+    else assert.equal(c.tasks.modelBoosts.nextRunAt, previousNext);
+  }
+});
+
+test('un boost consumido sigue bloqueado aunque su recompensa o lotería falle', () => {
+  const c = config({ modelBoosts: { ...observed(0, 1), title: 'Model Boost' } });
+  const run = { taskId: 'modelBoosts', status: 'failed', finishedAt: now.toISOString(), details: { boostConsumed: true } };
+  assert.equal(dailyProgress(c, [run], now).remaining.modelBoosts, 0);
+});
+
+test('8 descargas remotas y una local son 8/10; recorta el plan antiguo a dos pendientes', () => {
+  const c = config({ modelDownloads: observed(8, 10) });
+  assert.equal(dailyProgress(c, [localDownload], now).counters.modelDownloads, 8);
+  assert.equal(dailyProgress(c, [localDownload], now).limits.modelDownloads, 10);
   reconcileDailyPlans(c, [localDownload], now);
-  assert.equal(c.tasks.modelDownloads.downloadPlan.length - c.tasks.modelDownloads.downloadPlanCursor, 6);
+  assert.equal(c.tasks.modelDownloads.downloadPlan.length - c.tasks.modelDownloads.downloadPlanCursor, 2);
   const saved = JSON.stringify(c);
   reconcileDailyPlans(c, [localDownload], now);
   assert.equal(JSON.stringify(c), saved);
 });
 
-test('conserva el objetivo configurado de 20 aunque la recompensa admita 30', () => {
-  const c = config({ modelDownloads: observed(24,30) });
-  c.tasks.modelDownloads.dailyLimit = 20;
+test('conserva el objetivo configurado de 7 aunque la recompensa admita 10', () => {
+  const c = config({ modelDownloads: observed(8,10) });
+  c.tasks.modelDownloads.dailyLimit = 7;
   reconcileDailyPlans(c, [], now);
   const p = dailyProgress(c, [], now);
-  assert.equal(p.counters.modelDownloads, 24);
-  assert.equal(p.limits.modelDownloads, 30);
+  assert.equal(p.counters.modelDownloads, 8);
+  assert.equal(p.limits.modelDownloads, 10);
   assert.equal(p.remaining.modelDownloads, 0);
   assert.equal(c.tasks.modelDownloads.nextRunAt, '');
-  assert.equal(c.tasks.modelDownloads.dailyLimit, 20);
+  assert.equal(c.tasks.modelDownloads.dailyLimit, 7);
 });
 
 test('un resultado local más reciente actualiza el total remoto sin sumarlo dos veces', () => {
-  const c = config({ modelDownloads: observed(24,30,'2026-10-04T09:00:00Z') });
+  const c = config({ modelDownloads: observed(8,10,'2026-10-04T09:00:00Z') });
   const run = structuredClone(localDownload);
-  run.details.downloaded[0].rewardVerification = { after: { ...observed(25,30), title: 'Download Models' } };
+  run.details.downloaded[0].rewardVerification = { after: { ...observed(9,10), title: 'Download Models' } };
   const p = dailyProgress(c, [run], now);
-  assert.equal(p.counters.modelDownloads,25);
-  assert.equal(p.remaining.modelDownloads,5);
+  assert.equal(p.counters.modelDownloads,9);
+  assert.equal(p.remaining.modelDownloads,1);
 });
 
 test('conserva el progreso de una tarea omitida aunque no se añada una ejecución al Log', () => {
   const c=config();
   applyRewardResult(c,'modelDownloads',{skipped:true,details:{rewardVerification:{before:{...observed(30,30),title:'Download Models'}}}},now);
   assert.equal(dailyProgress(c,[],now).counters.modelDownloads,30);
-  applyRewardResult(c,'modelDownloads',{details:{rewardVerification:{after:{...observed(24,30,'2026-10-04T09:00:00Z'),title:'Download Models'}}}},now);
+  applyRewardResult(c,'modelDownloads',{details:{rewardVerification:{after:{...observed(8,10,'2026-10-04T09:00:00Z'),title:'Download Models'}}}},now);
   assert.equal(dailyProgress(c,[],now).counters.modelDownloads,30);
 });
 
@@ -218,4 +239,16 @@ test('MakeNow: una confirmación posterior vuelve a completar el contador',()=>{
   assert.equal(dailyProgress(c,[],now).counters.makeNow,1);
   applyRewardResult(c,'makeNow',{details:{rewardVerification:{after:{...observed(0,1,'2026-10-04T10:01:00Z'),title:'Use MakeNow'}}}},now);
   assert.equal(dailyProgress(c,[],now).counters.makeNow,0);
+});
+
+test('un contador antiguo de 30 no permite superar diez descargas ni conserva huecos sobrantes', () => {
+  for (const done of [0, 8, 10, 24]) {
+    const c = config({ modelDownloads: observed(done, 30) });
+    const p = dailyProgress(c, [], now);
+    assert.equal(p.limits.modelDownloads, 10);
+    assert.equal(p.remaining.modelDownloads, Math.max(0, 10 - done));
+    reconcileDailyPlans(c, [], now);
+    assert.equal(c.tasks.modelDownloads.downloadPlan.length - c.tasks.modelDownloads.downloadPlanCursor, Math.max(0, 10 - done));
+    if (done >= 10) assert.equal(c.tasks.modelDownloads.nextRunAt, '');
+  }
 });

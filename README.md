@@ -4,9 +4,9 @@ CC Tools Dev es la edición de desarrollo de este fork de [CC Tools de TitoTB](h
 
 Se instala como aplicación local y utiliza el puerto **8088**. Puede convivir con la aplicación de TitoTB instalada desde su repositorio, que utiliza el puerto **8080** por defecto.
 
-**Versión estable recomendada: [CC Tools Dev 1.0.47](https://github.com/micasadomotica/CC-Tools-HA/releases/tag/dev-v1.0.47)**, probada en Home Assistant, con la subida real de diseños confirmada tras corregir la apertura del selector de portada. Conserva las mejoras de TitoTB 1.0.34 y 1.0.35, la actualización manual de pedidos y los boosts manuales adicionales con boletos disponibles.
+**Nueva versión: [CC Tools Dev 1.0.48](https://github.com/micasadomotica/CC-Tools-HA/releases/tag/dev-v1.0.48)**. Incluye las adaptaciones de TitoTB 1.0.36 y 1.0.37: máximo de 10 descargas y botones de boost. Corrige la selección y reprogramación de impresiones, limita el boost a uno diario y mejora la fecha de entrega y la limpieza de diseños. Publicada como **Pre-release** hasta confirmar estos cambios en Home Assistant.
 
-[Descargar ZIP 1.0.47](https://github.com/micasadomotica/CC-Tools-HA/releases/download/dev-v1.0.47/cc-tools-dev-1.0.47.zip) · [Todas las versiones](https://github.com/micasadomotica/CC-Tools-HA/releases) · [Código de Dev](https://github.com/micasadomotica/CC-Tools-HA/tree/dev)
+[Descargar ZIP 1.0.48](https://github.com/micasadomotica/CC-Tools-HA/releases/download/dev-v1.0.48/cc-tools-dev-1.0.48.zip) · [Versión anterior validada: 1.0.47](https://github.com/micasadomotica/CC-Tools-HA/releases/tag/dev-v1.0.47)
 
 Las novedades y correcciones de cada versión se describen en su release. Las publicaciones marcadas como **Pre-release** están pendientes de validación completa en Home Assistant.
 
@@ -117,7 +117,9 @@ Dev valida los archivos y detecta duplicados por su contenido. Selecciona los di
 
 La subida automatiza el formulario web de Creality Cloud: carga los archivos, completa las etiquetas y la descripción y entrega el diseño como **Original, Gratis y Público**, en **Impresoras 3D / Otro**, con licencia **CC BY-NC**. Al subir o programar autorizas que acepte la declaración de derechos de autor para esos diseños.
 
-La entrega queda registrada por cuenta para evitar duplicados. Si el resultado es incierto, revisa el **Banco de trabajo** de Creality antes de repetirla. Entregar un diseño no confirma la recompensa **Upload Models**: queda pendiente de aprobación. La limpieza local es opcional y está desactivada por defecto; desde el día siguiente comprueba que el diseño esté publicado antes de eliminar sus archivos, conservando los adicionales o modificados.
+La tarjeta muestra la recompensa **Upload Models** sobre **5**, aunque hayas programado menos diseños. En **Mis diseños**, debajo de **Entregado** aparece la fecha original de entrega, que no cambia al volver a escanear.
+
+La entrega queda registrada por cuenta para evitar duplicados. Si el resultado es incierto, revisa el **Banco de trabajo** de Creality antes de repetirla. Entregar un diseño no confirma la recompensa **Upload Models**: queda pendiente de aprobación. La limpieza local es opcional y está desactivada por defecto. **Limpiar diseños** se guarda al marcar la casilla y funciona también con las subidas desactivadas, sin tener que seleccionar diseños ni pulsar Programar. Desde el día siguiente a la entrega comprueba que el diseño esté publicado en el perfil antes de eliminar sus archivos. Conserva los archivos adicionales, modificados o sin confirmación pública.
 
 ## Organización del fork
 

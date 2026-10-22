@@ -37,7 +37,8 @@ export async function runUploadDesigns(task = {}, options = {}, deps = {}) {
           const result = await submit(page, model, { signal: options.signal, beforeSubmit: async () => {
             await library.record(account, entry, { status: 'submitting', day, source }); submitting = true;
           } });
-          await library.record(account, entry, { status: 'submitted', day, source, ...result });
+          await library.record(account, entry, { status: 'submitted', day, source, ...result,
+            submittedAt: new Date().toISOString(), submittedDay: day });
           uploaded.push(result);
         } catch (error) {
           const uncertain = submitting && error.code !== 'UPLOAD_REJECTED';

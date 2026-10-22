@@ -19,7 +19,7 @@ test('API: datos externos actualizan paneles, HA y planificación; una tarea com
   const plan=Array.from({length:30},(_,i)=>new Date(now.getTime()+(i+1)*600000).toISOString());
   const config={timezone:'Europe/Madrid', setup:{assistantCompleted:false},
     dailyProgress:{status:'current',lastAttemptAt:timestamp,checkedAt:timestamp,tasks:{
-      modelDownloads:observation(24,30),modelLikes:observation(1,1),modelCollections:observation(1,1),
+      modelDownloads:observation(8,10),modelLikes:observation(1,1),modelCollections:observation(1,1),
       makeNow:observation(1,1),commentImage:observation(5,5),commentText:observation(1,1),finishPrint:observation(3,10),creality:observation(1,1)
     }}, tasks:{modelDownloads:{enabled:true,dailyLimit:30,downloadPlan:plan,downloadPlanCursor:1,downloadPlanDoneCount:1,downloadPlanDate:date,nextRunAt:plan[1]},
       modelLikes:{enabled:true,nextRunAt:plan[1]},makeNow:{enabled:true,nextRunAt:plan[1]}}};
@@ -46,28 +46,28 @@ test('API: datos externos actualizan paneles, HA y planificación; una tarea com
       assert.equal(removal.ok, false);
       assert.equal(removal.error, 'FAVORITE_PROFILE_DEFAULT');
     }
-    assert.equal(status.dailyCounters.modelDownloads,24);
-    assert.equal(status.dailyLimits.modelDownloads,30);
+    assert.equal(status.dailyCounters.modelDownloads,8);
+    assert.equal(status.dailyLimits.modelDownloads,10);
     assert.equal(status.dailyCounters.comments,6);
     assert.equal(status.dailyCounters.finishPrint,3);
     const preview=await request('/api/schedule/preview');
-    assert.ok(preview.items.filter(item=>item.taskId==='modelDownloads'&&item.status==='pending').length<=6);
+    assert.ok(preview.items.filter(item=>item.taskId==='modelDownloads'&&item.status==='pending').length<=2);
     assert.equal(preview.items.filter(item=>item.taskId==='modelLikes'&&item.status==='pending').length,0);
     const ha=await request('/api/integration/status');
-    assert.equal(ha.tasks.downloads.dailyCount,24);
-    assert.equal(ha.tasks.downloads.dailyLimit,30);
+    assert.equal(ha.tasks.downloads.dailyCount,8);
+    assert.equal(ha.tasks.downloads.dailyLimit,10);
     // MakeNow deliberately checks the live reward on manual runs, even with a cached 1/1.
     const manual=await request('/api/tasks/model-likes/run','POST');
     assert.equal(manual.ok,true,JSON.stringify(manual));
     assert.equal(manual.result.status,'skipped');
     assert.equal((await request('/api/status')).browser.active,false);
     assert.doesNotMatch(logs,/browserType\.launch|chromium.*executable/i);
-    const saved=await request('/api/config','PATCH',{modelDownloads:{enabled:true,dailyLimit:20,windowStart:'00:00',windowEnd:'23:59',minIntervalMinutes:10,cleanupAfterHours:1}});
+    const saved=await request('/api/config','PATCH',{modelDownloads:{enabled:true,dailyLimit:7,windowStart:'00:00',windowEnd:'23:59',minIntervalMinutes:10,cleanupAfterHours:1}});
     assert.equal(saved.ok,true);
     const final=await request('/api/status');
-    assert.equal(final.config.tasks.modelDownloads.dailyLimit,20);
-    assert.equal(final.dailyCounters.modelDownloads,24);
-    assert.equal(final.dailyLimits.modelDownloads,30);
+    assert.equal(final.config.tasks.modelDownloads.dailyLimit,7);
+    assert.equal(final.dailyCounters.modelDownloads,8);
+    assert.equal(final.dailyLimits.modelDownloads,10);
     assert.equal(final.config.tasks.modelDownloads.nextRunAt,'');
     // A corrected current snapshot must also clear stale completion in the panel and preview.
     const persisted=JSON.parse(await fs.readFile(path.join(data,'config.json'),'utf8'));

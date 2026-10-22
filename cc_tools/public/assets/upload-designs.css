@@ -17,6 +17,7 @@
 .upload-model-body { min-width: 0; overflow-wrap: anywhere; }
 .upload-model-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 5px; }
 .upload-status { border-radius: 5px; padding: 3px 8px; font-size: .72rem; font-weight: 700; }
+.upload-status time, .upload-status small { display: block; margin-top: 4px; font-size: .68rem; font-weight: 400; }
 .upload-status.is-valid { background: rgba(36,170,75,.13); color: #6ed68b; }
 .upload-status.is-invalid { background: rgba(224,91,91,.13); color: #f3a4a4; }
 .upload-error, #uploads-message.is-error { color: #f3a4a4; }

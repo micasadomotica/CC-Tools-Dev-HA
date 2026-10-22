@@ -2027,6 +2027,10 @@ async function saveFinishPrinterProfiles() {
   }
   for (const profile of profiles) {
     const records = profile.cloudFileRecords || [];
+    if (fields.finishPrintEnabled.checked && profile.dailyLimit > 0 && !records.length) {
+      toast(`Selecciona al menos un archivo G-code para ${profile.printerName}.`);
+      return false;
+    }
     const durations = records.map((file) => Math.ceil(Math.max(0, Number(file.printTime) || 0) / 60)).filter(Boolean);
     const required = profile.dailyLimit * ((durations.length ? Math.max(...durations) : 10) + profile.minIntervalMinutes + 5);
     if (required > 1440) {
@@ -2702,7 +2706,7 @@ function render() {
   fields.modelsEnabled.checked = models.enabled;
   fields.modelsWindowStart.value = models.windowStart;
   fields.modelsWindowEnd.value = models.windowEnd;
-  fields.modelsDailyLimit.value = models.dailyLimit;
+  fields.modelsDailyLimit.value = Math.max(0, Math.min(10, Number(models.dailyLimit) || 0));
   fields.modelsMinInterval.value = Math.max(10, Number(models.minIntervalMinutes) || 10);
   fields.modelsDownloadsPath.value = state.runtimePaths.downloads || 'data/temp-downloads';
   fields.modelsCleanupHours.value = Math.min(168, Math.max(1, Number(models.cleanupAfterHours) || 1));
@@ -2724,8 +2728,7 @@ function render() {
   fields.boostsWindowStart.value = boosts.windowStart || '08:00';
   fields.boostsWindowEnd.value = boosts.windowEnd || '12:00';
   fields.boostsFavoritesOnly.checked = boosts.favoriteOnly !== false;
-  $('#run-boosts-now').disabled = Math.max(0, Number(boosts.availableBoosts) || 0) <= 0
-    || Math.max(0, Number(state.dailyCounters.modelBoosts) || 0) >= 1;
+  renderBoostDailyLimit();
   renderLastExecution(fields.likesLastRun, likes);
   fields.likesEnabled.checked = likes.enabled;
   fields.likesWindowStart.value = likes.windowStart;
@@ -3476,7 +3479,8 @@ function renderDailyCounters() {
   renderDailyBadge(fields.finishPrintDailyBadge, state.dailyCounters.finishPrint, tasks.finishPrint.totalDailyLimit ?? tasks.finishPrint.dailyLimit ?? 10);
   renderDailyBadge(fields.modelsDailyBadge, state.dailyCounters.modelDownloads, state.dailyLimits.modelDownloads || tasks.modelDownloads.dailyLimit);
   renderDailyBadge(fields.commentsDailyBadge, state.dailyCounters.comments, state.dailyLimits.comments || tasks.comments.dailyLimit || 0);
-  renderDailyBadge(fields.boostsDailyBadge, state.dailyCounters.modelBoosts, tasks.modelBoosts.availableBoosts || 0);
+  renderDailyBadge(fields.boostsDailyBadge, state.dailyCounters.modelBoosts, 1);
+  fields.boostsDailyBadge.title = `Boost diario: máximo 1. Boletos disponibles: ${tasks.modelBoosts.availableBoosts || 0}.`;
   renderDailyBadge(fields.likesDailyBadge, state.dailyCounters.modelLikes, tasks.modelLikes.dailyLimit || 1);
   renderDailyBadge(fields.makeNowDailyBadge, state.dailyCounters.makeNow, 1);
   renderDailyBadge(fields.collectionsDailyBadge, state.dailyCounters.modelCollections, tasks.modelCollections.dailyLimit || 1);
@@ -3493,7 +3497,7 @@ function renderDailyBadge(node, count, max) {
 }
 
 function requiredModelWindowMinutes() {
-  const dailyLimit = Math.max(0, Math.min(30, Number(fields.modelsDailyLimit.value) || 0));
+  const dailyLimit = Math.max(0, Math.min(10, Number(fields.modelsDailyLimit.value) || 0));
   const minIntervalMinutes = Math.max(10, Number(fields.modelsMinInterval.value) || 10);
   return dailyLimit * (minIntervalMinutes + 2);
 }
@@ -3510,7 +3514,24 @@ async function runCommentsWithProgress() {
   });
 }
 
+function renderBoostDailyLimit() {
+  const completed = Number(state.dailyCounters.modelBoosts) >= 1;
+  const tickets = Math.max(0, Number(state.config.tasks.modelBoosts.availableBoosts) || 0);
+  const message = completed
+    ? 'Boost diario completado. Las ejecuciones manuales y programadas están bloqueadas hasta mañana; solo se recompensa uno al día.'
+    : 'Solo se permite un boost al día, manual o programado. Una ejecución completada bloquea las siguientes hasta mañana.';
+  const button = $('#run-boosts-now');
+  button.disabled = completed || tickets === 0;
+  button.title = completed ? message : tickets === 0 ? 'No hay boletos boost disponibles.' : message;
+  $('#boosts-daily-status').textContent = `${message} Boletos disponibles: ${tickets}.`;
+  $('#save-boosts-config span').textContent = completed ? 'Programar desde mañana' : 'Programar';
+}
+
 async function runBoostsWithProgress() {
+  if (Number(state.dailyCounters.modelBoosts) >= 1) {
+    toast('Ya se ha utilizado el boost de hoy. La ejecución manual está bloqueada hasta mañana.');
+    return;
+  }
   if (!(await saveConfig({ includeModelBoosts: true }))) return;
   fields.boostsConfigModal.hidden = true;
   await runWithProgress({
@@ -3973,6 +3994,7 @@ function errorMessage(error, payload = {}) {
     FAVORITE_PROFILE_UNAVAILABLE: 'No se pudieron obtener los datos del perfil.',
     FINISH_PRINT_PRINTER_DUPLICATE: 'Cada impresora solo puede aparecer en un bloque.',
     FINISH_PRINT_PRINTER_REQUIRED: 'Selecciona una impresora en cada bloque.',
+    FINISH_PRINT_FILE_REQUIRED: 'Selecciona y guarda al menos un archivo G-code por impresora.',
     FINISH_PRINT_PROFILE_PENDING: 'No puedes eliminar la impresora que tiene una impresión pendiente de verificar.',
     BROWSER_BUSY: 'Hay otra operación utilizando el navegador. Inténtalo de nuevo cuando termine.'
   })[error] || error || 'No se pudo completar la acción.';

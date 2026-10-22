@@ -151,7 +151,7 @@ const DEFAULT_CONFIG = {
       windowStart: '08:00',
       windowEnd: '14:00',
       timezone: 'Europe/Madrid',
-      dailyLimit: 30,
+      dailyLimit: 10,
       minIntervalMinutes: 10,
       cleanupAfterHours: 1,
       prioritizeFavorites: true,
@@ -629,16 +629,21 @@ export async function markDesignCommentUnavailable(designId) {
   });
 }
 
-export async function markDesignBoosted(designId) {
+export async function markDesignBoosted(designId, { previouslyApplied = false } = {}) {
   return enqueue('designs', async () => {
     const designs = await readDesignsInternal(false);
     const design = designs.find((item) => item.id === designId);
     if (!design) return null;
 
     const now = new Date().toISOString();
-    design.boostCount = Math.max(0, Number(design.boostCount) || 0) + 1;
-    design.boostLastAt = now;
-    design.updatedAt = now;
+    const count = Math.max(0, Number(design.boostCount) || 0);
+    // A remote observation confirms at least one past boost, not a new action today.
+    if (previouslyApplied && count >= 1) return design;
+    design.boostCount = previouslyApplied ? Math.max(1, count) : count + 1;
+    if (!previouslyApplied) {
+      design.boostLastAt = now;
+      design.updatedAt = now;
+    }
     await writeJsonAtomic(DESIGNS_PATH, designs);
     return design;
   });
@@ -878,6 +883,7 @@ function normalizeStoredConfig(stored) {
   config.tasks.modelDownloads = Object.fromEntries(
     Object.keys(DEFAULT_CONFIG.tasks.modelDownloads).map((key) => [key, storedDownloadTask[key]])
   );
+  config.tasks.modelDownloads.dailyLimit = Math.max(0, Math.min(10, Number(config.tasks.modelDownloads.dailyLimit) || 0));
   config.crealityFavorites = normalizeFavoriteProfiles(config.crealityFavorites);
   config.shopGoal = normalizeStoredShopGoal(config.shopGoal);
   config.shopOrders = normalizeShopOrdersState(config.shopOrders);

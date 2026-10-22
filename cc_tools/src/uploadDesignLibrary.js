@@ -16,6 +16,11 @@ function problem(message, status = 400) {
   return Object.assign(new Error(message), { status });
 }
 
+export function uploadDeliveryDay(entry = {}) {
+  const day = entry.submittedDay || entry.day || '';
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : '';
+}
+
 export const uploadLibrary = createUploadLibrary();
 
 export function uploadImageKind(name) {
@@ -383,12 +388,14 @@ export function createUploadLibrary({ root = '/media/cctools_3d_models',
       if (patch.status === 'submitting' && ['submitted','submitting','uncertain'].includes(previous?.status)) throw problem('Este diseño ya se entregó o tiene un envío pendiente de comprobar.');
       ledger[model.modelHash] = { ...previous, name: model.name, modelHash: model.modelHash, libraryId: model.id,
         folder: model.folder, fingerprint: model.fingerprint, ...patch, updatedAt: new Date().toISOString() };
+      if (previous?.submittedAt) ledger[model.modelHash].submittedAt = previous.submittedAt;
+      if (previous?.submittedDay) ledger[model.modelHash].submittedDay = previous.submittedDay;
       if (patch.source === 'schedule') state.schedule.initialConsumed = true;
       await writeState(state); return ledger[model.modelHash];
     }),
     cleanupCandidates: (account, day) => serial(async () => {
       const state = await readState();
-      return Object.values(state.ledger[account] || {}).filter(entry => entry.status === 'submitted' && entry.id && entry.day < day && !entry.cleanedAt && entry.folder && entry.fingerprint)
+      return Object.values(state.ledger[account] || {}).filter(entry => entry.status === 'submitted' && entry.id && uploadDeliveryDay(entry) && uploadDeliveryDay(entry) < day && !entry.cleanedAt && entry.folder && entry.fingerprint)
         .sort((a,b) => String(a.publicCheckedAt || '').localeCompare(String(b.publicCheckedAt || '')));
     }),
     notePublicChecks: (account, ids, checkedAt) => serial(async () => {
@@ -400,7 +407,7 @@ export function createUploadLibrary({ root = '/media/cctools_3d_models',
       signal?.throwIfAborted();
       if (proof?.account !== account || !proof.ids?.includes(entry.id) || !proof.checkedAt || !Number.isFinite(Date.parse(proof.checkedAt)) || Date.now() - Date.parse(proof.checkedAt) > 10 * 60000) throw problem('Falta confirmación reciente del modelo público.');
       const state = await scanState(await readState()), saved = state.ledger[account]?.[entry.modelHash];
-      if (!saved || saved.status !== 'submitted' || saved.id !== entry.id || saved.day >= day || saved.cleanedAt) return false;
+      if (!saved || saved.status !== 'submitted' || saved.id !== entry.id || !uploadDeliveryDay(saved) || uploadDeliveryDay(saved) >= day || saved.cleanedAt) return false;
       const item = state.inventory.find(item => item.valid && item.id === saved.libraryId && item.fingerprint === saved.fingerprint && item.folder === saved.folder);
       if (!item) return false;
       const folder = await safePath(item.folder), expected = [item.modelFile,item.coverFile,item.infoFile,
@@ -422,6 +429,11 @@ export function createUploadLibrary({ root = '/media/cctools_3d_models',
     saveManual: entries => serial(async () => {
       const state = await scanState(await readState());
       state.manual = selectionFrom(state, entries, 5);
+      await writeState(state); return output(state);
+    }),
+    saveCleanup: enabled => serial(async () => {
+      const state = await readState();
+      state.schedule.cleanupEnabled = enabled === true;
       await writeState(state); return output(state);
     }),
     saveSchedule: input => serial(async () => {

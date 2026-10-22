@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 // A separate, empty data directory and a frozen clock keep every print in the future.
 // No browser, Cloud account, printer or notification service is used.
-test('the real server saves and exposes one remaining print for a daily target of three with account progress 2/10', { timeout: 30000 }, async () => {
+test('the real server reprograms from account rewards, preserving G-code despite eight previous errors', { timeout: 30000 }, async () => {
   const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cctools-print-api-'));
   const socket = net.createServer();
   socket.listen(0, '127.0.0.1');
@@ -21,8 +21,8 @@ test('the real server saves and exposes one remaining print for a daily target o
   const bootstrap = `
     const RealDate = Date;
     globalThis.Date = class extends RealDate {
-      constructor(...args) { super(...(args.length ? args : ['2026-10-09T19:45:00Z'])); }
-      static now() { return new RealDate('2026-10-09T19:45:00Z').getTime(); }
+      constructor(...args) { super(...(args.length ? args : ['2026-10-09T06:45:00Z'])); }
+      static now() { return new RealDate('2026-10-09T06:45:00Z').getTime(); }
     };
     const { readConfig, writeConfig, appendRun } = await import('./src/storage.js');
     const config = await readConfig();
@@ -32,8 +32,12 @@ test('the real server saves and exposes one remaining print for a daily target o
     for (const task of Object.values(config.tasks)) task.enabled = false;
     await writeConfig(config);
     for (let index = 0; index < 2; index++) await appendRun({ taskId: 'finishPrint', source: 'manual',
-      status: 'success', finishedAt: '2026-10-09T19:00:00Z', details: { printId: 'manual-' + index,
+      status: 'success', finishedAt: '2026-10-09T06:00:00Z', details: { printId: 'manual-' + index,
       manualSelection: true, printerName: 'HAb - Ender-3' } });
+    for (let index = 0; index < 8; index++) await appendRun({ taskId: 'finishPrint', source: 'schedule',
+      status: 'error', finishedAt: '2026-10-09T06:20:00Z', details: {
+        failures: [{ error: 'Selecciona y guarda al menos un archivo G-code.' }]
+      } });
     await import('./src/server.js');
   `;
   let server, logs = '';
@@ -88,6 +92,26 @@ test('the real server saves and exposes one remaining print for a daily target o
       const agenda = await fetch(baseUrl + '/api/schedule/preview').then(r => r.json());
       assert.equal(agenda.items.filter(item => item.taskId === 'finishPrint' && item.status === 'pending').length, expected);
     }
+
+    const restored = { ...disk.tasks.finishPrint.printerProfiles[0], dailyLimit: 10, windowStart: '09:00' };
+    const reprogrammed = await fetch(baseUrl + '/api/config', { method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ finishPrint: {
+        enabled: true, printerProfiles: [restored]
+      } }) }).then(r => r.json());
+    assert.equal(reprogrammed.config.tasks.finishPrint.printPlan.length, 8);
+    assert.deepEqual(reprogrammed.config.tasks.finishPrint.cloudFileRecords, restored.cloudFileRecords);
+    const invalid = await fetch(baseUrl + '/api/config', { method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ finishPrint: {
+        enabled: true, printerProfiles: [{ ...restored, cloudFiles: [], cloudFileRecords: [] }]
+      } }) });
+    assert.equal(invalid.status, 400);
+    assert.equal((await invalid.json()).error, 'FINISH_PRINT_FILE_REQUIRED');
+    const afterInvalid = await fetch(baseUrl + '/api/status').then(r => r.json());
+    assert.equal(afterInvalid.config.tasks.finishPrint.printPlan.length, 8);
+    assert.deepEqual(afterInvalid.config.tasks.finishPrint.cloudFileRecords, restored.cloudFileRecords);
+    const agenda = await fetch(baseUrl + '/api/schedule/preview').then(r => r.json());
+    assert.equal(agenda.items.filter(item => item.taskId === 'finishPrint' && item.status === 'pending').length, 8);
+    assert.equal(agenda.items.filter(item => item.taskId === 'finishPrint' && item.status === 'failed').length, 8);
 
   } finally {
     if (server && server.exitCode === null) {

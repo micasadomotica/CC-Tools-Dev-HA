@@ -24,9 +24,9 @@ function functionsFrom(file, names) {
     return source.slice(start, next < 0 ? undefined : start + 1 + next);
   }).join('\n');
 }
-function harness(runs = []) {
+function harness(runs = [], Clock = FixedDate) {
   const context = vm.createContext({ ...profiles, ...selection, ...timing, ...schedule,
-    Date: FixedDate, readRuns: async () => runs });
+    Date: Clock, readRuns: async () => runs });
   vm.runInContext(functionsFrom('../src/server.js', [
     'applyFinishPrintProfilesConfig', 'countTodayFinishPrintStarts', 'windowDurationMinutes',
     'parseClock', 'dayKey', 'todayFinishPrintEvents', 'addPlannedTaskItems', 'effectivePendingPlan'
@@ -163,7 +163,7 @@ test('a manual start preserves the plan while an automatic start advances it onc
   assert.equal(task.nextRunAt, task.printPlan[1]);
 });
 
-test('reprogramming subtracts previous automatic starts without counting their verification twice', async () => {
+test('reprogramming subtracts credited prints without counting their starts twice', async () => {
   const start = { ...manual('HAb - Ender-3'), source: 'schedule', details: {
     printId: 'auto', printerProfileId: 'hab', printerName: 'HAb - Ender-3' } };
   const verification = { ...start, details: { ...start.details, printRecord: { completed: true },
@@ -174,6 +174,59 @@ test('reprogramming subtracts previous automatic starts without counting their v
   h.ensureFinishPrintPlan(c.tasks.finishPrint, [start, verification], new FixedDate());
   assert.equal(c.tasks.finishPrint.printPlanCursor, 0);
   assert.equal(c.tasks.finishPrint.printPlan.length, 4);
+});
+
+test('eight failed attempts leave ten pending at 0/10 and eight at 2/10 after reprogramming and refresh', async () => {
+  class Morning extends Date {
+    constructor(...args) { super(...(args.length ? args : ['2026-10-09T06:00:00Z'])); }
+  }
+  for (const done of [0, 2, 10]) {
+    const runs = Array.from({ length: 8 }, (_, index) => ({ taskId: 'finishPrint', source: 'schedule',
+      status: 'error', finishedAt: '2026-10-09T05:00:00Z', details: {
+        printerProfileId: 'hab', failures: [{ error: 'Selecciona y guarda al menos un archivo G-code.' }]
+      } }));
+    const h = harness(runs, Morning), c = config();
+    c.tasks.finishPrint.pendingVerification = null;
+    c.dailyProgress = { tasks: { finishPrint: { found: true, done, valid: 10,
+      checkedAt: new Morning().toISOString() } } };
+    const requested = { ...profile(), dailyLimit: 10, windowStart: '08:00', windowEnd: '23:59' };
+    for (let save = 0; save < 2; save++) {
+      assert.equal(await h.applyFinishPrintProfilesConfig(c, { enabled: true, printerProfiles: [requested] }), null);
+      reconcileDailyPlans(c, runs, new Morning());
+      h.ensureFinishPrintPlan(c.tasks.finishPrint, runs, new Morning());
+      reconcileDailyPlans(c, runs, new Morning());
+      const task = c.tasks.finishPrint;
+      assert.equal(task.printPlan.length, 10 - done);
+      assert.equal(task.printPlanCursor, 0);
+      assert.deepEqual(task.cloudFiles, requested.cloudFiles);
+      const items = [], p = task.printerProfiles[0];
+      h.addPlannedTaskItems({ items, taskConfig: { ...p, enabled: true }, taskId: 'finishPrint',
+        label: p.printerName, itemLabel: 'Impresión', planKey: 'printPlan', cursorKey: 'printPlanCursor',
+        events: h.todayFinishPrintEvents(runs, p, true), maxDailyLimit: 10 });
+      assert.equal(items.filter(item => item.status === 'failed').length, 8);
+      assert.equal(items.filter(item => item.status === 'pending').length, 10 - done);
+      if (done < 10) assert.equal(items.at(-1).detail, `Impresión pendiente ${10 - done} de ${10 - done}`);
+    }
+  }
+});
+
+test('uncredited starts and failed verifications do not reduce a reprogrammed target', async () => {
+  const start = { ...manual('HAb - Ender-3'), source: 'schedule' };
+  const verification = { ...start, status: 'failed', details: { ...start.details,
+    printRecord: { completed: true }, rewardVerification: { status: 'not_credited' } } };
+  const { h, c } = await save([start, verification]);
+  assert.equal(c.tasks.finishPrint.printPlan.length, 5);
+  h.ensureFinishPrintPlan(c.tasks.finishPrint, [start, verification], new FixedDate());
+  assert.equal(c.tasks.finishPrint.printPlanCursor, 0);
+});
+
+test('an enabled profile without a G-code cannot replace the saved selection', async () => {
+  const { h, c } = await save([]);
+  const before = JSON.stringify(c);
+  const result = await h.applyFinishPrintProfilesConfig(c, { enabled: true,
+    printerProfiles: [{ ...profile(), cloudFiles: [], cloudFileRecords: [] }] });
+  assert.equal(result.error, 'FINISH_PRINT_FILE_REQUIRED');
+  assert.equal(JSON.stringify(c), before);
 });
 
 
@@ -187,6 +240,13 @@ test('the print card shows the configured target immediately, including zero, ra
   vm.runInContext(functionsFrom('../public/assets/app.js', ['renderDailyCounters', 'renderDailyBadge']), h);
   h.renderDailyCounters();
   assert.equal(fields.finishPrintDailyBadge.textContent, '2/3');
+  tasks.modelBoosts.availableBoosts = 2;
+  h.renderDailyCounters();
+  assert.equal(fields.boostsDailyBadge.textContent, '0/1');
+  assert.match(fields.boostsDailyBadge.title, /Boletos disponibles: 2/);
+  state.dailyCounters.modelBoosts = 1;
+  h.renderDailyCounters();
+  assert.equal(fields.boostsDailyBadge.textContent, '1/1');
   assert.match(fields.finishPrintDailyBadge.title, /10/);
   tasks.finishPrint.totalDailyLimit = 4;
   h.renderDailyCounters();

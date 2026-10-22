@@ -459,14 +459,7 @@ async function tick() {
   const runs = await readRuns();
   if (await redeemScheduledShopGoal(config)) return;
   await refreshDailyBoostAvailability(config);
-  const uploads = config.tasks.uploadDesigns;
-  const today = progressDay(config.timezone);
-  if (uploads?.enabled && uploads.cleanupEnabled && uploads.cleanupCheckedDay !== today) {
-    const candidates = await uploadLibrary.cleanupCandidates(config.crealityProfile?.userId, today).catch(() => [null]);
-    if (candidates.length) await runTaskNow('uploadDesigns', 'cleanup', { cleanupOnly: true }).catch(error => console.error('[upload-cleanup]', error.message));
-    const fresh = await readConfig(); fresh.tasks.uploadDesigns.cleanupCheckedDay = today; await writeConfig(fresh);
-    if (candidates.length) return;
-  }
+  if (await runScheduledUploadCleanup(config)) return;
   for (const taskId of TASK_IDS) {
     const task = config.tasks[taskId];
     if (!task?.enabled) continue;
@@ -770,11 +763,35 @@ function ensureDownloadPlan(taskConfig, runs = [], now = new Date()) {
     return changed;
   }
 
-  const dailyLimit = Math.max(0, Math.min(30, Number(taskConfig.dailyLimit) || 0));
+  const dailyLimit = Math.max(0, Math.min(10, Number(taskConfig.dailyLimit) || 0));
   const remainingCount = Math.max(0, dailyLimit - attemptsToday);
   applyDownloadPlan(taskConfig, generateDownloadPlan(taskConfig, now, { remainingCount }), attemptsToday);
   taskConfig.downloadsToday = attemptsToday;
   return true;
+}
+
+async function runScheduledUploadCleanup(config, now = new Date()) {
+  const task = config.tasks.uploadDesigns, today = progressDay(config.timezone, now);
+  if (!task?.cleanupEnabled || task.cleanupCheckedDay === today
+    || Date.parse(task.cleanupRetryAt || '') > now.getTime()) return false;
+  try {
+    const candidates = await uploadLibrary.cleanupCandidates(config.crealityProfile?.userId, today);
+    if (candidates.length) {
+      const result = await runTaskNow('uploadDesigns', 'cleanup', { cleanupOnly: true });
+      if (result.status !== 'success') throw new Error(result.message || 'No se completó la comprobación de limpieza.');
+    }
+    const fresh = await readConfig();
+    fresh.tasks.uploadDesigns.cleanupCheckedDay = today;
+    fresh.tasks.uploadDesigns.cleanupRetryAt = '';
+    await writeConfig(fresh);
+    return candidates.length > 0;
+  } catch (error) {
+    console.error('[upload-cleanup]', error.message);
+    const fresh = await readConfig();
+    fresh.tasks.uploadDesigns.cleanupRetryAt = new Date(now.getTime() + 60 * 60000).toISOString();
+    await writeConfig(fresh);
+    return true;
+  }
 }
 
 async function refreshDailyBoostAvailability(config, now = new Date()) {
@@ -1047,9 +1064,9 @@ function ensureFinishPrintProfilePlan(profile, runs, now, timezone, includeLegac
   }
 
   const dailyLimit = Math.max(0, Math.min(10, Number(profile.dailyLimit) || 0));
-  const remainingCount = Math.max(0, dailyLimit - attemptsToday);
   const generated = generateDownloadPlan(profile, now, {
-    remainingCount,
+    // reconcileDailyPlans applies the account counter after generating the plan.
+    remainingCount: dailyLimit,
     minimumSlotMinutes: finishPrintSlotMinutes(profile)
   });
   profile.printPlanDate = generated.date;
@@ -1195,7 +1212,12 @@ export function delayPendingTaskPlan(taskConfig, taskId, delayedRunAt) {
 async function executePendingTask(taskId, taskConfig, options, config) {
   const runs = await readRuns();
   const progress = dailyProgress(config, runs);
-  if (!(['makeNow', 'modelBoosts'].includes(taskId) && options.source === 'manual')
+  if (taskId === 'modelBoosts' && progress.counters.modelBoosts >= 1) {
+    return { success: true, skipped: true,
+      message: 'Ya se ha utilizado el boost de hoy. Solo se recompensa uno al día; la ejecución manual y la programada están bloqueadas hasta mañana.',
+      details: { reason: 'BOOST_DAILY_LIMIT', synchronized: true, dailyCount: progress.counters.modelBoosts } };
+  }
+  if (!(taskId === 'makeNow' && options.source === 'manual')
     && !options.cleanupOnly && progress.counters[taskId] > 0 && progress.remaining[taskId] === 0) {
     return { success: true, skipped: true, message: 'El objetivo diario ya está completado según el progreso sincronizado.',
       details: { synchronized: true, dailyCount: progress.counters[taskId] } };

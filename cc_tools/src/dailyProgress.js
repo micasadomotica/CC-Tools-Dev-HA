@@ -3,6 +3,7 @@ import { normalizeFinishPrintProfiles, syncActiveFinishPrintProfile, activateNex
 import { countCreditedFinishPrintRun } from './finishPrintSelection.js';
 
 export const REWARD_TITLES = {
+  modelBoosts: 'Model Boost',
   uploadDesigns: 'Upload Models',
   modelDownloads: 'Download Models', modelLikes: 'Like 3D Model',
   modelCollections: 'Collection Models', finishPrint: 'Finish a Print',
@@ -92,8 +93,11 @@ export function dailyProgress(config, runs = [], now = new Date()) {
     counters[key] = Math.max(local[key], observations[key]?.done || 0, history[key] || 0);
     if (key === 'makeNow' && observations[key]) counters[key] = observations[key].done;
     if (singles.includes(key)) counters[key] = Math.min(1, counters[key]);
-    limits[key] = observations[key]?.valid || ({ uploadDesigns: 5, commentImage: 5, commentText: 1, modelDownloads: 30, finishPrint: 10 }[key] || 1);
+    limits[key] = observations[key]?.valid || ({ uploadDesigns: 5, commentImage: 5, commentText: 1, modelDownloads: 10, finishPrint: 10 }[key] || 1);
   }
+  // Old account snapshots can still advertise the former 30-download reward.
+  limits.modelDownloads = Math.min(10, limits.modelDownloads);
+  limits.modelBoosts = 1;
   counters.comments = counters.commentImage + counters.commentText;
   limits.comments = limits.commentImage + limits.commentText;
   const targets = {};
