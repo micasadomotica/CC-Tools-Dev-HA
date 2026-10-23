@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.51 — confirmación de sesión y detección de acceso cerrado
+
+- Incorpora las correcciones de [TitoTB 1.0.38](https://github.com/TitoTB/CC-Tools-HA/commit/6fca2b19d075d600f8cc1b9e55d0795d9f332303), conservando las funciones propias de Dev.
+- Exige una respuesta positiva del perfil autenticado antes de reanudar las automatizaciones. Una comprobación sin respuesta, ilegible o desconocida mantiene la pausa existente y permite reintentar sin dar la sesión por recuperada.
+- Comprueba todos los controles de inicio de sesión en español e inglés; un primer elemento oculto ya no impide detectar otro visible.
+- Amplía las pruebas de sesión y añade pruebas de navegador con respuestas controladas, sin utilizar cuentas reales.
+- Mantiene subidas y categorías, MakeNow, colecciones, impresiones, el límite de un boost diario, la API y el puerto 8088. No cambia el formato de datos.
+- Desde 1.0.50 se actualiza en la misma app de Home Assistant, sin repetir el asistente ni migrar. Para instalaciones locales, empezar de cero sigue siendo una opción y la migración es opcional; se mantiene el aviso sobre diseños ya subidos.
+- La actualización y la recuperación de sesión en una instalación real de Home Assistant quedan pendientes de comprobación por el mantenedor.
+
 ## 1.0.50 — repositorio propio y actualizaciones desde Home Assistant
 
 - Estrena CC-Tools-Dev-HA con main como rama predeterminada, conservando el historial de dev-v1.0.49.

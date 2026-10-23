@@ -33,7 +33,8 @@ test('solo confirma el canje cuando la API devuelve el pedido esperado', async (
       });
       try {
         await page.goto('https://shop.test/');
-        const operation = confirmShopRedemption(page, product, { timeoutMs: 500, responseTimeoutMs: 500 });
+        // Allow for browser/CI scheduling without weakening the order verification assertions.
+        const operation = confirmShopRedemption(page, product, { timeoutMs: 5000, responseTimeoutMs: 5000 });
         if (scenario.error) await assert.rejects(operation, (error) => error.code === scenario.error);
         else assert.equal(await operation, scenario.orderNo);
         assert.equal(sends, scenario.sends ?? 1);

@@ -2,7 +2,7 @@
 
 CC Tools Dev automatiza tareas de Creality Cloud desde Home Assistant. Es una edición independiente basada en [CC Tools de TitoTB](https://github.com/TitoTB/CC-Tools-HA) y en el trabajo de la comunidad de Aguacatec.
 
-**Versión 1.0.50**, basada en la [1.0.49 validada en Home Assistant](https://github.com/micasadomotica/CC-Tools-HA/releases/tag/dev-v1.0.49). Esta versión estrena el repositorio propio y permite instalar y actualizar desde la tienda de Apps. Mantiene las funciones, el formato de datos y la API de 1.0.49. La instalación y migración de 1.0.50 requieren su comprobación final en Home Assistant.
+**Versión 1.0.51**. Incorpora las correcciones de sesión de [TitoTB 1.0.38](https://github.com/TitoTB/CC-Tools-HA/commit/6fca2b19d075d600f8cc1b9e55d0795d9f332303): exige confirmar el perfil autenticado antes de reanudar tareas y detecta el acceso cerrado aunque haya controles de inicio de sesión ocultos. Conserva las funciones de Dev, el formato de datos y la API de 1.0.50. Puedes actualizar desde la tienda de Apps sin migrar de nuevo; la comprobación final en una instalación real de Home Assistant sigue pendiente.
 
 [![Añadir repositorio a Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fmicasadomotica%2FCC-Tools-Dev-HA)
 
