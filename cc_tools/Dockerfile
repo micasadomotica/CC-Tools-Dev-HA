@@ -1,6 +1,6 @@
 FROM mcr.microsoft.com/playwright:v1.63.0-noble
 
-ARG BUILD_VERSION=1.0.51
+ARG BUILD_VERSION=1.0.52
 ARG BUILD_ARCH
 
 LABEL \
@@ -14,6 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     curl \
     jq \
+    tar \
     net-tools \
     novnc \
     websockify \

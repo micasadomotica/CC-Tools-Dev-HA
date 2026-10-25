@@ -88,7 +88,7 @@ function normalizeProfile(profile = {}, index = 0) {
     id,
     windowStart: validClock(profile.windowStart, '08:00'),
     windowEnd: validClock(profile.windowEnd, '20:00'),
-    dailyLimit: clamp(profile.dailyLimit, 0, 10, 1),
+    dailyLimit: clamp(profile.dailyLimit, 0, 10, 10),
     minIntervalMinutes: clamp(profile.minIntervalMinutes, 10, 1440, 10),
     printMode: ['quantities', 'ordered', 'random'].includes(profile.printMode) ? profile.printMode : 'random',
     printerName: String(profile.printerName || '').trim().slice(0, 120),

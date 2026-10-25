@@ -1,3 +1,5 @@
+import { MIGRATION_REVIEW_MESSAGE } from './migrationReview.js';
+
 const TRACKED_TASKS = new Set([
   'uploadDesigns',
   'creality',
@@ -23,7 +25,9 @@ export function buildHealthMetrics(config, runs = [], now = new Date()) {
   const failures = relevant.length - successes;
   const successRate = relevant.length ? Math.round((successes / relevant.length) * 100) : 100;
   const codes = relevant.flatMap(diagnosticCodes);
-  const health = config.automationHealth || {};
+  const health = config.migrationReview?.required
+    ? { state: 'paused', reasonCode: 'MIGRATION_REVIEW', reason: MIGRATION_REVIEW_MESSAGE, pauseSource: 'migration' }
+    : config.automationHealth || {};
 
   return {
     windowHours: 24,

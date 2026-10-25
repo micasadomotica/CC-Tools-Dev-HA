@@ -1,5 +1,5 @@
 name: CC Tools Dev
-version: "1.0.51"
+version: "1.0.52"
 slug: cc_tools
 description: Automatiza tareas de Creality Cloud desde Home Assistant.
 url: https://github.com/micasadomotica/CC-Tools-Dev-HA
@@ -16,8 +16,17 @@ ports_description:
   8080/tcp: Interfaz web de CC Tools Dev (8088 por defecto)
 options:
   timezone: Europe/Madrid
+  migration_source: No migrar
+  migration_confirm: false
 schema:
   timezone: str
+  migration_source: list(No migrar|CC Tools Dev local|CC Tools de TitoTB)
+  migration_confirm: bool
+
+# Only needed during an explicitly requested migration; protection stays on by default.
+docker_api: true
+hassio_api: true
+hassio_role: default
 
 map:
   - type: media

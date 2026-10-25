@@ -1,6 +1,10 @@
 configuration:
   timezone:
     name: Time zone
-    description: Time zone used to schedule automations.
-network:
-  8080/tcp: CC Tools Dev web interface (default 8088)
+    description: Time zone used by CC Tools Dev.
+  migration_source:
+    name: Migrate data from
+    description: Select one source. On startup, migration replaces current Dev data and keeps a backup. Stop the source and disable its automatic restarts. Temporarily disable protection mode for CC Tools Dev; enable it again and restart after migration.
+  migration_confirm:
+    name: Confirm data replacement
+    description: Authorize replacing data with the selected source. Automatically cleared. To cancel a failed migration and keep the recovered data, select Do not migrate, enable this confirmation and start again.

@@ -27,6 +27,7 @@ import {
   writeConfig
 } from './storage.js';
 import { cancelRunningTask, startScheduler, runTaskNow, schedulerState } from './scheduler.js';
+import { acknowledgeMigrationReview } from './migrationReview.js';
 import { generateDownloadPlan, scheduleNextRun } from './timeWindow.js';
 import { sendTelegram } from './telegram.js';
 import { browserManagerState, shutdownBrowser, withAutomationBrowser } from './browserManager.js';
@@ -129,6 +130,7 @@ app.get('/api/status', async (req, res) => {
 
 app.post('/api/automation/resume', async (req, res) => {
   const config = await readConfig();
+  acknowledgeMigrationReview(config);
   config.automationHealth = {
     ...(config.automationHealth || {}),
     state: 'active',
@@ -792,6 +794,9 @@ app.patch('/api/config', async (req, res) => {
     config.telegram.notifyOnDesignDownload = input.telegram.notifyOnDesignDownload !== false;
     config.telegram.notifyOnDesignError = input.telegram.notifyOnDesignError !== false;
     config.telegram.notifyOnModelLike = input.telegram.notifyOnModelLike !== false;
+    for (const key of ['notifyOnModelCollection', 'notifyOnModelCollectionError', 'notifyOnUploadDesign', 'notifyOnUploadDesignError']) {
+      if (Object.hasOwn(input.telegram, key)) config.telegram[key] = input.telegram[key] !== false;
+    }
     config.telegram.notifyOnModelLikeError = input.telegram.notifyOnModelLikeError !== false;
     config.telegram.notifyOnFinishPrint = input.telegram.notifyOnFinishPrint !== false;
     config.telegram.notifyOnFinishPrintError = input.telegram.notifyOnFinishPrintError !== false;

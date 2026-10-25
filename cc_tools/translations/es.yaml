@@ -1,6 +1,10 @@
 configuration:
   timezone:
     name: Zona horaria
-    description: Zona horaria utilizada para programar las automatizaciones.
-network:
-  8080/tcp: Interfaz web de CC Tools Dev (8088 por defecto)
+    description: Zona horaria de CC Tools Dev.
+  migration_source:
+    name: Migrar datos desde
+    description: Elige una sola instalación. La migración se ejecutará al iniciar y sustituirá los datos actuales de Dev, conservando un respaldo. Detén el origen y desactiva sus reinicios automáticos. Durante la migración, desactiva Modo de protección de CC Tools Dev; al terminar, actívalo y reinicia.
+  migration_confirm:
+    name: Confirmar sustitución de datos
+    description: Autoriza la sustitución por los datos del origen elegido. Se desmarca automáticamente. Si una migración falló y quieres conservar los datos recuperados, selecciona No migrar, marca esta confirmación e inicia de nuevo.

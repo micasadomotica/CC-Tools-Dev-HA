@@ -171,6 +171,10 @@ const fields = {
   notifyDesignDownload: $('#notify-design-download'),
   notifyDesignError: $('#notify-design-error'),
   notifyModelLike: $('#notify-model-like'),
+  notifyModelCollection: $('#notify-model-collection'),
+  notifyModelCollectionError: $('#notify-model-collection-error'),
+  notifyUploadDesign: $('#notify-upload-design'),
+  notifyUploadDesignError: $('#notify-upload-design-error'),
   notifyModelLikeError: $('#notify-model-like-error'),
   notifyFinishPrint: $('#notify-finish-print'),
   notifyFinishPrintError: $('#notify-finish-print-error'),
@@ -1220,6 +1224,10 @@ async function saveConfig(options = {}) {
       notifyOnDesignDownload: fields.notifyDesignDownload.checked,
       notifyOnDesignError: fields.notifyDesignError.checked,
       notifyOnModelLike: fields.notifyModelLike.checked,
+      notifyOnModelCollection: fields.notifyModelCollection.checked,
+      notifyOnModelCollectionError: fields.notifyModelCollectionError.checked,
+      notifyOnUploadDesign: fields.notifyUploadDesign.checked,
+      notifyOnUploadDesignError: fields.notifyUploadDesignError.checked,
       notifyOnModelLikeError: fields.notifyModelLikeError.checked,
       notifyOnFinishPrint: fields.notifyFinishPrint.checked,
       notifyOnFinishPrintError: fields.notifyFinishPrintError.checked,
@@ -1794,7 +1802,7 @@ function addFinishPrinterProfile() {
     id: `printer-${crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(16).slice(2)}`}`,
     windowStart: '08:00',
     windowEnd: '20:00',
-    dailyLimit: 1,
+    dailyLimit: 10,
     minIntervalMinutes: 10,
     printMode: 'random',
     printerName,
@@ -2770,6 +2778,10 @@ function render() {
   fields.notifyDesignDownload.checked = state.config.telegram.notifyOnDesignDownload !== false;
   fields.notifyDesignError.checked = state.config.telegram.notifyOnDesignError !== false;
   fields.notifyModelLike.checked = state.config.telegram.notifyOnModelLike !== false;
+  fields.notifyModelCollection.checked = state.config.telegram.notifyOnModelCollection !== false;
+  fields.notifyModelCollectionError.checked = state.config.telegram.notifyOnModelCollectionError !== false;
+  fields.notifyUploadDesign.checked = state.config.telegram.notifyOnUploadDesign !== false;
+  fields.notifyUploadDesignError.checked = state.config.telegram.notifyOnUploadDesignError !== false;
   fields.notifyModelLikeError.checked = state.config.telegram.notifyOnModelLikeError !== false;
   fields.notifyFinishPrint.checked = state.config.telegram.notifyOnFinishPrint !== false;
   fields.notifyFinishPrintError.checked = state.config.telegram.notifyOnFinishPrintError !== false;
@@ -2845,6 +2857,8 @@ function notificationSuccessFields() {
     fields.notifyFinishPrint,
     fields.notifyComment,
     fields.notifyMakeNow,
+    fields.notifyModelCollection,
+    fields.notifyUploadDesign,
     fields.notifyModelBoost,
     fields.notifyShopRedemption,
     fields.notifyShopOrderShipped
@@ -2859,6 +2873,8 @@ function notificationErrorFields() {
     fields.notifyFinishPrintError,
     fields.notifyCommentError,
     fields.notifyMakeNowError,
+    fields.notifyModelCollectionError,
+    fields.notifyUploadDesignError,
     fields.notifyModelBoostError,
     fields.notifyShopRedemptionError
   ];
@@ -3411,7 +3427,7 @@ function renderHealthSummary() {
   fields.healthSummary.innerHTML = `
     <div class="health-cell health-state ${paused ? 'is-paused' : degraded ? 'is-degraded' : 'is-active'}">
       <span>Estado</span><strong>${escapeHtml(status)}</strong><small>${escapeHtml(pauseDetail)}</small>
-      ${paused ? '<button class="health-resume-button" type="button" data-action="resume-automations">Reactivar</button>' : ''}
+      ${paused ? '<button class="health-resume-button" type="button" data-action="resume-automations">Reanudar automatizaciones</button>' : ''}
     </div>
     <div class="health-cell"><span>Éxito · 24 h</span><strong>${successes}/${attempts}</strong><small>${Math.max(0, Number(health.successRate) || 0)}%</small></div>
     <div class="health-cell"><span>Fallos · 24 h</span><strong>${incidents}</strong><small>Ejecuciones no completadas</small></div>

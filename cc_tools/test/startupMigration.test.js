@@ -1,0 +1,174 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { migrateAtStartup, MIGRATION_DIR } from '../src/startupMigration.js';
+import { createSupervisorClient, extractMigrationArchive } from '../src/migrationTransport.js';
+import { assertMigrationReviewed, acknowledgeMigrationReview, requireMigrationReview } from '../src/migrationReview.js';
+import { buildHealthMetrics } from '../src/healthMetrics.js';
+
+const json = async file => JSON.parse(await fs.readFile(file, 'utf8'));
+const write = (file, data) => fs.writeFile(file, JSON.stringify(data));
+async function fixture(t, source = 'local_cc_tools') {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'cc-migration-'));
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const dataDir = path.join(root, 'data');
+  const original = path.join(root, source);
+  await fs.mkdir(dataDir);
+  await fs.mkdir(path.join(original, 'browser-session'), { recursive: true });
+  await write(path.join(original, 'config.json'), { tasks: { finishPrint: { enabled: true, dailyLimit: 3 } }, crealityProfile: { name: 'source' }, telegram: { botToken: 'test-only-secret' } });
+  await write(path.join(original, 'runs.json'), [{ id: 'history' }]);
+  await write(path.join(original, 'options.json'), { timezone: 'other', migration_confirm: true });
+  await fs.writeFile(path.join(original, '.hidden'), 'hidden data');
+  await fs.writeFile(path.join(original, 'browser-session', 'session file'), 'session');
+  await write(path.join(dataDir, 'config.json'), { tasks: {}, crealityProfile: { name: 'destination' } });
+  await fs.writeFile(path.join(dataDir, 'destination-only'), 'keep in backup');
+  const options = { timezone: 'Europe/Madrid', migration_source: source === 'local_cc_tools' ? 'CC Tools Dev local' : 'CC Tools de TitoTB', migration_confirm: true };
+  await write(path.join(dataDir, 'options.json'), options);
+  const calls = [];
+  const dependencies = {
+    dataDir, options, log: line => { assert.doesNotMatch(line, /test-only-secret/); calls.push(line); },
+    supervisor: {
+      info: async slug => slug === 'self' ? { slug: '34e9898c_cc_tools' } : { slug, state: 'stopped', watchdog: false },
+      disarm: async () => { calls.push('disarm'); }
+    },
+    sourceArchive: {
+      check: async () => {},
+      download: async (_source, target) => { assert.ok(calls.includes('disarm')); await fs.writeFile(target, 'archive fixture'); }
+    },
+    extractArchive: async (_archive, dir, slug) => { await fs.cp(original, path.join(dir, slug), { recursive: true }); }
+  };
+  return { root, dataDir, original, dependencies, calls, options };
+}
+async function unchanged(f) {
+  assert.equal((await json(path.join(f.dataDir, 'config.json'))).crealityProfile.name, 'destination');
+  assert.equal(await fs.readFile(path.join(f.dataDir, 'destination-only'), 'utf8'), 'keep in backup');
+  assert.equal((await json(path.join(f.original, 'config.json'))).crealityProfile.name, 'source');
+}
+
+test('normal 1.0.51 update does not require Docker, Supervisor, or create migration files', async t => {
+  const f = await fixture(t);
+  const result = await migrateAtStartup({ dataDir: f.dataDir, options: { timezone: 'Europe/Madrid' } });
+  assert.equal(result.migrated, false);
+  await unchanged(f);
+  await assert.rejects(fs.stat(path.join(f.dataDir, MIGRATION_DIR)), { code: 'ENOENT' });
+});
+
+for (const source of ['local_cc_tools', '8966b8c7_cc_tools']) {
+  test(`imports all data from ${source}, preserves options and source, keeps destination backup and review pause`, async t => {
+    const f = await fixture(t, source);
+    const result = await migrateAtStartup(f.dependencies);
+    assert.equal(result.migrated, true);
+    const imported = await json(path.join(f.dataDir, 'config.json'));
+    assert.equal(imported.crealityProfile.name, 'source');
+    assert.equal(imported.tasks.finishPrint.dailyLimit, 3);
+    assert.equal(imported.migrationReview.required, true);
+    assert.equal(await fs.readFile(path.join(f.dataDir, '.hidden'), 'utf8'), 'hidden data');
+    assert.equal(await fs.readFile(path.join(f.dataDir, 'browser-session/session file'), 'utf8'), 'session');
+    assert.deepEqual(await json(path.join(f.dataDir, 'options.json')), f.options);
+    assert.equal(await fs.readFile(path.join(result.backup, 'previous/destination-only'), 'utf8'), 'keep in backup');
+    assert.equal((await json(path.join(f.original, 'config.json'))).migrationReview, undefined);
+    await assert.rejects(fs.stat(path.join(f.dataDir, 'destination-only')), { code: 'ENOENT' });
+    const restart = await migrateAtStartup({ dataDir: f.dataDir, options: { migration_source: 'No migrar', migration_confirm: false } });
+    assert.equal(restart.migrated, false);
+    assert.equal(f.calls.filter(c => c === 'disarm').length, 1);
+  });
+}
+
+for (const scenario of ['unconfirmed', 'bad-source', 'bad-target', 'running', 'watchdog', 'no-docker', 'disarm-failure', 'archive-failure', 'corrupt-data', 'source-restarted']) {
+  test(`refuses ${scenario} without replacing destination`, async t => {
+    const f = await fixture(t);
+    const deps = f.dependencies;
+    if (scenario === 'unconfirmed') deps.options.migration_confirm = false;
+    if (scenario === 'bad-source') deps.options.migration_source = '../other';
+    if (scenario === 'bad-target') deps.supervisor.info = async () => ({ slug: 'local_cc_tools' });
+    if (scenario === 'running' || scenario === 'watchdog') deps.supervisor.info = async slug => slug === 'self' ? { slug: '34e9898c_cc_tools' } : { slug, state: scenario === 'running' ? 'started' : 'stopped', watchdog: scenario === 'watchdog' };
+    if (scenario === 'no-docker') deps.sourceArchive.check = async () => { throw new Error('no Docker'); };
+    if (scenario === 'disarm-failure') deps.supervisor.disarm = async () => { throw new Error('options denied'); };
+    if (scenario === 'archive-failure') deps.sourceArchive.download = async () => { throw new Error('no space'); };
+    if (scenario === 'corrupt-data') await fs.writeFile(path.join(f.original, 'config.json'), '{broken');
+    if (scenario === 'source-restarted') {
+      let reads = 0;
+      deps.supervisor.info = async slug => slug === 'self' ? { slug: '34e9898c_cc_tools' } : { slug, state: ++reads === 1 ? 'stopped' : 'started' };
+    }
+    await assert.rejects(migrateAtStartup(deps));
+    assert.equal((await json(path.join(f.dataDir, 'config.json'))).crealityProfile.name, 'destination');
+    assert.equal(await fs.readFile(path.join(f.dataDir, 'destination-only'), 'utf8'), 'keep in backup');
+  });
+}
+
+for (const phase of ['backup', 'install']) {
+  test(`rolls back a failure during ${phase}, blocks automatic restart and allows explicit cancellation`, async t => {
+    const f = await fixture(t);
+    f.dependencies.checkpoint = async step => { if (step === phase) throw new Error('simulated I/O failure'); };
+    await assert.rejects(migrateAtStartup(f.dependencies), /datos anteriores/);
+    await unchanged(f);
+    const cancelled = { ...f.dependencies, options: { migration_source: 'No migrar', migration_confirm: false } };
+    await assert.rejects(migrateAtStartup(cancelled), /anterior falló/);
+    cancelled.options.migration_confirm = true;
+    assert.equal((await migrateAtStartup(cancelled)).migrated, false);
+    await unchanged(f);
+  });
+}
+
+test('recovers a process killed during installation before allowing a retry', async t => {
+  const f = await fixture(t);
+  const id = randomUUID();
+  const control = path.join(f.dataDir, MIGRATION_DIR);
+  const previous = path.join(control, id, 'previous');
+  await fs.mkdir(previous, { recursive: true });
+  for (const name of ['config.json', 'destination-only']) await fs.rename(path.join(f.dataDir, name), path.join(previous, name));
+  await fs.writeFile(path.join(f.dataDir, 'partial-import'), 'partial');
+  await write(path.join(control, 'state.json'), { id, source: 'local_cc_tools', phase: 'installing' });
+  await assert.rejects(migrateAtStartup(f.dependencies), /interrupción/);
+  await unchanged(f);
+  await assert.rejects(fs.stat(path.join(f.dataDir, 'partial-import')), { code: 'ENOENT' });
+  assert.equal((await json(path.join(control, 'state.json'))).phase, 'failed');
+});
+
+test('a completed migration can be explicitly requested again, preserving both backups', async t => {
+  const f = await fixture(t);
+  const first = await migrateAtStartup(f.dependencies);
+  const second = await migrateAtStartup(f.dependencies);
+  assert.notEqual(first.backup, second.backup);
+  assert.equal((await json(path.join(first.backup, 'previous/config.json'))).crealityProfile.name, 'destination');
+  assert.equal((await json(path.join(second.backup, 'previous/config.json'))).crealityProfile.name, 'source');
+});
+
+test('migration review survives unrelated session-health updates until explicitly acknowledged', () => {
+  const config = requireMigrationReview({ tasks: {} }, 'local_cc_tools');
+  config.automationHealth.state = 'active';
+  assert.throws(() => assertMigrationReviewed(config), /Datos migrados/);
+  assert.equal(buildHealthMetrics(config).state, 'paused');
+  acknowledgeMigrationReview(config);
+  assert.doesNotThrow(() => assertMigrationReviewed(config));
+});
+
+test('Supervisor disarm preserves unrelated options and resets the one-shot selection', async () => {
+  let sent;
+  const client = createSupervisorClient({ timezone: 'UTC', migration_source: 'CC Tools Dev local', migration_confirm: true }, {
+    token: 'test-token', request: async (url, init) => { sent = { url, init }; return { ok: true, json: async () => ({ result: 'ok' }) }; }
+  });
+  await client.disarm();
+  assert.equal(sent.url, 'http://supervisor/addons/self/options');
+  assert.deepEqual(JSON.parse(sent.init.body), { options: { timezone: 'UTC', migration_source: 'No migrar', migration_confirm: false } });
+});
+
+test('Linux tar verifies binary data, hidden files, permissions and session symlinks', { skip: process.platform !== 'linux' }, async t => {
+  const f = await fixture(t);
+  await fs.writeFile(path.join(f.original, 'binary'), Buffer.from([0, 1, 254, 255]));
+  await fs.chmod(path.join(f.original, 'binary'), 0o640);
+  await fs.symlink('/tmp/chromium-test/SingletonSocket', path.join(f.original, 'browser-session/SingletonSocket'));
+  const archive = path.join(f.root, 'test.tar');
+  await promisify(execFile)('tar', ['-cpf', archive, '-C', f.root, 'local_cc_tools']);
+  const destination = path.join(f.root, 'extract');
+  await fs.mkdir(destination);
+  await extractMigrationArchive(archive, destination, 'local_cc_tools');
+  assert.equal((await fs.stat(path.join(destination, 'local_cc_tools/binary'))).mode & 0o777, 0o640);
+  assert.equal(await fs.readlink(path.join(destination, 'local_cc_tools/browser-session/SingletonSocket')), '/tmp/chromium-test/SingletonSocket');
+  await assert.rejects(fs.stat(path.join(destination, 'local_cc_tools/options.json')), { code: 'ENOENT' });
+});

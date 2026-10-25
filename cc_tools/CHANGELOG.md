@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.0.52 — migración desde Opciones, impresiones y Telegram
+
+- Añade un selector único en Configuración > Opciones: No migrar, CC Tools Dev local (local_cc_tools) o CC Tools de TitoTB (8966b8c7_cc_tools). Requiere confirmar la sustitución de datos.
+- Ejecuta la migración al iniciar, antes del navegador y las tareas. No necesita iniciar previamente la app nueva ni utilizar Advanced SSH. Requiere detener el origen y sus reinicios automáticos, y desactivar temporalmente Modo de protección de CC Tools Dev. Tras completar, vuelve a activarlo y reinicia.
+- Lee el origen mediante la API de Docker, conserva una copia completa del origen y los datos anteriores del destino en su almacenamiento privado. Mantiene las opciones de HA del destino y el contenido compartido de media.
+- Comprueba la copia antes de instalarla, recupera el destino tras fallos y registra el estado para recuperarse de una interrupción. La selección y su confirmación se desactivan antes de copiar para evitar repeticiones al reiniciar.
+- Permite solicitar otra migración más adelante. Si una migración falló, puedes reintentar seleccionando el origen y confirmando; para cancelar y conservar los datos recuperados, elige No migrar, marca la confirmación e inicia.
+- Tras importar, mantiene las programaciones pausadas hasta revisar los datos y pulsar Reanudar automatizaciones. El origen queda intacto.
+- Propone 10 impresiones por día al añadir una programación de impresora. Conserva los límites ya guardados, incluido cero.
+- Añade controles de Telegram para éxito y error de Añadir a la colección y Subir un diseño, y presenta los de Crear un proyecto con esos nombres. Se guardan de forma independiente y participan en los selectores generales de éxito/error. Las subidas parciales respetan ambos controles por separado.
+- Conserva el identificador, puerto 8088 y actualización directa desde 1.0.51. Con No migrar, no utiliza Docker ni altera los datos existentes.
+- Incluye pruebas de recuperación, notificaciones, formulario y transporte Docker en CI. La prueba final de migración real en Home Assistant queda pendiente del mantenedor. MIGRACION.md permanece sin cambios.
+
 ## 1.0.51 — confirmación de sesión y detección de acceso cerrado
 
 - Incorpora las correcciones de [TitoTB 1.0.38](https://github.com/TitoTB/CC-Tools-HA/commit/6fca2b19d075d600f8cc1b9e55d0795d9f332303), conservando las funciones propias de Dev.

@@ -29,6 +29,7 @@ export function stopFinishPrintMonitor() {
 
 export async function recoverStalePendingFinishPrint(now = new Date()) {
   const config = await readConfig();
+  if (config.migrationReview?.required) return { status: 'paused' };
   const pending = config.tasks.finishPrint.pendingVerification;
   if (!isCompletedPendingFromPreviousDay(pending, now)) return { status: 'unchanged' };
 
@@ -44,6 +45,7 @@ export async function recoverStalePendingFinishPrint(now = new Date()) {
 export async function checkPendingFinishPrint() {
   if (checking) return { status: 'busy' };
   const config = await readConfig();
+  if (config.migrationReview?.required) return { status: 'paused', reasonCode: 'MIGRATION_REVIEW' };
   if (config.automationHealth?.state === 'paused') {
     return {
       status: 'paused',

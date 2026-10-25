@@ -1,4 +1,5 @@
 import { dailyProgress, reconcileDailyPlans, applyRewardResult, progressDay } from './dailyProgress.js';
+import { assertMigrationReviewed } from './migrationReview.js';
 import { uploadLibrary } from './uploadDesignLibrary.js';
 import { synchronizeDailyProgress, pauseProgressSync, waitForProgressSync } from './progressSync.js';
 import { runUploadDesigns } from './uploadDesignTask.js';
@@ -87,6 +88,7 @@ export async function runTaskNow(taskId, source = 'manual', options = {}) {
       (async () => {
         await waitForProgressSync(executionAbort.signal);
         const config = await readConfig();
+        assertMigrationReviewed(config);
         executionAbort.signal.throwIfAborted();
         const taskConfig = config.tasks[taskId];
         if (taskId === 'finishPrint' && options.finishPrintProfileId) {
@@ -448,6 +450,7 @@ async function tick() {
   if (running) return;
 
   let config = await readConfig();
+  if (config.migrationReview?.required) return;
   if (await holdForAutomationHealth(config)) return;
   if (config.setup?.assistantCompleted && TASK_IDS.some(id => config.tasks[id]?.enabled)) {
     const sync = await synchronizeDailyProgress();
@@ -1280,7 +1283,7 @@ function formatRunMessage(taskId, status, result) {
   return result.message || (status === 'success' ? 'Tarea completada.' : 'Tarea fallida.');
 }
 
-async function notifyTaskResult(config, taskId, status, result, healthEvent = {}) {
+export async function notifyTaskResult(config, taskId, status, result, healthEvent = {}) {
   if (status === 'skipped') return;
 
 
@@ -1309,9 +1312,18 @@ async function notifyTaskResult(config, taskId, status, result, healthEvent = {}
   }
 
   if (taskId === 'uploadDesigns') {
-    await sendTelegram(config, 'CC Tools Dev · Subir diseños\n' + (result.message || 'La subida ha fallado. Revisa el Log.') +
-      (result.details?.uploaded || []).map(item => '\n' + item.name + ': ' + item.url).join(''))
-      .catch(error => console.error('[telegram]', error.message));
+    const uploaded = result.details?.uploaded || [];
+    const failures = result.details?.failures || [];
+    if (uploaded.length && config.telegram.notifyOnUploadDesign !== false) {
+      await sendTelegram(config, '✅ CC Tools Dev: Diseño subido\n' +
+        uploaded.map(item => `${item.name}: ${item.url}`).join('\n'))
+        .catch(error => console.error('[telegram]', error.message));
+    }
+    if ((failures.length || status !== 'success') && config.telegram.notifyOnUploadDesignError !== false) {
+      await sendTelegram(config, '❌ CC Tools Dev: Falló Subir un diseño\n' +
+        (failures.map(item => `${item.name || 'Diseño'}: ${item.message || item.error || 'Error desconocido'}`).join('\n') || result.message || 'Revisa el Log.'))
+        .catch(error => console.error('[telegram]', error.message));
+    }
     return;
   }
 
@@ -1432,8 +1444,8 @@ async function notifyTaskResult(config, taskId, status, result, healthEvent = {}
     }
 
     if (notifyError) {
-      if (failures.length) {
-        const failure = failures[0];
+      if (failures.length || status !== 'success') {
+        const failure = failures[0] || { error: result.message };
         await sendTelegram(config, `${info.telegramError}\n${failure.title || 'Diseño desconocido'}\n${publicError(failure)}`).catch((error) => {
           console.error('[telegram]', error.message);
         });
@@ -1481,6 +1493,7 @@ function shouldNotify(config, status) {
 }
 
 async function holdForAutomationHealth(config) {
+  if (config.migrationReview?.required) return true;
   const health = config.automationHealth || {};
   if (health.state !== 'paused') return false;
   if (health.reasonCode === 'LOGIN_REQUIRED') {
@@ -1801,6 +1814,7 @@ function shouldNotifyIncident(config, taskId) {
   if (taskId === 'comments') return config.telegram.notifyOnCommentError !== false;
   if (taskId === 'modelBoosts') return config.telegram.notifyOnModelBoostError !== false;
   if (taskId === 'modelCollections') return config.telegram.notifyOnModelCollectionError !== false;
+  if (taskId === 'uploadDesigns') return config.telegram.notifyOnUploadDesignError !== false;
   return false;
 }
 

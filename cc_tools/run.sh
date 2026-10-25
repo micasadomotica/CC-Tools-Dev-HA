@@ -3,6 +3,9 @@ set -euo pipefail
 
 OPTIONS_FILE="/data/options.json"
 
+# Must finish before anything opens /data or starts a browser/scheduled task.
+node /app/src/runStartupMigration.js
+
 export CCTOOLS_DATA_DIR="/data"
 export CCTOOLS_HOST="0.0.0.0"
 export CCTOOLS_PORT="8080"

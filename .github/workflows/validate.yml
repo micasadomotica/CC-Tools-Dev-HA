@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - 'release/**'
   pull_request:
 
 permissions:
@@ -30,6 +31,8 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Run tests
         run: npm test
+      - name: Test migration with the real Docker archive API
+        run: node scripts/migrationDocker.integration.mjs
       - name: Test authenticated session confirmation in browser
         run: npm run test:session:browser
       - name: Test check-in reminder in browser

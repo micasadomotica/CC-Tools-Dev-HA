@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import { assertMigrationReviewed } from '../src/migrationReview.js';
 import { normalizeCaughtError } from '../src/crealityDiagnostics.js';
 import { reconcileMakeNowCorrection } from '../src/dailyProgress.js';
 
@@ -16,6 +17,7 @@ function harness() {
   const state = { browserActive:false, launches:0, checkins:0, deferConfig:false, writes:0, failWrite:false, runs:[] };
   const config = { timezone:'Europe/Madrid', dailyProgress:{}, tasks:{creality:{retainDays:7}} };
   const context = vm.createContext({ Date, Promise, AbortController, setTimeout, clearTimeout, process, normalizeCaughtError, console:{log(){},error(){},warn(){}},
+    assertMigrationReviewed,
     readConfig:async()=> { if(state.deferConfig) await configGate.promise; return config; },
     writeConfig:async()=> { state.writes++; if(state.failWrite) throw new Error('storage unavailable'); },
     readRuns:async()=>[], appendRun:async run=>state.runs.push(run),

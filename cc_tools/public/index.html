@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CC Tools Dev</title>
     <link rel="icon" type="image/png" href="/assets/app-icon.png">
-    <link rel="stylesheet" href="/assets/styles.css?v=1.0.51">
-    <link rel="stylesheet" href="/assets/upload-designs.css?v=1.0.51">
+    <link rel="stylesheet" href="/assets/styles.css?v=1.0.52">
+    <link rel="stylesheet" href="/assets/upload-designs.css?v=1.0.52">
   </head>
   <body>
     <header class="topbar">
@@ -424,6 +424,14 @@
                   <span>Cuando falle "Dar me gusta"</span>
                 </label>
                 <label class="check-option">
+                  <input id="notify-model-collection" type="checkbox">
+                  <span>Cuando se añada a la colección</span>
+                </label>
+                <label class="check-option">
+                  <input id="notify-model-collection-error" type="checkbox">
+                  <span>Cuando falle "Añadir a la colección"</span>
+                </label>
+                <label class="check-option">
                   <input id="notify-finish-print" type="checkbox">
                   <span>Cuando se completa una impresión virtual</span>
                 </label>
@@ -449,11 +457,19 @@
                 </label>
                 <label class="check-option">
                   <input id="notify-makenow" type="checkbox">
-                  <span>Cuando se confirme la recompensa MakeNow</span>
+                  <span>Cuando se cree un proyecto</span>
                 </label>
                 <label class="check-option">
                   <input id="notify-makenow-error" type="checkbox">
                   <span>Cuando falle "Crear un proyecto"</span>
+                </label>
+                <label class="check-option">
+                  <input id="notify-upload-design" type="checkbox">
+                  <span>Cuando se suba un diseño</span>
+                </label>
+                <label class="check-option">
+                  <input id="notify-upload-design-error" type="checkbox">
+                  <span>Cuando falle "Subir un diseño"</span>
                 </label>
                 <label class="check-option">
                   <input id="notify-shop-redemption" type="checkbox">
@@ -638,7 +654,7 @@
               <div class="form-grid finish-print-schedule-grid finish-print-schedule-values">
                 <label class="inline-setting-field time-control-field">
                   <span>Impresiones por día</span>
-                  <input id="finish-print-daily-limit" type="number" min="0" max="10" value="1">
+                  <input id="finish-print-daily-limit" type="number" min="0" max="10" value="10">
                 </label>
                 <label class="inline-setting-field time-control-field">
                   <span>Intervalo mínimo (min)</span>
@@ -1193,7 +1209,7 @@ CATEGORIA: Impresoras 3D / Otro</pre>
       </div>
     </div>
 
-    <script src="/assets/upload-designs.js?v=1.0.51" type="module"></script>
-    <script src="/assets/app.js?v=1.0.51" type="module"></script>
+    <script src="/assets/upload-designs.js?v=1.0.52" type="module"></script>
+    <script src="/assets/app.js?v=1.0.52" type="module"></script>
   </body>
 </html>

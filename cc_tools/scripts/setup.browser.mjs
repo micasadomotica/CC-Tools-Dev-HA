@@ -86,6 +86,14 @@ test('Telegram conserva el paso del asistente y las descargas parten de 10', asy
     await page.locator('#open-collections-config svg').click();
     assert.equal(await page.locator('#run-collections-now').isVisible(), true);
     await page.locator('#close-collections-config').click();
+    await page.route('**/api/tasks/finish-print/discover-printers', route => route.fulfill({ json: { ok: true, printers: [{ name: 'Test printer', deviceId: 'test-printer' }] } }));
+    await page.locator('#open-finish-print-config').click();
+    await page.locator('#toggle-finish-print-setup').click();
+    await page.locator('[data-finish-profile-action="discover-printers"]').click();
+    await page.locator('[data-finish-printer-picker]').selectOption('Test printer');
+    await page.locator('[data-finish-profile-action="add"]').click();
+    assert.equal(await page.locator('[data-finish-profile-field="dailyLimit"]').inputValue(), '10');
+    await page.locator('#close-finish-print-config').click();
     await page.locator('#creality-user-avatar').click();
     await page.locator('#creality-menu-settings').click();
     assert.equal(await page.locator('#session-auto-login').isChecked(), false);
@@ -95,6 +103,40 @@ test('Telegram conserva el paso del asistente y las descargas parten de 10', asy
     assert.equal((await savedSession).ok(), true);
     await page.reload();
     await page.waitForFunction(() => document.querySelector('#session-auto-login').checked === true);
+    await page.locator('#creality-user-avatar').click();
+    await page.locator('#creality-menu-settings').click();
+    await page.locator('[data-tab="notifications"]').click();
+    const toggles = [
+      ['#notify-model-collection', 'notifyOnModelCollection'],
+      ['#notify-model-collection-error', 'notifyOnModelCollectionError'],
+      ['#notify-makenow', 'notifyOnMakeNow'],
+      ['#notify-makenow-error', 'notifyOnMakeNowError'],
+      ['#notify-upload-design', 'notifyOnUploadDesign'],
+      ['#notify-upload-design-error', 'notifyOnUploadDesignError']
+    ];
+    for (const [selector] of toggles) {
+      assert.equal(await page.locator(selector).isVisible(), true);
+      await page.locator(selector).uncheck();
+    }
+    let saved = page.waitForResponse(response => response.url().endsWith('/api/config') && response.request().method() === 'PATCH');
+    await page.locator('#save-telegram').click();
+    assert.equal((await saved).ok(), true);
+    let stored = JSON.parse(await fs.readFile(path.join(dataDir, 'config.json'), 'utf8'));
+    for (const [, key] of toggles) assert.equal(stored.telegram[key], false);
+    await page.reload();
+    await page.waitForFunction(() => document.querySelector('#notify-upload-design').checked === false);
+    for (const [selector] of toggles) assert.equal(await page.locator(selector).isChecked(), false);
+    await page.locator('#creality-user-avatar').click();
+    await page.locator('#creality-menu-settings').click();
+    await page.locator('[data-tab="notifications"]').click();
+    await page.locator('#notify-all-success').check();
+    await page.locator('#notify-all-error').check();
+    saved = page.waitForResponse(response => response.url().endsWith('/api/config') && response.request().method() === 'PATCH');
+    await page.locator('#save-telegram').click();
+    assert.equal((await saved).ok(), true);
+    stored = JSON.parse(await fs.readFile(path.join(dataDir, 'config.json'), 'utf8'));
+    for (const [, key] of toggles) assert.equal(stored.telegram[key], true);
+    if (process.env.CCTOOLS_QA_SCREENSHOT) await page.locator('#tab-notifications').screenshot({ path: process.env.CCTOOLS_QA_SCREENSHOT });
     assert.deepEqual(errors, []);
   } finally { await page.close(); }
 });

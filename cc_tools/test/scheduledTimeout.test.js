@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
+import { assertMigrationReviewed } from '../src/migrationReview.js';
 import { normalizeCaughtError } from '../src/crealityDiagnostics.js';
 import { activateFinishPrintProfile, activateNextFinishPrintProfile, normalizeFinishPrintProfiles, syncActiveFinishPrintProfile } from '../src/finishPrintProfiles.js';
 import { isFinishPrintStartRun } from '../src/finishPrintSelection.js';
@@ -22,6 +23,7 @@ function harness(code = 'TASK_EXECUTION_TIMEOUT') {
   const state = { runs: [], notifications: [], healthUpdates: 0, released: false };
   const error = Object.assign(new Error('Tiempo de ejecución agotado'), { code });
   const context = vm.createContext({
+    assertMigrationReviewed,
     Date, Promise, AbortController, setTimeout, clearTimeout, process, normalizeCaughtError,
     console: { log() {}, error() {}, warn() {} },
     pauseProgressSync: () => () => { state.released = true; },

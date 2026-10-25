@@ -93,6 +93,8 @@ const DEFAULT_CONFIG = {
     notifyOnCommentError: true,
     notifyOnMakeNow: true,
     notifyOnMakeNowError: true,
+    notifyOnUploadDesign: true,
+    notifyOnUploadDesignError: true,
     notifyOnModelBoost: true,
     notifyOnModelBoostError: true,
     notifyOnShopRedemption: true,

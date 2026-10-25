@@ -8,6 +8,15 @@ import {
   totalFinishPrintDailyLimit
 } from '../src/finishPrintProfiles.js';
 
+test('defaults new printer schedules to ten prints and preserves saved limits including zero', () => {
+  const profiles = normalizeFinishPrintProfiles({ printerProfiles: [
+    { id: 'new', printerName: 'New printer' },
+    { id: 'saved', printerName: 'Saved printer', dailyLimit: 1 },
+    { id: 'zero', printerName: 'Paused printer', dailyLimit: 0 }
+  ] });
+  assert.deepEqual(profiles.map(p => p.dailyLimit), [10, 1, 0]);
+});
+
 test('migrates the legacy printer configuration into the first profile', () => {
   const profiles = normalizeFinishPrintProfiles({
     printerName: 'Ender 3',
