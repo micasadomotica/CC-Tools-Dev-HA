@@ -39,6 +39,14 @@ try {
   createdSource = true;
   await assert.rejects(dockerSourceArchive.assertStopped(source), /sigue activo/);
   await exec('docker', ['stop', `app_${source}`]);
+  // --rm removal may finish after `docker stop` returns. Establish the absent
+  // source fixture explicitly before asking the migration to verify it.
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const { stdout } = await exec('docker', ['ps', '-a', '--format', '{{.Names}}']);
+    if (!stdout.split('\n').includes(`app_${source}`)) break;
+    if (attempt === 49) throw new Error('Docker did not remove the stopped source fixture.');
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
   createdSource = false;
   const result = await migrateAtStartup({ dataDir,
     options: { timezone: 'UTC', migration_source: 'CC Tools Dev local', migration_confirm: true },

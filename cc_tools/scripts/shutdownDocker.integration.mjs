@@ -50,7 +50,11 @@ try {
   assert.equal(state.ExitCode, 0, logs);
   assert.equal(state.OOMKilled, false);
   assert.match(logs, /Cierre completado\. Código de salida 0\./);
-  JSON.parse(await fs.readFile(path.join(root, 'config.json'), 'utf8'));
+  // The app intentionally saves private files as root/0600. Docker copies a
+  // stopped container's file to the runner without loosening its permissions.
+  const savedConfig = path.join(root, 'verified-config.json');
+  await docker(['cp', `${name}:/data/config.json`, savedConfig]);
+  JSON.parse(await fs.readFile(savedConfig, 'utf8'));
   console.log('PASS: production image, Node PID 1, open noVNC WebSocket, Docker SIGTERM and exit code 0.');
 } finally {
   if (created) await docker(['rm', '-f', name]);
