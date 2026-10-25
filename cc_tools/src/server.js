@@ -5,6 +5,7 @@ import { uploadScheduleItems } from './uploadDesignSchedule.js';
 import 'dotenv/config';
 import express from 'express';
 import { uploadDesignRoutes } from './uploadDesignRoutes.js';
+import { homeAssistantModelsRoutes } from './homeAssistantModels.js';
 import path from 'path';
 import fs from 'fs/promises';
 import { fileURLToPath } from 'url';
@@ -107,6 +108,7 @@ app.use('/api', (_req, res, next) => {
 });
 
 app.use('/api/upload-designs', uploadDesignRoutes());
+app.use('/api/integration/models', homeAssistantModelsRoutes());
 
 app.use('/assets', express.static(path.join(publicDir, 'assets')));
 

@@ -28,7 +28,7 @@ catálogos de diseños y la configuración no se comparten entre las dos aplicac
 
 ## Instalar y actualizar Dev
 
-Añade `https://github.com/micasadomotica/CC-Tools-Dev-HA` en los repositorios de la tienda de Apps e instala **CC Tools Dev**. La versión **1.0.52** añade migración opcional en Configuración > Opciones, 10 impresiones al día como valor inicial de nuevas programaciones y avisos de Telegram independientes para colecciones, proyectos y subidas. Actualizar desde 1.0.51 no activa ninguna migración. Desde 1.0.50 basta con actualizar la app; no hace falta volver a migrar. La app se construye en tu equipo y utiliza el puerto externo **8088**.
+Añade `https://github.com/micasadomotica/CC-Tools-Dev-HA` en los repositorios de la tienda de Apps e instala **CC Tools Dev**. La versión **1.0.53** añade la API del dispositivo Creality Cloud Models para Home Assistant y conserva la migración opcional, los valores iniciales de impresión y las notificaciones de 1.0.52. Desde 1.0.50 basta con actualizar la app; no hace falta volver a migrar. Actualizar no activa ninguna migración. La app se construye en tu equipo y utiliza el puerto externo **8088**.
 
 Para las siguientes versiones, utiliza **Actualizar** desde Home Assistant. Crea antes una copia de seguridad y espera a que terminen las tareas en curso. No necesitas descargar ZIP.
 

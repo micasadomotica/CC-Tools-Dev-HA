@@ -459,6 +459,23 @@ export function createUploadLibrary({ root = '/media/cctools_3d_models',
       state.schedule = { enabled: input.enabled, dailyLimit: input.dailyLimit, windowStart: input.windowStart, windowEnd: input.windowEnd, cleanupEnabled: input.cleanupEnabled === true, selected };
       await writeState(state); return output(state);
     }),
+    setScheduleEnabled: (enabled, account) => serial(async () => {
+      const state = await readState();
+      if (enabled) {
+        const schedule = state.schedule;
+        if (!Number.isInteger(schedule.dailyLimit) || schedule.dailyLimit < 1 || schedule.dailyLimit > 5
+          || !clock(schedule.windowStart) || !clock(schedule.windowEnd) || schedule.windowStart >= schedule.windowEnd
+          || !Array.isArray(schedule.selected) || schedule.selected.length !== schedule.dailyLimit) {
+          throw problem('Configura y guarda primero la programación en Subir diseños.', 409);
+        }
+        await scanState(state);
+        const ledger = state.ledger[account] || {};
+        const pending = schedule.selected.filter(item => !['submitting', 'submitted', 'uncertain'].includes(ledger[item.modelHash]?.status));
+        selectionFrom(state, pending, schedule.dailyLimit);
+      }
+      state.schedule.enabled = enabled;
+      await writeState(state); return output(state);
+    }),
     disableSchedule: () => serial(async () => {
       const state = await readState(); state.schedule.enabled = false; await writeState(state); return output(state);
     }),

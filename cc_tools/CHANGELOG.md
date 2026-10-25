@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.53 — API de Creality Cloud Models
+
+- Añade `GET /api/integration/models` para categoría, inventario disponible, último modelo, última y próxima subida y número de diseños enviados hoy.
+- Consulta el registro persistente de envíos por cuenta, conservando los datos de diseños ya limpiados y excluyendo fallos o envíos inciertos del contador.
+- Añade `PATCH /api/integration/models` para activar o pausar la programación sin sustituir la selección, el horario, el límite ni la limpieza automática.
+- Comprueba la cuenta y la configuración inicial antes de activar; permite reanudar después de limpiar los archivos enviados.
+- Mantiene sin cambios la guía de migración, pendiente de prueba real en Home Assistant.
+
 ## 1.0.52 — migración desde Opciones, impresiones y Telegram
 
 - Añade un selector único en Configuración > Opciones: No migrar, CC Tools Dev local (local_cc_tools) o CC Tools de TitoTB (8966b8c7_cc_tools). Requiere confirmar la sustitución de datos.
