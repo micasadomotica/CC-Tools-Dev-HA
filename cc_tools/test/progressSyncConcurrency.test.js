@@ -53,6 +53,16 @@ function harness() {
   return {state,config,context,browserGate,configGate};
 }
 
+test('migration review prevents the scheduler from starting any imported task', async () => {
+  const h = harness();
+  h.config.migrationReview = { required: true };
+  h.config.tasks.creality.enabled = true;
+  await h.context.tick();
+  assert.equal(h.state.checkins, 0);
+  assert.equal(h.state.launches, 0);
+  assert.equal(h.state.writes, 0);
+});
+
 test('check-in manual espera a la sincronización y bloquea nuevos refrescos hasta terminar',async()=>{
   const h=harness();
   const sync=h.context.synchronizeDailyProgress({force:true}); await turn();

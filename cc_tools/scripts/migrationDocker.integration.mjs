@@ -41,12 +41,12 @@ try {
   await exec('docker', ['stop', `app_${source}`]);
   createdSource = false;
   const result = await migrateAtStartup({ dataDir,
-    options: { migration_source: 'CC Tools Dev local', migration_confirm: true },
+    options: { timezone: 'UTC', migration_source: 'CC Tools Dev local', migration_confirm: true },
     supervisor: { info: async slug => ({ slug: slug === 'self' ? '34e9898c_cc_tools' : slug, state: 'stopped' }), disarm: async () => {} },
     sourceArchive: dockerSourceArchive, extractArchive: extractMigrationArchive
   });
   assert.equal(result.migrated, true);
-  assert.equal(await fs.readFile(path.join(dataDir, 'options.json'), 'utf8'), '{"timezone":"UTC"}');
+  assert.deepEqual(JSON.parse(await fs.readFile(path.join(dataDir, 'options.json'))), { timezone: 'UTC', migration_source: 'No migrar', migration_confirm: false });
   assert.equal(await fs.readFile(path.join(result.backup, 'previous/existing'), 'utf8'), 'keep');
   assert.equal((await fs.stat(path.join(dataDir, '.hidden'))).mode & 0o777, 0o640);
   assert.equal(await fs.readlink(path.join(dataDir, 'browser-session/SingletonSocket')), '/tmp/chromium-test/SingletonSocket');

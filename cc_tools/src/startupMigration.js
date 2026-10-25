@@ -89,6 +89,14 @@ export async function migrateAtStartup({ dataDir = '/data', options, supervisor,
   if (await exists(control) && (await fs.lstat(control)).isSymbolicLink()) throw new Error('El control de migración no puede ser un enlace.');
   const stateFile = path.join(control, 'state.json');
   const save = state => atomicJson(stateFile, state);
+  const disarm = async () => {
+    await supervisor.disarm();
+    // Supervisor rewrites this file on managed starts. Also reset our own copy
+    // so a direct Docker restart cannot replay the consumed request.
+    await atomicJson(path.join(dataDir, 'options.json'), {
+      ...options, migration_source: 'No migrar', migration_confirm: false
+    });
+  };
   let state = await readState(stateFile);
   validateState(state);
   if (state && !['completed', 'failed'].includes(state.phase)) {
@@ -98,7 +106,7 @@ export async function migrateAtStartup({ dataDir = '/data', options, supervisor,
   if (source === 'none') {
     if (state?.phase === 'failed') {
       if (!confirmed) throw new Error('La migración anterior falló. Para reintentar selecciona un origen y confirma. Para conservar los datos recuperados selecciona No migrar y confirma.');
-      await supervisor.disarm();
+      await disarm();
       state.phase = 'completed';
       state.cancelled = true;
       await save(state);
@@ -129,7 +137,7 @@ export async function migrateAtStartup({ dataDir = '/data', options, supervisor,
   log(`[migration] Origen: ${source}. Respaldo privado: ${attempt}`);
   try {
     // Consume the request before modifying app data. Never edit Supervisor's files.
-    await supervisor.disarm();
+    await disarm();
     await atomicJson(path.join(attempt, 'options-before.json'), options);
     const archive = path.join(attempt, 'source.tar');
     await sourceArchive.download(source, archive);

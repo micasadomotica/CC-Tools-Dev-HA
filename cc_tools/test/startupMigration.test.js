@@ -69,11 +69,11 @@ for (const source of ['local_cc_tools', '8966b8c7_cc_tools']) {
     assert.equal(imported.migrationReview.required, true);
     assert.equal(await fs.readFile(path.join(f.dataDir, '.hidden'), 'utf8'), 'hidden data');
     assert.equal(await fs.readFile(path.join(f.dataDir, 'browser-session/session file'), 'utf8'), 'session');
-    assert.deepEqual(await json(path.join(f.dataDir, 'options.json')), f.options);
+    assert.deepEqual(await json(path.join(f.dataDir, 'options.json')), { ...f.options, migration_source: 'No migrar', migration_confirm: false });
     assert.equal(await fs.readFile(path.join(result.backup, 'previous/destination-only'), 'utf8'), 'keep in backup');
     assert.equal((await json(path.join(f.original, 'config.json'))).migrationReview, undefined);
     await assert.rejects(fs.stat(path.join(f.dataDir, 'destination-only')), { code: 'ENOENT' });
-    const restart = await migrateAtStartup({ dataDir: f.dataDir, options: { migration_source: 'No migrar', migration_confirm: false } });
+    const restart = await migrateAtStartup({ dataDir: f.dataDir, options: await json(path.join(f.dataDir, 'options.json')) });
     assert.equal(restart.migrated, false);
     assert.equal(f.calls.filter(c => c === 'disarm').length, 1);
   });
