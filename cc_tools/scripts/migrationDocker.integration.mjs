@@ -42,7 +42,8 @@ try {
   createdSource = false;
   const result = await migrateAtStartup({ dataDir,
     options: { timezone: 'UTC', migration_source: 'CC Tools Dev local', migration_confirm: true },
-    supervisor: { info: async slug => ({ slug: slug === 'self' ? '34e9898c_cc_tools' : slug, state: 'stopped' }), disarm: async () => {} },
+    // A manual stop can leave Supervisor in error even after removing the container.
+    supervisor: { info: async slug => ({ slug: slug === 'self' ? '34e9898c_cc_tools' : slug, state: 'error', version: '1.0.49', watchdog: false }), disarm: async () => {} },
     sourceArchive: dockerSourceArchive, extractArchive: extractMigrationArchive
   });
   assert.equal(result.migrated, true);

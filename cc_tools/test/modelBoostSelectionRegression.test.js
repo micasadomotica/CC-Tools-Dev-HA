@@ -108,7 +108,9 @@ test('manual and scheduled executions share one daily slot even when two tickets
     h.runs.push({ taskId: 'modelBoosts', status: 'success', finishedAt: new Date().toISOString(), details: first.details });
     for (const source of ['manual', 'schedule']) assert.equal((await h.run(source)).details.reason, 'BOOST_DAILY_LIMIT');
     assert.equal(h.posted.filter(p => p.url.endsWith('/boost/boost')).length, 1);
-    h.runs[0].finishedAt = new Date(Date.now() - 86400000).toISOString();
+    // A Madrid day can last 25 hours at the autumn DST transition.
+    // Use an older day, not "24 hours ago", to release the daily slot.
+    h.runs[0].finishedAt = new Date(Date.now() - 2 * 86400000).toISOString();
     assert.equal((await h.run('schedule')).success, true);
     assert.equal(h.posted.filter(p => p.url.endsWith('/boost/boost')).length, 2);
   }

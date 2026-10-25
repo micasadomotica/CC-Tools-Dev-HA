@@ -2,7 +2,7 @@
 
 CC Tools Dev automatiza tareas de Creality Cloud desde Home Assistant. Es una edición independiente basada en [CC Tools de TitoTB](https://github.com/TitoTB/CC-Tools-HA) y en el trabajo de la comunidad de Aguacatec.
 
-**Versión 1.0.53**. Se conecta con **Creality Cloud Dev 1.0.7** y añade los datos necesarios para el dispositivo **Creality Cloud Models**: categoría, diseños disponibles, último modelo, última y próxima subida, contador diario e interruptor de programación. El historial de envíos se conserva aunque se limpien los archivos locales. Incluye migración opcional desde Configuración > Opciones, comprobada por el mantenedor en Home Assistant.
+**Versión 1.0.54**. Corrige la migración desde una app detenida que Supervisor muestra como **Error**, comprobando en Docker que el origen esté inactivo. Mejora el cierre de la app para terminar con código 0 en una parada normal y establece **10 diseños por día** como valor de respaldo de la API, conservando los límites válidos guardados. Mantiene la conexión con **Creality Cloud Dev 1.0.7** y el dispositivo **Creality Cloud Models**.
 
 [![Añadir repositorio a Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fmicasadomotica%2FCC-Tools-Dev-HA)
 
@@ -44,6 +44,8 @@ En la nueva app, sigue el asistente y configura de nuevo tus favoritos y los aju
 4. Comprueba que la app arranca y recarga la interfaz web.
 
 Las actualizaciones de esta misma instalación conservan los datos de `/data`. Ya no necesitas descargar ZIP ni sustituir `/addons/cc_tools`. La detección de una versión nueva no implica que se instale automáticamente: puedes pulsar **Actualizar** desde HA.
+
+Al detener la app, se bloquean nuevas tareas, se cierran Chromium y las conexiones de la interfaz y se esperan las escrituras pendientes. El Registro muestra **Cierre completado. Código de salida 0.** cuando termina correctamente. Los fallos reales de cierre siguen registrándose como error. Esta corrección se aplica a la app actualizada; una instalación local antigua conserva su comportamiento hasta que se actualice.
 
 ## Convivencia con CC Tools de TitoTB
 
@@ -92,6 +94,8 @@ Para incorporar estas entidades a una instalación existente, actualiza primero 
 ## Descubrir diseños
 
 La programación propone **10 diseños por día** en una instalación nueva. Una actualización conserva el límite que ya tengas guardado, incluido un valor inferior. Puedes ajustarlo entre 0 y 10 en la configuración del módulo.
+
+Desde 1.0.54, si una petición de guardado de la programación llega a la API sin el campo de cantidad o con un valor no numérico, el valor de respaldo también es 10. Un valor válido enviado por el usuario, incluido 0 o 1, se respeta.
 
 Las nuevas programaciones de **Realiza una impresión** también proponen **10 impresiones por día** y conservan los valores de los perfiles existentes. En Telegram puedes activar o desactivar por separado los avisos de éxito y error de añadir a una colección, crear un proyecto y subir un diseño.
 

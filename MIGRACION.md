@@ -14,6 +14,8 @@ La migración es opcional. Puedes empezar de cero con el asistente o importar da
 
 El destino es **CC Tools Dev de este repositorio**, identificado como `34e9898c_cc_tools`. El selector permite elegir un solo origen. La app de origen debe seguir instalada y estar detenida.
 
+Desde **1.0.54**, el origen puede aparecer como **Error** después de detenerlo. En ese caso, la migración solo continúa si Supervisor confirma una versión instalada y Watchdog desactivado, y Docker confirma que el contenedor está inactivo o ya no existe. El estado Error por sí solo no autoriza la copia. No necesitas volver a iniciar el origen para intentar que cambie a Detenido.
+
 ## Qué se conserva
 
 Se importan la configuración, las programaciones, el perfil y la sesión del navegador, el historial, los catálogos, los registros de entrega de diseños y los demás datos privados de la app. Creality puede pedir que vuelvas a iniciar sesión si ha caducado.
@@ -73,6 +75,7 @@ Antes de reactivar **Reinicio automático**, comprueba que los atributos del int
 Consulta el mensaje del Registro antes de reintentar:
 
 - **Origen activo o Watchdog habilitado:** detén el origen y desactiva Watchdog.
+- **Supervisor muestra Error después de detener el origen:** actualiza el destino a 1.0.54 o posterior. Consulta las líneas `[migration] Supervisor:` y `[migration] Docker:`; muestran qué devuelve cada servicio y si se ha confirmado la inactividad. Si Docker detecta actividad o no puede comprobarla, la copia sigue bloqueada.
 - **No se puede acceder a Docker:** comprueba que has desactivado temporalmente Modo de protección en la app de destino.
 - **Origen no encontrado o configuración incompatible:** comprueba la instalación seleccionada y conserva las copias de seguridad.
 - **Migración interrumpida:** al siguiente arranque, la app intenta recuperar los datos anteriores y se detiene para que decidas cómo continuar. Sigue el mensaje del Registro.

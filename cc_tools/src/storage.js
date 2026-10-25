@@ -947,6 +947,15 @@ async function writeJsonAtomic(filePath, value) {
   }
 }
 
+export async function flushStorageWrites() {
+  // Operations finishing during shutdown may enqueue another atomic write.
+  let queues;
+  do {
+    queues = [configQueue, runsQueue, designsQueue];
+    await Promise.all(queues);
+  } while (queues[0] !== configQueue || queues[1] !== runsQueue || queues[2] !== designsQueue);
+}
+
 function enqueue(kind, operation) {
   const queue = kind === 'config' ? configQueue : kind === 'runs' ? runsQueue : designsQueue;
   const pending = queue.then(operation);

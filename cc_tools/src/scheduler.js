@@ -57,11 +57,21 @@ let runningReleaseProgressSync = null;
 let timer = null;
 let activeRunToken = 0;
 let runTokenSequence = 0;
+let stopping = false;
 
 export function startScheduler() {
+  if (stopping) return;
   if (timer) clearInterval(timer);
-  timer = setInterval(tick, 60 * 1000);
+  timer = setInterval(() => tick().catch(error => console.error('[scheduler]', error)), 60 * 1000);
   tick().catch((error) => console.error('[scheduler]', error));
+}
+
+export async function stopScheduler() {
+  stopping = true;
+  if (timer) clearInterval(timer);
+  timer = null;
+  const result = await cancelRunningTask('shutdown', 3000);
+  if (result.taskId && !result.cancelled) throw new Error('La tarea activa no terminó durante el cierre.');
 }
 
 export async function runTaskNow(taskId, source = 'manual', options = {}) {
@@ -446,6 +456,7 @@ function taskExecutionTimeoutMs() {
 }
 
 async function tick() {
+  if (stopping) return;
   await recoverExpiredSchedulerRun();
   if (running) return;
 
@@ -854,6 +865,7 @@ async function executeMaintenanceWithTimeout(operation, options) {
 }
 
 function beginSchedulerRun(taskId, source, timeoutMs, now = new Date()) {
+  if (stopping) throw Object.assign(new Error('CC Tools se está deteniendo.'), { code: 'APP_STOPPING' });
   if (running) {
     const error = new Error('Ya hay una ejecución en curso.');
     error.code = 'TASK_ALREADY_RUNNING';

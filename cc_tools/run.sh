@@ -54,4 +54,5 @@ websockify --web /usr/share/novnc 127.0.0.1:6081 localhost:5900 >/tmp/websockify
 websockify_pid=$!
 wait_for_process "websockify" "$websockify_pid" /tmp/websockify.log "(echo >/dev/tcp/127.0.0.1/6081) >/dev/null 2>&1"
 
-exec npm start
+# Node must receive Docker's SIGTERM directly, without npm as PID 1.
+exec node /app/src/server.js

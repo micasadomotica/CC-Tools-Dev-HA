@@ -81,6 +81,14 @@ test('API: datos externos actualizan paneles, HA y planificación; una tarea com
     const correctedPreview=await request('/api/schedule/preview');
     assert.equal(correctedPreview.items.filter(item=>item.taskId==='makeNow'&&item.status==='done').length,0);
     assert.equal(correctedPreview.items.filter(item=>item.taskId==='makeNow'&&item.status==='pending').length,1);
+    // The fallback is 10, while explicit valid limits, including 0 and 1, survive saves.
+    for (const [value, expected] of [[undefined, 10], ['invalid', 10], [0, 0], [1, 1], [7, 7]]) {
+      const updated = await request('/api/config', 'PATCH', { modelDownloads: {
+        enabled: false, dailyLimit: value, windowStart: '00:00', windowEnd: '23:59', minIntervalMinutes: 10,
+      } });
+      assert.equal(updated.ok, true, JSON.stringify(updated));
+      assert.equal((await request('/api/status')).config.tasks.modelDownloads.dailyLimit, expected);
+    }
   } finally {
     if(server.exitCode===null){const exited=once(server,'exit');server.kill();await exited;}
     assert.equal(path.dirname(data),path.resolve(os.tmpdir()));

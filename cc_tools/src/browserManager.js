@@ -12,8 +12,32 @@ const SESSION_PROFILE_API_PATH = '/api/cxy/v3/user/getInfo';
 let activeContext = null;
 let activeMode = '';
 let activeBrowserVersion = '';
+let shuttingDown = false;
+let shutdownPromise = null;
+const pendingLaunches = new Set();
+const isolatedBrowsers = new Set();
+
+function assertBrowserAvailable() {
+  if (shuttingDown) throw Object.assign(new Error('CC Tools se está deteniendo.'), { code: 'APP_STOPPING' });
+}
+
+function trackedLaunch(launch) {
+  assertBrowserAvailable();
+  const pending = (async () => {
+    const resource = await launch();
+    if (shuttingDown) {
+      await resource.close();
+      assertBrowserAvailable();
+    }
+    return resource;
+  })();
+  const tracked = pending.finally(() => pendingLaunches.delete(tracked));
+  pendingLaunches.add(tracked);
+  return tracked;
+}
 
 export async function withAutomationBrowser(options, callback) {
+  assertBrowserAvailable();
   if (activeMode === 'interactive') {
     await closeActiveContext();
   }
@@ -40,22 +64,27 @@ export async function withAutomationBrowser(options, callback) {
 }
 
 export async function withIsolatedBrowser(options, callback) {
-  const browser = await chromium.launch({
+  const browser = await trackedLaunch(() => chromium.launch({
     headless: true,
     args: ['--no-sandbox', '--disable-dev-shm-usage']
-  });
-  const context = await browser.newContext({
-    viewport: { width: 1366, height: 768 },
-    colorScheme: 'light',
-    locale: process.env.CCTOOLS_BROWSER_LOCALE || 'es-ES',
-    timezoneId: process.env.TZ || 'Europe/Madrid',
-    ...(options || {})
-  });
+  }));
+  isolatedBrowsers.add(browser);
+  let context;
   try {
+    assertBrowserAvailable();
+    context = await browser.newContext({
+      viewport: { width: 1366, height: 768 },
+      colorScheme: 'light',
+      locale: process.env.CCTOOLS_BROWSER_LOCALE || 'es-ES',
+      timezoneId: process.env.TZ || 'Europe/Madrid',
+      ...(options || {})
+    });
+    assertBrowserAvailable();
     return await callback(context);
   } finally {
-    await context.close().catch(() => {});
+    await context?.close().catch(() => {});
     await browser.close().catch(() => {});
+    isolatedBrowsers.delete(browser);
   }
 }
 
@@ -72,6 +101,7 @@ export async function withParallelSessionBrowser(options, callback) {
 }
 
 export async function restartAutomationBrowser(options = {}) {
+  assertBrowserAvailable();
   if (activeMode && activeMode !== 'automation') {
     throw browserError('BROWSER_BUSY', 'Otra operación está utilizando el navegador.', false);
   }
@@ -93,6 +123,7 @@ export async function restartAutomationBrowser(options = {}) {
 }
 
 export async function openInteractiveBrowser(url) {
+  assertBrowserAvailable();
   if (activeMode === 'automation') {
     throw browserError('BROWSER_BUSY', 'Hay una automatización en curso. Inténtalo de nuevo cuando termine.', false);
   }
@@ -206,8 +237,21 @@ export function browserManagerState() {
   };
 }
 
-export async function shutdownBrowser() {
-  await closeActiveContext();
+export function shutdownBrowser() {
+  if (shutdownPromise) return shutdownPromise;
+  shuttingDown = true;
+  shutdownPromise = (async () => {
+    const launches = await Promise.allSettled([...pendingLaunches]);
+    const results = await Promise.allSettled([
+      closeActiveContext(), ...[...isolatedBrowsers].map(browser => browser.close()),
+    ]);
+    isolatedBrowsers.clear();
+    const failed = results.find(result => result.status === 'rejected');
+    if (failed) throw failed.reason;
+    const failedLaunch = launches.find(result => result.status === 'rejected' && result.reason?.code !== 'APP_STOPPING');
+    if (failedLaunch) throw failedLaunch.reason;
+  })();
+  return shutdownPromise;
 }
 
 export async function abortAutomationBrowser() {
@@ -277,6 +321,7 @@ function crealityServiceUnavailableError(error) {
 }
 
 async function launchWithRecovery(options, behavior = {}) {
+  assertBrowserAvailable();
   const preflightRecovery = await recoverBrowserProfile();
   if (!preflightRecovery.recovered) {
     const error = browserError(
@@ -290,15 +335,15 @@ async function launchWithRecovery(options, behavior = {}) {
   }
 
   try {
-    return await chromium.launchPersistentContext(chromiumSessionDir(), options);
+    return await trackedLaunch(() => chromium.launchPersistentContext(chromiumSessionDir(), options));
   } catch (error) {
     if (behavior.allowHeadlessFallback && isDisplayError(error)) {
       await recoverBrowserProfile();
       try {
-        return await chromium.launchPersistentContext(chromiumSessionDir(), {
+        return await trackedLaunch(() => chromium.launchPersistentContext(chromiumSessionDir(), {
           ...options,
           headless: true
-        });
+        }));
       } catch (headlessError) {
         throw normalizeBrowserError(headlessError);
       }
@@ -309,7 +354,7 @@ async function launchWithRecovery(options, behavior = {}) {
     if (!recovery.recovered) throw normalizeBrowserError(error);
 
     try {
-      return await chromium.launchPersistentContext(chromiumSessionDir(), options);
+      return await trackedLaunch(() => chromium.launchPersistentContext(chromiumSessionDir(), options));
     } catch (retryError) {
       const normalized = normalizeBrowserError(retryError);
       normalized.recovery = recovery;
@@ -394,7 +439,7 @@ async function closeActiveContext() {
   activeContext = null;
   activeMode = '';
   activeBrowserVersion = '';
-  if (context) await context.close().catch(() => {});
+  if (context) await context.close().catch(error => { if (shuttingDown) throw error; });
 }
 
 export async function assertAuthenticatedSession(context, preferredPage = null) {

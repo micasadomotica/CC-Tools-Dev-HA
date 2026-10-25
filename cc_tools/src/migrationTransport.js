@@ -34,9 +34,12 @@ export function createSupervisorClient(options, { token = process.env.SUPERVISOR
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(30000)
     });
-    if (!response.ok) throw new Error(`Supervisor rechazó la consulta (${response.status}). Revisa el origen y los permisos de la app.`);
+    if (!response.ok) throw new Error(`Supervisor rechazó ${endpoint}: HTTP ${response.status}. Revisa la instalación seleccionada y los permisos de la app.`);
     const result = await response.json();
-    if (result.result !== 'ok') throw new Error('Supervisor no pudo completar la operación de migración.');
+    if (result?.result !== 'ok') {
+      const status = typeof result?.result === 'string' ? result.result : null;
+      throw new Error(`Supervisor no pudo completar ${endpoint}: HTTP ${response.status}, result=${JSON.stringify(status)}.`);
+    }
     return result.data;
   }
   return {
@@ -47,18 +50,33 @@ export function createSupervisorClient(options, { token = process.env.SUPERVISOR
   };
 }
 
+export function assertSourceContainersStopped(source, containers) {
+  if (!MIGRATION_SOURCES.includes(source)) throw new Error('Origen no permitido.');
+  if (!Array.isArray(containers) || containers.some(container => !Array.isArray(container?.Names)
+    || container.Names.some(name => typeof name !== 'string'))) {
+    throw new Error('Docker devolvió una lista de contenedores no válida. No se puede confirmar la parada del origen.');
+  }
+  const matches = containers.filter(container => container.Names.some(name =>
+    [`/app_${source}`, `/addon_${source}`].includes(name)));
+  for (const container of matches) {
+    if (!['created', 'exited', 'dead'].includes(container.State)) {
+      const state = typeof container.State === 'string' ? JSON.stringify(container.State) : 'desconocido';
+      throw new Error(`El contenedor de origen sigue activo o no confirma su parada: ${source}, Docker State=${state}. Detén la app desde Home Assistant.`);
+    }
+  }
+  return matches.map(container => ({ names: container.Names, state: container.State }));
+}
+
 export const dockerSourceArchive = {
   async check() {
     const response = await dockerRequest('GET', '/_ping');
     response.resume();
     if (response.statusCode !== 200) throw new Error('Docker no está disponible para migrar.');
   },
-  async assertStopped(source) {
-    const containers = await dockerJson('/containers/json');
-    if (containers.some(container => container.Names?.some(name =>
-      [`/app_${source}`, `/addon_${source}`].includes(name)))) {
-      throw new Error('El contenedor de origen sigue activo. Detén la app desde Home Assistant.');
-    }
+  async assertStopped(source, log = () => {}) {
+    const containers = await dockerJson('/containers/json?all=1');
+    const matches = assertSourceContainersStopped(source, containers);
+    log(`[migration] Docker: ${JSON.stringify({ source, containers: matches, inactive: true })}`);
   },
   async download(source, target) {
     if (!MIGRATION_SOURCES.includes(source)) throw new Error('Origen no permitido.');

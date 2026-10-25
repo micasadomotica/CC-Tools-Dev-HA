@@ -10,6 +10,17 @@ const RESERVED = new Set(['options.json', MIGRATION_DIR]);
 const exists = async p => fs.lstat(p).then(() => true, e => { if (e.code === 'ENOENT') return false; throw e; });
 const object = value => value && typeof value === 'object' && !Array.isArray(value);
 
+function supervisorDiagnostic(requested, info, phase) {
+  // Never log the full response: options may contain credentials.
+  const diagnostic = { phase, requested };
+  for (const field of ['slug', 'state', 'version', 'watchdog', 'boot', 'protected']) {
+    const value = info?.[field];
+    diagnostic[field] = value == null ? null
+      : ['string', 'number', 'boolean'].includes(typeof value) ? value : '[tipo no válido]';
+  }
+  return diagnostic;
+}
+
 async function atomicJson(file, value) {
   const temp = `${file}.tmp`;
   const handle = await fs.open(temp, 'w', 0o600);
@@ -119,14 +130,29 @@ export async function migrateAtStartup({ dataDir = '/data', options, supervisor,
   if (!confirmed) throw new Error('Marca Confirmar sustitución de datos para ejecutar la migración.');
 
   const self = await supervisor.info('self');
-  if (self.slug !== '34e9898c_cc_tools') throw new Error('La migración solo está disponible en CC Tools Dev del repositorio oficial de esta edición.');
-  const assertStopped = async () => {
+  const targetDiagnostic = supervisorDiagnostic('self', self, 'destino');
+  log(`[migration] Supervisor: ${JSON.stringify(targetDiagnostic)}`);
+  if (self?.slug !== '34e9898c_cc_tools') throw new Error(`Destino inesperado: Supervisor devolvió slug=${JSON.stringify(targetDiagnostic.slug)}; se requiere 34e9898c_cc_tools.`);
+  const assertStopped = async phase => {
     const info = await supervisor.info(source);
-    if (info.slug !== source || info.state !== 'stopped') throw new Error('La app de origen debe estar instalada y detenida desde Home Assistant.');
-    if (info.watchdog) throw new Error('Desactiva Watchdog de la app de origen antes de migrar.');
-    if (sourceArchive.assertStopped) await sourceArchive.assertStopped(source);
+    const diagnostic = supervisorDiagnostic(source, info, phase);
+    log(`[migration] Supervisor: ${JSON.stringify(diagnostic)}`);
+    if (info?.slug !== source) throw new Error(`Origen inesperado: se consultó ${source}, pero Supervisor devolvió slug=${JSON.stringify(diagnostic.slug)}. Comprueba la instalación seleccionada.`);
+    if (!['stopped', 'error'].includes(info.state)) {
+      const detail = ['started', 'startup'].includes(info.state)
+        ? 'Supervisor indica que está iniciada o arrancando. Detén el origen desde Home Assistant y espera a que termine la parada.'
+        : 'Este estado no confirma que haya un contenedor activo, pero tampoco permite confirmar la parada. Conserva esta línea y revisa el Registro de Supervisor.';
+      throw new Error(`No se puede confirmar la parada de ${source}: Supervisor devolvió state=${JSON.stringify(diagnostic.state)}. ${detail}`);
+    }
+    if (info.watchdog) throw new Error(`Desactiva Watchdog de ${source} antes de migrar; Supervisor devolvió watchdog=${JSON.stringify(diagnostic.watchdog)}.`);
+    if (info.state === 'error' && (typeof info.version !== 'string' || !info.version.trim() || info.watchdog !== false)) {
+      throw new Error(`Supervisor devolvió state="error" para ${source}, pero no confirmó una versión instalada y Watchdog desactivado. No se copiarán datos.`);
+    }
+    if (typeof sourceArchive.assertStopped !== 'function') throw new Error('No se puede verificar en Docker que el origen esté inactivo. No se copiarán datos.');
+    await sourceArchive.assertStopped(source, log);
+    if (info.state === 'error') log(`[migration] ${source}: Supervisor indica error, pero Docker confirma que el origen está inactivo. Se permite continuar.`);
   };
-  await assertStopped();
+  await assertStopped('antes de preparar la copia');
   await sourceArchive.check();
   await fs.mkdir(control, { recursive: true, mode: 0o700 });
   const id = randomUUID();
@@ -149,7 +175,7 @@ export async function migrateAtStartup({ dataDir = '/data', options, supervisor,
     requireMigrationReview(config, source);
     await atomicJson(path.join(imported, 'config.json'), config);
     await atomicJson(path.join(imported, 'config.json.bak'), config);
-    await assertStopped();
+    await assertStopped('antes de sustituir los datos');
     await fs.mkdir(path.join(attempt, 'previous'), { mode: 0o700 });
     state.phase = 'backing-up';
     await save(state);

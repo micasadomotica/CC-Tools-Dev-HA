@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.54 — migración con estado Error y cierre de la app
+
+- Permite migrar desde un origen que Supervisor muestra como Error cuando consta una versión instalada, Watchdog está desactivado y Docker confirma que no hay contenedores activos de ese origen. Sigue rechazando estados desconocidos, contenedores en ejecución, pausados o reiniciándose y fallos de consulta.
+- Repite las comprobaciones antes de copiar y antes de sustituir los datos. Registra el origen consultado, el identificador y estado recibidos, la versión y los ajustes relevantes, sin volcar opciones ni credenciales. Los fallos de Supervisor incluyen endpoint y código HTTP.
+- Ejecuta Node directamente como proceso principal para recibir la señal de parada. Detiene el planificador, impide nuevos navegadores, cierra Chromium y las conexiones HTTP/noVNC y espera las escrituras pendientes antes de salir con código 0. Las señales repetidas no interrumpen el cierre; los errores reales y los cierres bloqueados siguen devolviendo un código de error.
+- Cambia de 1 a 10 el valor de respaldo de Diseños por día en la API de Descubrir diseños. No cambia los límites válidos guardados ni fuerza a 10 las programaciones existentes.
+- Añade pruebas de migración con estado Error, cierre con SIGTERM/SIGINT y conexiones abiertas, y corrige una prueba de límite diario que confundía «hace 24 horas» con un día anterior durante el cambio de horario.
+- Actualiza el README y la guía de migración. La migración desde TitoTB ha sido comprobada por el mantenedor; la corrección del origen local en Error y el cierre actualizado deben verificarse en su instalación.
+
 ## 1.0.53 — API de Creality Cloud Models
 
 - Añade `GET /api/integration/models` para categoría, inventario disponible, último modelo, última y próxima subida y número de diseños enviados hoy.

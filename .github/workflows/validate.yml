@@ -77,7 +77,12 @@ jobs:
           context: cc_tools
           platforms: ${{ matrix.platform }}
           push: false
+          load: ${{ matrix.architecture == 'amd64' }}
+          tags: cc-tools-ci:${{ matrix.architecture }}
           build-args: |
             BUILD_ARCH=${{ matrix.architecture }}
           cache-from: type=gha,scope=${{ matrix.architecture }}
           cache-to: type=gha,mode=max,scope=${{ matrix.architecture }}
+      - name: Test normal Docker stop with the built app and an open noVNC connection
+        if: matrix.architecture == 'amd64'
+        run: node cc_tools/scripts/shutdownDocker.integration.mjs

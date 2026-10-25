@@ -4,6 +4,9 @@ import { countMakeNowRun } from './makeNowTask.js';
 import { uploadScheduleItems } from './uploadDesignSchedule.js';
 import 'dotenv/config';
 import express from 'express';
+import { createServer } from 'node:http';
+import { installShutdownHandlers } from './shutdown.js';
+import { uploadLibrary } from './uploadDesignLibrary.js';
 import { uploadDesignRoutes } from './uploadDesignRoutes.js';
 import { homeAssistantModelsRoutes } from './homeAssistantModels.js';
 import path from 'path';
@@ -13,6 +16,7 @@ import { createProxyMiddleware } from 'http-proxy-middleware';
 import { openLoginBrowser, closeLoginBrowser } from './crealityTask.js';
 import {
   appendRun,
+  flushStorageWrites,
   commentImagesDir,
   deactivateFavoriteProfile,
   excludeDesign,
@@ -27,7 +31,7 @@ import {
   tempDownloadsDir,
   writeConfig
 } from './storage.js';
-import { cancelRunningTask, startScheduler, runTaskNow, schedulerState } from './scheduler.js';
+import { cancelRunningTask, startScheduler, stopScheduler, runTaskNow, schedulerState } from './scheduler.js';
 import { acknowledgeMigrationReview } from './migrationReview.js';
 import { generateDownloadPlan, scheduleNextRun } from './timeWindow.js';
 import { sendTelegram } from './telegram.js';
@@ -92,6 +96,20 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const publicDir = path.resolve(__dirname, '..', 'public');
 const app = express();
+const server = createServer(app);
+const shutdown = installShutdownHandlers({
+  server,
+  stopWork: () => {
+    stopFinishPrintMonitor();
+    stopFavoriteModelIndex();
+    stopDesignMetadataRepair();
+    return stopScheduler();
+  },
+  closeResources: shutdownBrowser,
+  flushWrites: () => Promise.all([flushStorageWrites(), uploadLibrary.flush()]),
+});
+app.use((_req, res, next) => shutdown.isStopping()
+  ? res.status(503).json({ ok: false, error: 'APP_STOPPING' }) : next());
 const host = process.env.CCTOOLS_HOST || '0.0.0.0';
 const port = Number(process.env.CCTOOLS_PORT || 8080);
 
@@ -977,7 +995,7 @@ app.patch('/api/config', async (req, res) => {
     config.tasks.modelDownloads.windowStart = validClock(input.modelDownloads.windowStart, '08:00');
     config.tasks.modelDownloads.windowEnd = validClock(input.modelDownloads.windowEnd, '12:00');
     config.tasks.modelDownloads.timezone = config.timezone || 'Europe/Madrid';
-    config.tasks.modelDownloads.dailyLimit = clamp(Number(input.modelDownloads.dailyLimit), 0, 10, 1);
+    config.tasks.modelDownloads.dailyLimit = clamp(Number(input.modelDownloads.dailyLimit), 0, 10, 10);
     config.tasks.modelDownloads.minIntervalMinutes = clamp(Number(input.modelDownloads.minIntervalMinutes), 10, 1440, 10);
     config.tasks.modelDownloads.cleanupAfterHours = clamp(Number(input.modelDownloads.cleanupAfterHours), 1, 168, 1);
     config.tasks.modelDownloads.prioritizeFavorites = input.modelDownloads.prioritizeFavorites !== false;
@@ -1353,24 +1371,13 @@ await reconcileDownloadedDesignHistory();
 await reconcileDesignActionHistory();
 await reconcileFinishPrintUsageHistory();
 await recoverStalePendingFinishPrint();
-startScheduler();
-startFinishPrintMonitor();
-startFavoriteModelIndex();
-startDesignMetadataRepair();
-
-const server = app.listen(port, host, () => {
-  console.log(`CC Tools Dev escuchando en http://${host}:${port}`);
-});
-
-for (const signal of ['SIGTERM', 'SIGINT']) {
-  process.once(signal, async () => {
-    console.log(`[shutdown] ${signal}: cerrando Chromium y el servidor.`);
-    stopFinishPrintMonitor();
-    stopFavoriteModelIndex();
-    stopDesignMetadataRepair();
-    await shutdownBrowser();
-    server.close(() => process.exit(0));
-    setTimeout(() => process.exit(1), 5000).unref();
+if (!shutdown.isStopping()) {
+  startScheduler();
+  startFinishPrintMonitor();
+  startFavoriteModelIndex();
+  startDesignMetadataRepair();
+  server.listen(port, host, () => {
+    console.log(`CC Tools Dev escuchando en http://${host}:${port}`);
   });
 }
 

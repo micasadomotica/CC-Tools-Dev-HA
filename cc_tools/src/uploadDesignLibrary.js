@@ -437,6 +437,7 @@ export function createUploadLibrary({ root = '/media/cctools_3d_models',
       await writeState(state); return output(state);
     }),
     status: () => serial(async () => output(await readState())),
+    flush: () => serial(async () => {}),
     scan: () => serial(async () => { const state = await scanState(await readState()); await writeState(state); return output(state); }),
     saveManual: entries => serial(async () => {
       const state = await scanState(await readState());
