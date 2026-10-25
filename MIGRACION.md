@@ -1,150 +1,92 @@
-# Migrar CC Tools Dev local al repositorio
+# Migrar datos a CC Tools Dev
 
-**La migración es opcional y sirve para conservar tus datos locales.** Si prefieres empezar de cero, instala la app del repositorio, inicia sesión y completa el asistente siguiendo el [README](README.md#instalación-desde-la-tienda). Vuelve a configurar tus favoritos y los módulos que utilices. Antes de activar subidas, aparta de `/media/cctools_3d_models` los diseños ya entregados: sus archivos permanecen, pero la nueva app no conserva el historial de entrega de la local.
+La migración se realiza desde **Configuración > Opciones** de CC Tools Dev en Home Assistant. El mantenedor ha comprobado el proceso en su instalación. Esta guía sustituye el procedimiento manual de copia con Docker: no necesitas Advanced SSH & Web Terminal ni ejecutar comandos.
 
-Si eliges conservar los datos, esta guía traslada una instalación local **1.0.49** a **1.0.50** desde [CC-Tools-Dev-HA](https://github.com/micasadomotica/CC-Tools-Dev-HA). Se hace una sola vez. Después podrás actualizar desde Home Assistant, igual que si hubieras empezado de cero.
+La migración es opcional. Puedes empezar de cero con el asistente o importar datos más adelante. **Importar sustituye los datos actuales de CC Tools Dev; no fusiona las dos instalaciones.**
 
-La base 1.0.49 está validada en Home Assistant por el mantenedor. El procedimiento de migración requiere su comprobación final en una instalación real. Conserva la instalación local y las copias hasta verificar todos tus datos.
+## Origen y destino
+
+| Opción «Migrar datos desde» | Instalación de origen |
+|---|---|
+| CC Tools Dev local | `local_cc_tools` |
+| CC Tools de TitoTB | `8966b8c7_cc_tools` |
+| No migrar | Inicia normalmente con los datos actuales. |
+
+El destino es **CC Tools Dev de este repositorio**, identificado como `34e9898c_cc_tools`. El selector permite elegir un solo origen. La app de origen debe seguir instalada y estar detenida.
 
 ## Qué se conserva
 
-Se copia **todo el contenido privado de `/data`**: configuración, programaciones, perfiles y sesión del navegador, historial, catálogos, registros de entrega de diseños, imágenes de comentarios y capturas. Copiar únicamente `config.json` no es suficiente.
+Se importan la configuración, las programaciones, el perfil y la sesión del navegador, el historial, los catálogos, los registros de entrega de diseños y los demás datos privados de la app. Creality puede pedir que vuelvas a iniciar sesión si ha caducado.
 
-Los archivos de subida en **`/media/cctools_3d_models`** ya están en el almacenamiento compartido de Home Assistant. Permanecen en su ubicación. Respalda también `media`: una copia que incluya solo la app no cubre esta carpeta.
+Las opciones propias de la nueva app en Home Assistant se conservan: revisa allí su zona horaria y puerto. Los archivos de `/media/cctools_3d_models` ya están en el almacenamiento compartido de HA y permanecen en su ubicación. Incluye **media** en tu copia de seguridad para respaldarlos.
 
-La carpeta **`/addons/cc_tools` contiene el código**, no los datos privados. Copiarla, borrar sus archivos o cambiar su nombre no migra la configuración ni la sesión.
+Los datos del origen no se modifican. Antes de sustituir los del destino, CC Tools conserva un respaldo privado y valida la copia importada.
 
-Home Assistant identifica la instalación local como `local_cc_tools` y la del repositorio como `<id_repositorio>_cc_tools`. El cambio de identificador crea otro almacenamiento. Restaurar normalmente una copia de la app local restaura la identidad local; no convierte esa copia en la app del repositorio.
+## 1. Preparar las apps
 
-## 1. Preparar la instalación local
+1. Espera a que terminen las tareas en curso y cierra el navegador interactivo de la app de origen.
+2. Desactiva **Reinicio automático** en la integración Creality Cloud Dev y cualquier automatización que pueda iniciar o reiniciar las apps durante la migración.
+3. Desactiva **Iniciar al arrancar** y **Watchdog** de la app de origen y detenla desde Home Assistant. No la desinstales.
+4. Crea una copia de seguridad de Home Assistant con la app de origen y **media**. Si el destino ya contiene datos, inclúyelo también.
+5. Instala o actualiza **CC Tools Dev** desde `https://github.com/micasadomotica/CC-Tools-Dev-HA`. Durante el proceso, deja desactivados su arranque automático y Watchdog.
+6. Comprueba la zona horaria y el puerto externo del destino, normalmente **8088**. Si el origen también tiene asignado 8088, cámbialo a otro libre, por ejemplo 8089. Déjalo detenido.
 
-1. Anota la zona horaria y el puerto externo de la app. Esta guía utiliza **8088** para la instalación nueva.
-2. En la integración **Creality Cloud Dev**, desactiva **Reinicio automático**. Desactiva también cualquier automatización externa que pueda iniciar o reiniciar Dev durante la copia.
-3. Espera a que terminen las tareas en curso y cierra el navegador interactivo de Dev. Detén la app local desde HA.
-4. Desactiva **Iniciar al arrancar** y **Watchdog** de la app local si aparecen activados. No la desinstales.
-5. Crea una copia de seguridad de Home Assistant que incluya **CC Tools Dev local** y **media**. Descárgala y conserva también los datos necesarios para restaurarla si está cifrada.
-6. Cambia el puerto externo de la app local a otro libre, por ejemplo **8089**, y déjala detenida. La nueva utilizará **8088**. Este cambio evita que la integración encuentre dos destinos para el reinicio automático.
+No es necesario iniciar antes la nueva app para crear un contenedor vacío: puedes seleccionar la migración antes del primer arranque. Si ya la has utilizado, detenla antes de cambiar las opciones.
 
-## 2. Instalar la app del repositorio
+## 2. Seleccionar la migración
 
-1. En la tienda de Apps, añade exactamente `https://github.com/micasadomotica/CC-Tools-Dev-HA`, sin `#main` ni `.git`.
-2. Instala **CC Tools Dev 1.0.50** desde el repositorio. Comprueba el origen para distinguirla de la app local.
-3. Configura la misma zona horaria y el puerto **8088**. Mantén desactivados **Iniciar al arrancar** y **Watchdog** durante la migración.
-4. Inicia una vez la app nueva para que Supervisor cree su contenedor y su almacenamiento. No completes el asistente ni inicies sesión. Detén la app nueva desde HA.
+En la ficha de **CC Tools Dev del repositorio**:
 
-Las dos apps deben estar detenidas antes de copiar. No utilices esta guía para mezclar dos instalaciones que ya tengan actividad propia: la copia sustituye los datos nuevos por los de la local.
+1. Desactiva temporalmente **Modo de protección**. La migración necesita ese acceso para leer los datos privados del origen; el funcionamiento normal de CC Tools no lo necesita.
+2. Abre **Configuración > Opciones**.
+3. En **Migrar datos desde**, elige **CC Tools Dev local** o **CC Tools de TitoTB**.
+4. Marca **Confirmar sustitución de datos** y pulsa **Guardar**.
+5. Inicia la app nueva y consulta su **Registro**.
 
-## 3. Copiar los datos privados
+La copia se realiza al iniciar, antes de arrancar la aplicación. No inicies el origen ni interrumpas el destino mientras se está copiando. El Registro muestra el origen, la ubicación del respaldo y, al terminar, **Migración completada**.
 
-Este paso requiere una **consola del host de Home Assistant OS con acceso a Docker y a sus rutas de almacenamiento**. La app Terminal & SSH habitual y Samba no muestran los datos privados de otras apps. En la consola física o de la máquina virtual de HA OS, escribe `login` para entrar en el host. Si ya tienes SSH de desarrollo configurado, también sirve. Consulta el [acceso al host documentado por Home Assistant](https://contributors.home-assistant.io/os/operating-system/debugging/).
+La solicitud se restablece automáticamente a **No migrar**, con la confirmación desmarcada, para evitar repetirla en el siguiente arranque.
 
-Los comandos siguientes se ejecutan en esa consola Linux, no en PowerShell ni en la consola web de CC Tools. Solo copian datos de CC Tools; no modifican los registros internos de Supervisor.
+## 3. Revisar y reanudar
 
-Lista los contenedores:
+Después de una migración completada, las automatizaciones quedan pausadas hasta que revises los datos:
 
-```sh
-docker ps -a --format '{{.Names}}\t{{.Status}}'
-```
+1. Abre la interfaz de la nueva app y comprueba la cuenta, la sesión, los módulos y sus horarios, las impresoras, Telegram y el Log.
+2. En **Mis diseños**, comprueba la biblioteca y los registros de entregas anteriores. No vuelvas a subir un diseño solo para probar la migración.
+3. Comprueba en las opciones de HA que figura **No migrar** y que la confirmación está desmarcada.
+4. Detén la nueva app, vuelve a activar **Modo de protección** y arráncala. La pausa de revisión se conserva.
+5. Cuando los datos sean correctos, pulsa **Reanudar automatizaciones** en la interfaz de CC Tools. Las tareas seguirán sus ajustes y horarios importados.
+6. Activa **Iniciar al arrancar** y, si lo utilizas, **Watchdog** únicamente en la nueva app. Crea una nueva copia de seguridad.
 
-Localiza los dos nombres de CC Tools. Dependiendo de la versión de Supervisor, pueden comenzar por `app_` o por `addon_`:
+Mantén el origen detenido mientras verificas la instalación. Cuando todo funcione y tengas respaldo, podrás desinstalarlo. No borres la biblioteca compartida de `media`.
 
-- Antigua: `app_local_cc_tools` o `addon_local_cc_tools`.
-- Nueva: `app_<id_repositorio>_cc_tools` o `addon_<id_repositorio>_cc_tools`.
+## Mantener la integración de Home Assistant
 
-Confirma el identificador de la nueva en la URL de su ficha de Home Assistant. **No elijas la app original de TitoTB.** Sustituye los dos valores iniciales del bloque por los nombres reales. El marcador `REEMPLAZAR_ID` hace que el bloque se detenga hasta que lo cambies.
+Utiliza [Creality Cloud Dev](https://github.com/micasadomotica/Creality-Cloud-Dev-HA). Si el hub existente usa `http://IP_DE_HOME_ASSISTANT:8088` y la nueva app conserva esa dirección, puedes seguir usando el mismo hub. Si apunta al nombre interno de la app local o a otra dirección, usa **Reconfigurar** para cambiar la URL. No elimines el hub ni recrees sus entidades.
 
-```sh
-(
-  set -eu
-  OLD_CONTAINER='app_local_cc_tools'
-  NEW_CONTAINER='app_REEMPLAZAR_ID_cc_tools'
+Al añadir un hub nuevo, la integración detecta la app `34e9898c_cc_tools` iniciada; si no responde, permite introducir `http://IP_DE_HOME_ASSISTANT:8088` o `http://homeassistant.local:8088`.
 
-  case "$OLD_CONTAINER" in
-    app_local_cc_tools|addon_local_cc_tools) ;;
-    *) echo 'El origen debe ser la app local CC Tools.' >&2; exit 1 ;;
-  esac
-  printf '%s\n' "$NEW_CONTAINER" | grep -Eq '^(app|addon)_[0-9a-f]{8}_cc_tools$' || {
-    echo 'Introduce el nombre real del contenedor del nuevo repositorio.' >&2
-    exit 1
-  }
-  for container in "$OLD_CONTAINER" "$NEW_CONTAINER"; do
-    test "$(docker inspect -f '{{.State.Running}}' "$container")" = false || {
-      echo "Detén $container desde Home Assistant antes de copiar." >&2
-      exit 1
-    }
-  done
+Antes de reactivar **Reinicio automático**, comprueba que los atributos del interruptor indican `restart_app: 34e9898c_cc_tools` y `restart_app_name: CC Tools Dev`. Si utilizas una dirección externa, evita que otra app tenga asignado el mismo puerto. Actualiza también cualquier automatización propia que todavía apunte al origen.
 
-  SRC=$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Source}}{{end}}{{end}}' "$OLD_CONTAINER")
-  DST=$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Source}}{{end}}{{end}}' "$NEW_CONTAINER")
-  test -n "$SRC" && test -n "$DST"
-  SRC=$(readlink -f "$SRC")
-  DST=$(readlink -f "$DST")
-  test -d "$SRC" && test -d "$DST" && test "$SRC" != "$DST"
-  test "$(basename "$SRC")" = local_cc_tools
-  NEW_SLUG=${NEW_CONTAINER#*_}
-  test "$(basename "$DST")" = "$NEW_SLUG"
-  test "$(dirname "$SRC")" = "$(dirname "$DST")"
-  test -f "$SRC/config.json"
+## Si aparece un error
 
-  BACKUP=$(mktemp -d /mnt/data/cc-tools-migration.XXXXXX)
-  chmod 700 "$BACKUP"
-  printf 'Origen: %s\nDestino: %s\nCopia de respaldo: %s\n' "$SRC" "$DST" "$BACKUP"
-  tar -cpf "$BACKUP/local-data.tar" -C "$SRC" .
-  mkdir "$BACKUP/new-data-before-migration"
+Consulta el mensaje del Registro antes de reintentar:
 
-  # Conserva los datos iniciales de la nueva app; no borra nada.
-  for entry in "$DST"/* "$DST"/.[!.]* "$DST"/..?*; do
-    if test -e "$entry" || test -L "$entry"; then
-      mv "$entry" "$BACKUP/new-data-before-migration/"
-    fi
-  done
-  cp -a "$SRC/." "$DST/"
-  cmp "$SRC/config.json" "$DST/config.json"
-  printf 'Copia terminada. Conserva el respaldo en %s\n' "$BACKUP"
-)
-```
+- **Origen activo o Watchdog habilitado:** detén el origen y desactiva Watchdog.
+- **No se puede acceder a Docker:** comprueba que has desactivado temporalmente Modo de protección en la app de destino.
+- **Origen no encontrado o configuración incompatible:** comprueba la instalación seleccionada y conserva las copias de seguridad.
+- **Migración interrumpida:** al siguiente arranque, la app intenta recuperar los datos anteriores y se detiene para que decidas cómo continuar. Sigue el mensaje del Registro.
 
-Si el bloque muestra un error, **no inicies la app nueva** hasta resolverlo. La local no se modifica. Si la copia se interrumpe después de mover los datos iniciales, esos datos permanecen en `new-data-before-migration` y la copia completa de la local está en `local-data.tar`. Anota la ruta de respaldo que muestra el bloque.
+Si el Registro indica que se han recuperado los datos anteriores y quieres reintentar, vuelve a seleccionar el origen y marca la confirmación. Para cancelar una migración fallida y conservar los datos recuperados, selecciona **No migrar**, marca **Confirmar sustitución de datos**, guarda e inicia. Esta confirmación especial se utiliza solo para reconocer la cancelación tras un fallo.
 
-La copia incluye cookies y datos de acceso. Guarda los respaldos de forma privada; no los adjuntes a Issues ni a conversaciones públicas. No sustituyas las rutas por `/config` o `/addons`: el bloque obtiene de Docker las rutas reales montadas como `/data`.
+Los respaldos internos están en `/data/.cc-tools-migration/`; el Registro indica la carpeta concreta de cada intento. Contienen datos privados de sesión y no deben adjuntarse a incidencias públicas. No sustituyen la copia de seguridad de Home Assistant.
 
-## 4. Comprobar la instalación nueva
+## Volver al origen o migrar más adelante
 
-1. En HA, comprueba de nuevo la zona horaria y el puerto **8088** de la app del repositorio. Los ajustes de Supervisor se revisan en su ficha, aunque se haya copiado `options.json` dentro de `/data`.
-2. Inicia únicamente la app nueva y abre su interfaz. Recarga la página para ver **1.0.50**.
-3. Comprueba el perfil correcto, los módulos y sus horarios, los diseños, el Log, las impresoras, Telegram y los registros de entregas. Las programaciones copiadas pueden ejecutarse al arrancar si su horario está vencido; realiza la comprobación en un momento adecuado.
-4. Comprueba la sesión de Creality Cloud. Se copia el perfil completo del navegador, aunque Creality puede exigir un nuevo inicio de sesión si la sesión ha caducado.
-5. Comprueba que **Mis diseños** sigue viendo `/media/cctools_3d_models` y que conserva las entregas anteriores. No vuelvas a subir un diseño solo para probar la migración.
-6. Activa **Iniciar al arrancar** y, si lo usabas, **Watchdog** únicamente en la nueva app. Crea otra copia de seguridad tras comprobar los datos.
+Si todavía no has ejecutado tareas en el destino, puedes detenerlo y volver a iniciar el origen, ajustando el puerto y la conexión de la integración si es necesario. Los datos originales siguen intactos.
 
-Mantén la antigua detenida hasta completar estas comprobaciones. Después puedes desinstalar la app local y retirar su carpeta de código `/addons/cc_tools` si ya no la necesitas y conservas el respaldo. No borres `media` ni desinstales la nueva app.
+Si el destino ya ha realizado acciones, el origen no contiene esa actividad reciente. Revisa los historiales antes de reanudarlo para evitar repetir envíos u otras tareas; no se fusionan automáticamente.
 
-## 5. Mantener la integración y sus entidades
+También puedes solicitar otra migración más adelante desde las mismas opciones. Volverá a sustituir los datos del destino por los del origen seleccionado y conservará otro respaldo.
 
-Si Creality Cloud Dev ya utiliza `http://IP_DE_HOME_ASSISTANT:8088`, conservar esa dirección permite seguir usando el mismo hub y sus entidades. Recarga la integración si no recupera la conexión. Si utilizabas un nombre interno de la app local o una dirección distinta, cambia la URL mediante **Reconfigurar** en el hub existente.
-
-Antes de reactivar **Reinicio automático**, confirma que la local ya no tiene configurado 8088. La integración **1.0.6-dev.1** comprueba todas las apps instaladas; una app detenida con el mismo puerto también genera ambigüedad.
-
-Activa el interruptor y comprueba sus atributos:
-
-- `restart_app`: `<id_repositorio>_cc_tools`, correspondiente a la nueva app.
-- `restart_app_name`: `CC Tools Dev`.
-
-Si no aparece un destino único, deja el interruptor desactivado y revisa los puertos. Actualiza también cualquier automatización externa que tuviera fijado `local_cc_tools`; no borres ni recrees las entidades de Creality Cloud Dev para cambiar el destino.
-
-## Volver a la instalación local
-
-Si todavía no has utilizado la nueva app para ejecutar tareas:
-
-1. Desactiva el reinicio automático de la integración, el arranque automático y Watchdog de la nueva app. Detenla.
-2. Cambia el puerto externo de la nueva a uno libre, por ejemplo 8090.
-3. Devuelve el puerto **8088** a la app local y arráncala. Sus datos originales siguen intactos.
-4. Comprueba la conexión de Creality Cloud Dev y el destino de reinicio antes de volver a activar ese interruptor.
-
-Si la nueva ya ejecutó tareas, sus datos contienen actividad posterior a la copia. Volver sin más a los datos antiguos puede repetir acciones. Detén ambas y conserva una copia actual de la nueva; revisa o traslada esos datos recientes antes de reanudar programaciones. La migración a 1.0.50 no cambia el formato de datos, pero los historiales de las dos instalaciones no se fusionan automáticamente.
-
-## Siguientes actualizaciones
-
-Desde la ficha de la app del repositorio, pulsa **Actualizar** cuando HA ofrezca una nueva versión. No repitas la copia entre instalaciones. La app mantiene su identificador y su almacenamiento mientras uses este repositorio con la misma URL.
-
-Referencias: [repositorios e identidad de apps](https://contributors.home-assistant.io/apps/guides/repository/), [almacenamiento y configuración](https://contributors.home-assistant.io/apps/reference/configuration/), [acceso al host](https://contributors.home-assistant.io/os/operating-system/debugging/).
+Las actualizaciones normales de CC Tools Dev mantienen sus datos: **no repitas la migración para actualizar de versión**.

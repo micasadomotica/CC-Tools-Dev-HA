@@ -32,7 +32,7 @@ Añade `https://github.com/micasadomotica/CC-Tools-Dev-HA` en los repositorios d
 
 Para las siguientes versiones, utiliza **Actualizar** desde Home Assistant. Crea antes una copia de seguridad y espera a que terminen las tareas en curso. No necesitas descargar ZIP.
 
-Si vienes de `/addons/cc_tools`, **puedes empezar de cero siguiendo el asistente** y configurar de nuevo tus favoritos y los módulos que utilices. Detén la app local y desactiva su arranque y reinicio automáticos antes de iniciar la nueva. **La migración es opcional:** sigue [MIGRACION.md](https://github.com/micasadomotica/CC-Tools-Dev-HA/blob/main/MIGRACION.md) únicamente si quieres conservar la configuración, sesión e historial locales.
+Si vienes de una instalación local o de CC Tools de TitoTB, **puedes empezar de cero siguiendo el asistente** o conservar los datos con **Migrar datos desde**, en Configuración > Opciones de la nueva app. Detén el origen y desactiva sus reinicios automáticos antes de migrar. La copia sustituye los datos del destino, conserva un respaldo y deja las automatizaciones pausadas para revisarlas. El proceso se ha comprobado en Home Assistant; sigue los pasos de [MIGRACION.md](https://github.com/micasadomotica/CC-Tools-Dev-HA/blob/main/MIGRACION.md).
 
 **Diseños ya subidos:** `/media/cctools_3d_models` sigue disponible porque es una carpeta compartida, pero al empezar de cero no se conserva el registro de entregas de la app antigua. Antes de activar subidas manuales o programadas, mueve fuera de esa biblioteca las carpetas de los diseños ya entregados para evitar publicarlos otra vez. Consulta las instrucciones completas en el [README](https://github.com/micasadomotica/CC-Tools-Dev-HA#instalación-desde-la-tienda).
 

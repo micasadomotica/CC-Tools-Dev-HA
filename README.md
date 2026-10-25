@@ -2,11 +2,11 @@
 
 CC Tools Dev automatiza tareas de Creality Cloud desde Home Assistant. Es una edición independiente basada en [CC Tools de TitoTB](https://github.com/TitoTB/CC-Tools-HA) y en el trabajo de la comunidad de Aguacatec.
 
-**Versión 1.0.53**. Amplía la API para el dispositivo Creality Cloud Models de la integración de Home Assistant: categoría, diseños disponibles, último modelo, última y próxima subida, contador diario e interruptor de programación. El historial se conserva aunque se limpien los archivos locales. Mantiene la migración opcional, las 10 impresiones diarias como valor inicial y los avisos de Telegram de 1.0.52. La migración sigue pendiente de prueba en Home Assistant; su guía se mantiene sin cambios.
+**Versión 1.0.53**. Se conecta con **Creality Cloud Dev 1.0.7** y añade los datos necesarios para el dispositivo **Creality Cloud Models**: categoría, diseños disponibles, último modelo, última y próxima subida, contador diario e interruptor de programación. El historial de envíos se conserva aunque se limpien los archivos locales. Incluye migración opcional desde Configuración > Opciones, comprobada por el mantenedor en Home Assistant.
 
 [![Añadir repositorio a Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fmicasadomotica%2FCC-Tools-Dev-HA)
 
-[Novedades](cc_tools/CHANGELOG.md) · [Migración opcional desde la instalación local](MIGRACION.md) · [Versiones publicadas](https://github.com/micasadomotica/CC-Tools-Dev-HA/releases)
+[Novedades](cc_tools/CHANGELOG.md) · [Migrar desde CC Tools local o TitoTB](MIGRACION.md) · [Versiones publicadas](https://github.com/micasadomotica/CC-Tools-Dev-HA/releases)
 
 ## Instalación desde la tienda
 
@@ -15,7 +15,7 @@ Necesitas Home Assistant con Supervisor, conexión a Internet y un equipo **amd6
 **Puedes empezar de cero siguiendo el asistente. La migración es opcional**, también si ya utilizas Dev como app local. Elige cómo quieres pasar a la app del repositorio:
 
 - **Empezar de cero:** instala la nueva app, inicia sesión y completa el asistente con los pasos siguientes. Tendrás una configuración nueva y un historial local vacío; vuelve a añadir tus favoritos y configura los módulos que utilices.
-- **Conservar tus datos:** sigue primero [la guía de migración](MIGRACION.md) para trasladar la configuración, sesión, programaciones e historial de la instalación local.
+- **Conservar tus datos:** utiliza la opción **Migrar datos desde** en Configuración > Opciones de la nueva app. Puedes elegir **CC Tools Dev local** o **CC Tools de TitoTB**, un solo origen cada vez. Sigue [la guía de migración](MIGRACION.md) antes de iniciar el proceso: sustituye los datos del destino y conserva un respaldo.
 
 Ambas opciones permiten actualizar después desde Home Assistant. Añadir el repositorio crea otra instalación y no transfiere los datos por sí solo.
 
@@ -60,14 +60,40 @@ La instalación local anterior debe permanecer detenida cuando pases a la nueva,
 
 ## Conectar Creality Cloud Dev
 
-Utiliza [Creality Cloud Dev 1.0.6-dev.1](https://github.com/micasadomotica/Creality-Cloud-Dev-HA/releases/tag/v1.0.6-dev.1), integración independiente con dominio `creality_cloud_dev`, compatible con tener también la integración original.
+Utiliza [Creality Cloud Dev 1.0.7](https://github.com/micasadomotica/Creality-Cloud-Dev-HA/releases/tag/v1.0.7), integración independiente con dominio `creality_cloud_dev`, compatible con tener también la integración original.
 
 1. Añade `https://github.com/micasadomotica/Creality-Cloud-Dev-HA` en HACS como repositorio personalizado de tipo **Integración**, instálala y reinicia Home Assistant. Requiere HA **2026.8 o posterior**.
-2. En **Ajustes > Dispositivos y servicios > Añadir integración**, selecciona **Creality Cloud Dev** y usa `http://IP_DE_HOME_ASSISTANT:8088`.
+2. En **Ajustes > Dispositivos y servicios > Añadir integración**, selecciona **Creality Cloud Dev**. Detecta automáticamente `34e9898c_cc_tools` si está iniciado y responde con un perfil válido. Si no puede detectarlo, introduce `http://IP_DE_HOME_ASSISTANT:8088` o `http://homeassistant.local:8088`, con el puerto que hayas configurado.
 3. Si ya tenías el hub y conservas esa dirección, utiliza el existente. Para cambiar la dirección, usa **Reconfigurar**; no borres el hub ni lo añadas de nuevo.
 4. Antes de activar **Reinicio automático**, comprueba que `restart_app` identifica la app del nuevo repositorio, con formato `<id_repositorio>_cc_tools`, y que `restart_app_name` es **CC Tools Dev**. Ya no debe apuntar a `local_cc_tools`.
 
-La integración resuelve el destino por dirección y puerto. Si la app local conserva también 8088, la coincidencia es ambigua aunque esté detenida: cámbiale el puerto a uno libre, por ejemplo 8089, y deja 8088 únicamente en la nueva. Durante el cambio de instalación mantén desactivado **Reinicio automático**, tanto si empiezas de cero como si migras.
+La integración resuelve el destino por dirección y puerto. Si conectas mediante la IP o el nombre de Home Assistant y otra app conserva también el puerto 8088, la coincidencia es ambigua aunque esté detenida: cámbiale el puerto a uno libre, por ejemplo 8089, y deja 8088 únicamente en la nueva. Durante el cambio de instalación mantén desactivado **Reinicio automático**, tanto si empiezas de cero como si migras.
+
+### Creality Cloud Models
+
+La integración crea un dispositivo independiente de las impresoras, vinculado al mismo hub de cuenta:
+
+| Entidad | Qué muestra o controla |
+|---|---|
+| Scheduled upload models / Subidas de modelos programadas | Activa o pausa la programación guardada, conservando selección, horario, límite diario y limpieza automática. |
+| Categoría predeterminada | Categoría y subcategoría, por ejemplo `Impresoras 3D / Otro`. |
+| Diseños disponibles | Número de diseños válidos y pendientes de envío en el último escaneo. |
+| Last model upload / Último diseño subido | Nombre del último modelo enviado correctamente, con ID y enlace en los atributos. |
+| Last upload / Última subida | Fecha y hora del último envío confirmado. |
+| Next upload / Próxima subida | Fecha y hora previstas de la próxima ejecución programada. |
+| Uploads today / Subidas hoy | Diseños enviados correctamente hoy, según la zona horaria de CC Tools. |
+
+Guarda primero la programación inicial en **Subir diseños** de CC Tools. Después puedes activarla o pausarla desde Home Assistant. El interruptor incluye el último resultado y mensaje de error en sus atributos; apagarlo no cancela un envío en curso.
+
+Los sensores utilizan el registro persistente de entregas, incluso cuando los archivos locales ya se han limpiado. **Subidas hoy** cuenta diseños enviados, manuales o programados; no equivale a los puntos ni a la recompensa **Upload Models**, que depende de la aprobación de Creality. Sin envíos anteriores, la última subida aparece desconocida. Con la programación apagada, la próxima subida aparece desconocida.
+
+Para incorporar estas entidades a una instalación existente, actualiza primero CC Tools Dev y después la integración desde HACS, y reinicia Home Assistant. Conserva el hub existente para mantener sus entidades e historial.
+
+## Descubrir diseños
+
+La programación propone **10 diseños por día** en una instalación nueva. Una actualización conserva el límite que ya tengas guardado, incluido un valor inferior. Puedes ajustarlo entre 0 y 10 en la configuración del módulo.
+
+Las nuevas programaciones de **Realiza una impresión** también proponen **10 impresiones por día** y conservan los valores de los perfiles existentes. En Telegram puedes activar o desactivar por separado los avisos de éxito y error de añadir a una colección, crear un proyecto y subir un diseño.
 
 ## Añadir a la colección (Collection Models)
 
