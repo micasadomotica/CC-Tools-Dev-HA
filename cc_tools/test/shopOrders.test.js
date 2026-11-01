@@ -4,6 +4,7 @@ import { normalizeShopOrder } from '../src/shopOrders.js';
 import { formatAvailableShopOrderTelegram } from '../src/shopOrderNotifications.js';
 import {
   archiveShopOrder,
+  dismissShopOrder,
   mergeShopOrdersState,
   shopOrdersRefreshDue,
   shippedShopOrderTransitions
@@ -113,6 +114,35 @@ test('solo permite archivar pedidos realmente enviados', () => {
   assert.equal(archiveShopOrder(shipped, 'shipped').items[0].archived, true);
 });
 
+test('permite retirar del seguimiento pedidos disponibles o cancelados', () => {
+  const available = mergeShopOrdersState({}, [{
+    id: 'available',
+    title: 'Cupón disponible',
+    status: 'Disponible',
+    statusKind: 'available',
+    statusKey: '1::coupon'
+  }]);
+  assert.equal(dismissShopOrder(available, 'available').items[0].archived, true);
+
+  const cancelled = mergeShopOrdersState({}, [{
+    id: 'cancelled',
+    title: 'Pedido cancelado',
+    status: 'Cancelado',
+    statusKind: 'neutral',
+    statusKey: '4:'
+  }]);
+  assert.equal(dismissShopOrder(cancelled, 'cancelled').items[0].archived, true);
+
+  const pending = mergeShopOrdersState({}, [{
+    id: 'pending',
+    title: 'Pedido pendiente',
+    status: 'Pendiente',
+    statusKind: 'pending',
+    statusKey: '2:'
+  }]);
+  assert.equal(dismissShopOrder(pending, 'pending'), null);
+});
+
 test('notifica exclusivamente la transición de pendiente a disponible o enviado', () => {
   const previous = mergeShopOrdersState({}, [{
     id: 'existing',
@@ -156,4 +186,16 @@ test('enlaza el nombre del producto en la notificación de pedido disponible', (
   });
   assert.equal(message, '📦 CC Tools Dev: Pedido disponible\n<a href="https://store.creality.com/es/product?discountCode=A&amp;B">Filamento &lt;PETG&gt;</a>\n3473 puntos');
   assert.equal(message.split('\n').length, 3);
+});
+
+test('un pedido retirado sigue oculto al refrescar y reaparece al cambiar de estado', () => {
+  const order = { id: 'coupon', title: 'Cupón', status: 'Disponible', statusKind: 'available', statusKey: 'available:coupon' };
+  const initial = mergeShopOrdersState({}, [order]);
+  const hidden = dismissShopOrder(initial, order.id);
+  assert.equal(initial.items[0].archived, false);
+  assert.equal(mergeShopOrdersState(hidden, [order]).items[0].archived, true);
+  const updated = mergeShopOrdersState(hidden, [{ ...order, status: 'Cancelado', statusKind: 'neutral', statusKey: 'cancelled:coupon' }]);
+  assert.equal(updated.items[0].archived, false);
+  assert.equal(updated.items[0].archivedAt, '');
+  assert.equal(dismissShopOrder(hidden, 'missing'), null);
 });

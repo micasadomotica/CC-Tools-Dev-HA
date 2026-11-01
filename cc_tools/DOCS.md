@@ -28,7 +28,7 @@ catálogos de diseños y la configuración no se comparten entre las dos aplicac
 
 ## Instalar y actualizar Dev
 
-Añade `https://github.com/micasadomotica/CC-Tools-Dev-HA` en los repositorios de la tienda de Apps e instala **CC Tools Dev**. La versión **1.0.54** corrige la migración desde un origen detenido que figure como Error, mejora el cierre de la app y fija en 10 el valor de respaldo de Diseños por día en la API. Conserva los límites válidos guardados y el dispositivo Creality Cloud Models. Desde 1.0.50 basta con actualizar la app; no hace falta volver a migrar. Actualizar no activa ninguna migración. La app se construye en tu equipo y utiliza el puerto externo **8088**.
+Añade `https://github.com/micasadomotica/CC-Tools-Dev-HA` en los repositorios de la tienda de Apps e instala **CC Tools Dev**. La versión **1.0.55** incorpora mejoras de sesión, puntos y seguimiento de pedidos de TitoTB 1.0.39–1.0.42. El aviso de datos migrados enlaza a **Logs**, donde puedes pulsar **Reanudar automatizaciones** después de revisar el perfil, las programaciones y las entregas. Conserva las funciones de Dev y el dispositivo Creality Cloud Models. Desde 1.0.50 basta con actualizar la app; no hace falta volver a migrar. Actualizar no activa ninguna migración. La app se construye en tu equipo y utiliza el puerto externo **8088**.
 
 Para las siguientes versiones, utiliza **Actualizar** desde Home Assistant. Crea antes una copia de seguridad y espera a que terminen las tareas en curso. No necesitas descargar ZIP.
 

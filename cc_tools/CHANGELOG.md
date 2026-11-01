@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.55 — sesión, puntos, pedidos y acceso a Logs tras migrar
+
+- Incorpora las mejoras de [TitoTB 1.0.39–1.0.42](https://github.com/TitoTB/CC-Tools-HA/compare/v1.0.38...v1.0.42), conservando las funciones y los datos propios de Dev.
+- Permite continuar una tarea cuando el perfil opcional no confirma la sesión, siempre que no haya señales de sesión cerrada o desafío de seguridad. Un resultado inconcluso no confirma la recuperación ni levanta una pausa previa, tanto con navegador remoto abierto como en la verificación automática. Un error genérico de comprobación no se interpreta por sí solo como una caída global de Creality Cloud.
+- Aplaza las automatizaciones mientras el navegador remoto está abierto, sin cerrar la sesión interactiva.
+- Corrige duplicados de puntos causados por cabeceras incluidas en el texto, también al combinar el historial existente. Conserva los registros distintos de check-in consecutivo y doble de miembro. Muestra puntos sin decimales sin redondear los valores guardados.
+- Añade una papelera para ocultar pedidos disponibles o cancelados del seguimiento local. No cancela ni elimina pedidos en Creality Cloud; vuelven a mostrarse si cambia su estado. Actualiza el enlace de la guía de OctoPrint.
+- El aviso de migración indica que, tras revisar el perfil, las programaciones y las entregas, hay que ir a Logs y pulsar Reanudar automatizaciones. El mensaje de ejecución manual incluye el enlace directo; abrirlo mantiene la pausa hasta pulsar el botón. También actualiza el aviso en instalaciones con el texto anterior guardado.
+- Amplía las pruebas de sesión, recuperación, puntos y pedidos, y añade pruebas de navegador del aviso, la navegación a Logs y la reanudación explícita.
+- Desde 1.0.54 basta con actualizar: no es necesario migrar de nuevo. Mantiene el puerto 8088, el identificador de la app, las subidas, la API de Models, Telegram y el cierre seguro. La actualización en una instalación real de Home Assistant queda pendiente de comprobación por el mantenedor.
+
 ## 1.0.54 — migración con estado Error y cierre de la app
 
 - Permite migrar desde un origen que Supervisor muestra como Error cuando consta una versión instalada, Watchdog está desactivado y Docker confirma que no hay contenedores activos de ese origen. Sigue rechazando estados desconocidos, contenedores en ejecución, pausados o reiniciándose y fallos de consulta.

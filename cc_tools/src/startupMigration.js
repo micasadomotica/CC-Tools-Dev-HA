@@ -192,7 +192,7 @@ export async function migrateAtStartup({ dataDir = '/data', options, supervisor,
     state.phase = 'completed';
     state.completedAt = new Date().toISOString();
     await save(state);
-    log('[migration] Migración completada. Revisa los datos y pulsa Reanudar automatizaciones en la interfaz.');
+    log('[migration] Migración completada. Revisa los datos y ve a Logs para pulsar Reanudar automatizaciones.');
     return { migrated: true, source, backup: attempt };
   } catch (error) {
     await rollback(dataDir, control, state, save);
