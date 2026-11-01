@@ -40,18 +40,20 @@ for (const [name, options] of [
   ['JSON inválido', { invalidJson: true }],
   ['perfil nulo', { payload: null }],
   ['respuesta vacía', { payload: {} }],
-  ['servicio temporalmente no disponible', { status: 503, payload: { code: 503, msg: 'Unavailable' } }],
-  ['navegación agotada', { navigationError: new Error('Navigation timeout') }]
+  ['perfil opcional temporalmente no disponible', { status: 503, payload: { code: 503, msg: 'Unavailable' } }]
 ]) {
   test(`no confirma la sesión: ${name}`, async () => {
-    await assert.rejects(assertAuthenticatedSession({ pages: () => [sessionPage(options)] }), error => {
-      assert.equal(error.code, 'SESSION_CHECK_UNAVAILABLE');
-      assert.equal(error.systemic, false);
-      assert.equal(error.silentRetry, true);
-      return true;
-    });
+    const result = await assertAuthenticatedSession({ pages: () => [sessionPage(options)] });
+    assert.equal(result.allowTask, true);
+    assert.equal(result.confirmAuthenticated, false);
+    assert.equal(result.state, 'inconclusive');
   });
 }
+
+test('una navegación agotada sigue aplazando la tarea', async () => {
+  await assert.rejects(assertAuthenticatedSession({ pages: () => [sessionPage({ navigationError: new Error('Navigation timeout') })] }),
+    { code: 'SESSION_CHECK_UNAVAILABLE', systemic: false, silentRetry: true });
+});
 
 for (const [name, options] of [
   ['token inválido', { payload: { code: 4, msg: 'Invalid Token' } }],
@@ -91,8 +93,8 @@ for (const [name, options, held] of [
       Date, console, resumeAfterAuthenticatedLogin,
       automaticLoginDue: () => false,
       verifyPersistedSession: async () => {
-        await assertAuthenticatedSession({ pages: () => [sessionPage(options)] });
-        return { authenticated: true };
+        const check = await assertAuthenticatedSession({ pages: () => [sessionPage(options)] });
+        return { authenticated: check.confirmAuthenticated };
       }
     });
     // Exercise the real scheduler decision with an isolated session check and no disk writes.

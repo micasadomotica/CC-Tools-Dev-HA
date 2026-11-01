@@ -1,4 +1,4 @@
-export const MIGRATION_REVIEW_MESSAGE = 'Datos migrados. Revisa el perfil, las programaciones y las entregas antes de pulsar Reanudar automatizaciones.';
+export const MIGRATION_REVIEW_MESSAGE = 'Datos migrados. Revisa el perfil, las programaciones y las entregas. Una vez revisado, puedes ir a Logs y pulsar «Reanudar automatizaciones».';
 
 export function requireMigrationReview(config, source, date = new Date().toISOString()) {
   config.migrationReview = { required: true, source, importedAt: date };

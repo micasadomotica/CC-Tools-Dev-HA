@@ -22,6 +22,10 @@ function harness(code = 'TASK_EXECUTION_TIMEOUT') {
   const config = { tasks: { finishPrint: task }, automationHealth: { state: 'active' } };
   const state = { runs: [], notifications: [], healthUpdates: 0, released: false };
   const error = Object.assign(new Error('Tiempo de ejecución agotado'), { code });
+  if (code === 'SESSION_CHECK_UNAVAILABLE') {
+    error.silentRetry = true;
+    error.technical = 'Navigation timeout al abrir Creality Cloud.';
+  }
   const context = vm.createContext({
     assertMigrationReviewed,
     Date, Promise, AbortController, setTimeout, clearTimeout, process, normalizeCaughtError,

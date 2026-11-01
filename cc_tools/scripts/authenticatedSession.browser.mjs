@@ -8,9 +8,9 @@ const authenticated = { code: 0, result: { profileUserInfo: { base: { userId: 't
 const cases = [
   { name: 'perfil positivo', payload: authenticated },
   { name: 'perfil positivo con todos los botones de login ocultos', payload: authenticated, html: '<button hidden>Log In</button><button hidden>Log In</button>' },
-  { name: 'respuesta JSON inválida', raw: '<html>Error</html>', code: 'SESSION_CHECK_UNAVAILABLE' },
-  { name: 'respuesta desconocida HTTP 503', status: 503, payload: { code: 503 }, code: 'SESSION_CHECK_UNAVAILABLE' },
-  { name: 'petición de perfil sin respuesta', noResponse: true, code: 'SESSION_CHECK_UNAVAILABLE' },
+  { name: 'respuesta JSON inválida', raw: '<html>Error</html>', inconclusive: true },
+  { name: 'respuesta desconocida HTTP 503', status: 503, payload: { code: 503 }, inconclusive: true },
+  { name: 'petición de perfil sin respuesta', noResponse: true, inconclusive: true },
   { name: 'token inválido', payload: { code: 4, msg: 'Invalid Token' }, code: 'LOGIN_REQUIRED' },
   { name: 'verificación de seguridad con perfil positivo', payload: authenticated, html: '<h1>Verify you are human</h1>', code: 'SECURITY_CHALLENGE' }
 ];
@@ -50,7 +50,10 @@ test('comprueba la sesión con páginas y respuestas de navegador controladas', 
               return true;
             });
           } else {
-            await assertAuthenticatedSession(context);
+            const result = await assertAuthenticatedSession(context);
+            assert.equal(result.allowTask, true);
+            assert.equal(result.confirmAuthenticated, !scenario.inconclusive);
+            assert.equal(result.state, scenario.inconclusive ? 'inconclusive' : 'authenticated');
           }
         } finally { await context.close(); }
       });

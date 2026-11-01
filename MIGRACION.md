@@ -57,7 +57,7 @@ Después de una migración completada, las automatizaciones quedan pausadas hast
 2. En **Mis diseños**, comprueba la biblioteca y los registros de entregas anteriores. No vuelvas a subir un diseño solo para probar la migración.
 3. Comprueba en las opciones de HA que figura **No migrar** y que la confirmación está desmarcada.
 4. Detén la nueva app, vuelve a activar **Modo de protección** y arráncala. La pausa de revisión se conserva.
-5. Cuando los datos sean correctos, pulsa **Reanudar automatizaciones** en la interfaz de CC Tools. Las tareas seguirán sus ajustes y horarios importados.
+5. Cuando los datos sean correctos, ve a **Logs** y pulsa **Reanudar automatizaciones**. Desde 1.0.55, el aviso de datos migrados incluye un enlace a Logs. Abrir ese enlace solo cambia de pantalla; las automatizaciones permanecen pausadas hasta pulsar el botón. Las tareas seguirán sus ajustes y horarios importados.
 6. Activa **Iniciar al arrancar** y, si lo utilizas, **Watchdog** únicamente en la nueva app. Crea una nueva copia de seguridad.
 
 Mantén el origen detenido mientras verificas la instalación. Cuando todo funcione y tengas respaldo, podrás desinstalarlo. No borres la biblioteca compartida de `media`.

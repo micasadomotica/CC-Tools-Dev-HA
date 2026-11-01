@@ -39,7 +39,8 @@ function trackedLaunch(launch) {
 export async function withAutomationBrowser(options, callback) {
   assertBrowserAvailable();
   if (activeMode === 'interactive') {
-    await closeActiveContext();
+    throw browserError('REMOTE_BROWSER_OPEN',
+      'El navegador remoto está abierto. La tarea se reintentará cuando termine la sesión interactiva.', false);
   }
   if (activeMode) {
     throw browserError('BROWSER_BUSY', 'Ya hay otra operación utilizando el navegador.', false);
@@ -53,9 +54,9 @@ export async function withAutomationBrowser(options, callback) {
     );
     activeBrowserVersion = activeContext.browser()?.version() || '';
     watchContext(activeContext);
-    await assertAuthenticatedSession(activeContext);
-    await confirmAuthenticatedSession();
-    return await callback(activeContext);
+    const sessionCheck = await assertAuthenticatedSession(activeContext);
+    if (sessionCheck.confirmAuthenticated) await confirmAuthenticatedSession();
+    return await callback(activeContext, sessionCheck);
   } catch (error) {
     throw normalizeBrowserError(error);
   } finally {
@@ -161,16 +162,20 @@ export async function verifyPersistedSession() {
     if (!page) {
       return { checked: false, authenticated: false, reason: 'LOGIN_IN_PROGRESS' };
     }
-    await assertAuthenticatedSession(activeContext, page);
+    const sessionCheck = await assertAuthenticatedSession(activeContext, page);
+    if (!sessionCheck.confirmAuthenticated) {
+      return { checked: false, authenticated: false, reason: 'SESSION_CHECK_INCONCLUSIVE' };
+    }
     const session = await confirmAuthenticatedSession();
     return { checked: true, ...session };
   }
 
-  let session = null;
-  await withAutomationBrowser({}, async () => {
-    session = { authenticated: true };
-  });
-  return { checked: true, ...(session || {}), authenticated: true };
+  // An inconclusive check must also preserve the pause when there is no interactive browser.
+  return withAutomationBrowser({}, async (_context, sessionCheck) => ({
+    checked: sessionCheck.confirmAuthenticated,
+    authenticated: sessionCheck.confirmAuthenticated,
+    ...(!sessionCheck.confirmAuthenticated ? { reason: 'SESSION_CHECK_INCONCLUSIVE' } : {})
+  }));
 }
 
 export async function attemptRememberedSessionLogin() {
@@ -209,7 +214,10 @@ export async function attemptRememberedSessionLogin() {
       };
     }
 
-    await assertAuthenticatedSession(activeContext, page);
+    const sessionCheck = await assertAuthenticatedSession(activeContext, page);
+    if (!sessionCheck.confirmAuthenticated) {
+      return { attempted: true, authenticated: false, reason: 'SESSION_CHECK_INCONCLUSIVE', url: page.url() };
+    }
     const session = await confirmAuthenticatedSession();
     return { attempted: true, ...session, authenticated: true, url: page.url() };
   } catch (error) {
@@ -492,12 +500,12 @@ export async function assertAuthenticatedSession(context, preferredPage = null) 
     throw error;
   }
 
-  if (profileState === 'authenticated') return;
+  return sessionCheckOutcome(profileState);
+}
 
-  throw sessionCheckUnavailableError(
-    new Error('Creality Cloud no devolvió una confirmación positiva del perfil autenticado.'),
-    page.url()
-  );
+export function sessionCheckOutcome(profileState = 'unknown') {
+  const authenticated = profileState === 'authenticated';
+  return { allowTask: true, confirmAuthenticated: authenticated, state: authenticated ? 'authenticated' : 'inconclusive' };
 }
 
 export function isCrealityApplicationPage(url) {

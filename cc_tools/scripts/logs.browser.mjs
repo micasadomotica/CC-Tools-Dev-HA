@@ -8,6 +8,7 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import { requireMigrationReview } from '../src/migrationReview.js';
 
 let browser, server, dataDir, baseUrl;
 before(async () => {
@@ -76,6 +77,7 @@ test('pedidos: refresco manual muestra carga, evita duplicados y conserva datos 
   });
   try {
     await page.goto(baseUrl);
+    await page.waitForFunction(() => document.querySelector('#creality-session-indicator').title.startsWith('Sesión:'));
     await page.locator('#points-counter').click();
     await page.waitForFunction(() => document.querySelector('#points-shop-orders-list').textContent.includes('Pedido de prueba'));
     const button = page.locator('#refresh-shop-orders');
@@ -117,6 +119,7 @@ test('Logs pagina, conserva la página al refrescar y descarga solo los registro
     assert.equal(bounded.page, 3); assert.equal(bounded.items.length, 5);
     assert.equal((await request('page=-1&pageSize=999')).pageSize, 100);
     await page.goto(baseUrl);
+    await page.waitForFunction(() => document.querySelector('#creality-session-indicator').title.startsWith('Sesión:'));
     await page.locator('#creality-user-avatar').click();
     await page.locator('#creality-menu-logs').click();
     await page.waitForFunction(() => document.querySelector('#logs-page').textContent === 'Página 1 de 3');
@@ -180,6 +183,7 @@ test('el indicador del avatar y la API de HA coinciden al abrir y perder la sesi
       assert.equal(integration.session.checkedAt, checkedAt);
       assert.equal(integration.session.reason, scenario.open ? '' : 'Sesión caducada');
       await page.goto(baseUrl);
+      await page.waitForFunction(() => document.querySelector('#creality-session-indicator').title.startsWith('Sesión:'));
       const label = scenario.open ? 'Sesión: Abierta' : 'Sesión: Cerrada';
       await page.waitForFunction(expected => document.querySelector('#creality-session-indicator').title === expected, label);
       const indicator = page.locator('#creality-session-indicator');
@@ -191,6 +195,105 @@ test('el indicador del avatar y la API de HA coinciden al abrir y perder la sesi
     assert.deepEqual(errors, []);
   } finally {
     await page.unrouteAll({ behavior: 'wait' });
+    await page.close();
+    await fs.writeFile(configPath, original);
+  }
+});
+
+test('el aviso de migración enlaza a Logs sin reanudar hasta pulsar el botón', async () => {
+  const configPath = path.join(dataDir, 'config.json');
+  const original = await fs.readFile(configPath, 'utf8');
+  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  let resumes = 0;
+  page.on('request', request => { if (request.url().endsWith('/api/automation/resume')) resumes++; });
+  try {
+    const config = JSON.parse(original);
+    config.setup.assistantCompleted = true;
+    for (const task of Object.values(config.tasks)) task.enabled = false;
+    requireMigrationReview(config, 'local_cc_tools');
+    // Reproduce installations that still have the old persisted warning.
+    config.automationHealth.reason = 'Datos migrados. Revisa el perfil, las programaciones y las entregas antes de pulsar Reanudar automatizaciones.';
+    await fs.writeFile(configPath, JSON.stringify(config));
+    await page.route('**/*', route => route.request().url().startsWith(baseUrl) ? route.continue() : route.abort());
+    for (const pattern of ['**/api/creality/profile/refresh', '**/api/progress/refresh', '**/api/points/**', '**/api/shop/**']) {
+      await page.route(pattern, route => route.fulfill({ json: { ok: false } }));
+    }
+    await page.goto(baseUrl);
+    await page.waitForFunction(() => document.querySelector('#creality-session-indicator').title.startsWith('Sesión:'));
+    // The button is triangular: its bounding-box center is on the clipped edge.
+    await page.locator('#open-comments-config').click({ position: { x: 50, y: 50 } });
+    await page.locator('#run-comments-now').click();
+    const link = page.locator('#progress-message a');
+    await link.waitFor();
+    assert.equal(await link.innerText(), 'Logs');
+    assert.match(await page.locator('#progress-message').innerText(), /Una vez revisado, puedes ir a Logs y pulsar «Reanudar automatizaciones»/);
+    if (process.env.CCTOOLS_TEST_SCREENSHOTS) await page.screenshot({ path: path.join(process.env.CCTOOLS_TEST_SCREENSHOTS, '1.0.55-migration-warning.png') });
+    await link.click();
+    assert.equal(await page.locator('#run-progress-modal').isVisible(), false);
+    assert.equal(await page.locator('#view-logs').isVisible(), true);
+    const resume = page.locator('[data-action="resume-automations"]');
+    assert.equal(await resume.isVisible(), true);
+    assert.equal(resumes, 0);
+    assert.equal(JSON.parse(await fs.readFile(configPath, 'utf8')).migrationReview.required, true);
+    await resume.click();
+    await page.waitForFunction(() => !document.querySelector('[data-action="resume-automations"]'));
+    assert.equal(resumes, 1);
+    const saved = JSON.parse(await fs.readFile(configPath, 'utf8'));
+    assert.equal(saved.migrationReview.required, false);
+    assert.ok(saved.migrationReview.reviewedAt);
+    assert.equal(saved.automationHealth.state, 'active');
+    assert.deepEqual(errors, []);
+  } finally {
+    await page.close();
+    await fs.writeFile(configPath, original);
+  }
+});
+
+test('la papelera oculta pedidos solo localmente y muestra puntos sin decimales', async () => {
+  const configPath = path.join(dataDir, 'config.json');
+  const original = await fs.readFile(configPath, 'utf8');
+  const page = await browser.newPage();
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  const makeOrder = (id, status, statusKind) => ({ id, title: 'Pedido ' + id, status, statusKind, statusKey: id, points: 17.6, quantity: 1 });
+  try {
+    const config = JSON.parse(original);
+    config.setup.assistantCompleted = true;
+    for (const task of Object.values(config.tasks)) task.enabled = false;
+    config.shopOrders = { items: [makeOrder('available','Disponible','available'), makeOrder('cancelled','Cancelado','neutral'), makeOrder('pending','Pendiente','pending')] };
+    await fs.writeFile(configPath, JSON.stringify(config));
+    await page.route('**/*', route => route.request().url().startsWith(baseUrl) ? route.continue() : route.abort());
+    for (const pattern of ['**/api/creality/profile/refresh', '**/api/progress/refresh', '**/api/points/**']) {
+      await page.route(pattern, route => route.fulfill({ json: { ok: false } }));
+    }
+    await page.route('**/api/shop/**', async route => {
+      if (route.request().url().endsWith('/dismiss')) return route.continue();
+      const status = await (await fetch(baseUrl + '/api/status')).json();
+      return route.fulfill({ json: { ok: true, orders: status.config.shopOrders, products: [] } });
+    });
+    await page.goto(baseUrl);
+    await page.waitForFunction(() => document.querySelector('#creality-session-indicator').title.startsWith('Sesión:'));
+    await page.locator('#points-counter').click();
+    await page.locator('[data-dismiss-shop-order="available"]').waitFor();
+    assert.equal(await page.locator('[data-dismiss-shop-order]').count(), 2);
+    assert.match(await page.locator('.points-shop-order-price').first().innerText(), /18 puntos/);
+    await page.locator('[data-dismiss-shop-order="available"]').click();
+    await page.waitForFunction(() => !document.querySelector('[data-dismiss-shop-order="available"]'));
+    const saved = JSON.parse(await fs.readFile(configPath, 'utf8'));
+    const hidden = saved.shopOrders.items.find(order => order.id === 'available');
+    assert.equal(hidden.archived, true);
+    assert.equal(hidden.points, 17.6);
+    const rejected = await fetch(baseUrl + '/api/shop/orders/pending/dismiss', { method: 'PATCH' });
+    assert.equal(rejected.status, 404);
+    assert.equal((await rejected.json()).error, 'SHOP_ORDER_NOT_DISMISSIBLE');
+    await page.reload();
+    await page.locator('#points-counter').click();
+    await page.locator('[data-dismiss-shop-order="cancelled"]').waitFor();
+    assert.equal(await page.locator('[data-dismiss-shop-order="available"]').count(), 0);
+    assert.deepEqual(errors, []);
+  } finally {
     await page.close();
     await fs.writeFile(configPath, original);
   }
