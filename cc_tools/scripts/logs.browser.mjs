@@ -289,6 +289,7 @@ test('la papelera oculta pedidos solo localmente y muestra puntos sin decimales'
     assert.equal(rejected.status, 404);
     assert.equal((await rejected.json()).error, 'SHOP_ORDER_NOT_DISMISSIBLE');
     await page.reload();
+    await page.waitForFunction(() => document.querySelector('#creality-session-indicator').title.startsWith('Sesión:'));
     await page.locator('#points-counter').click();
     await page.locator('[data-dismiss-shop-order="cancelled"]').waitFor();
     assert.equal(await page.locator('[data-dismiss-shop-order="available"]').count(), 0);
