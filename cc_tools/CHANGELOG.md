@@ -8,6 +8,7 @@
 - Incorpora la recuperación de sesión de [TitoTB 1.0.43](https://github.com/TitoTB/CC-Tools-HA/compare/v1.0.42...v1.0.43): selecciona la cuenta recordada correspondiente al perfil configurado mediante el flujo OAuth de Creality Cloud.
 - Verifica la identidad después del acceso. Mantiene las automatizaciones pausadas si no puede confirmar el usuario, la cuenta es distinta, el token ha caducado o se necesita intervención manual.
 - Aclara en Ajustes que el inicio automático selecciona la cuenta recordada por el navegador; no guarda contraseñas nuevas.
+- Validación en Home Assistant confirmada por el mantenedor el 10 de noviembre de 2026: actualización a 1.0.56 probada en su instalación y funcionamiento correcto al añadir perfiles a Favoritos.
 
 ## 1.0.55 — sesión, puntos, pedidos y acceso a Logs tras migrar
 
