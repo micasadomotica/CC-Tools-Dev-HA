@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.56 — favoritos y recuperación de sesión
+
+- Corrige el error al añadir perfiles cuyos nombres no incluyen la clase de texto truncado en el formato actual de Creality Cloud.
+- Acepta enlaces de perfil con `/model`, `/profile` o `/pinned-models`, además de la URL base. Guarda siempre la URL base y evita duplicados entre pestañas.
+- Comprueba que el ID visible corresponde al perfil solicitado y toma la foto de la tarjeta del perfil, sin confundirla con la cuenta conectada.
+- Incorpora la recuperación de sesión de [TitoTB 1.0.43](https://github.com/TitoTB/CC-Tools-HA/compare/v1.0.42...v1.0.43): selecciona la cuenta recordada correspondiente al perfil configurado mediante el flujo OAuth de Creality Cloud.
+- Verifica la identidad después del acceso. Mantiene las automatizaciones pausadas si no puede confirmar el usuario, la cuenta es distinta, el token ha caducado o se necesita intervención manual.
+- Aclara en Ajustes que el inicio automático selecciona la cuenta recordada por el navegador; no guarda contraseñas nuevas.
+
 ## 1.0.55 — sesión, puntos, pedidos y acceso a Logs tras migrar
 
 - Incorpora las mejoras de [TitoTB 1.0.39–1.0.42](https://github.com/TitoTB/CC-Tools-HA/compare/v1.0.38...v1.0.42), conservando las funciones y los datos propios de Dev.

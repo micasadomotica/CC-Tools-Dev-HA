@@ -30,10 +30,10 @@ function harness(options = {}) {
       const node = {
         first() { return node; }, async waitFor() {},
         async isVisible() { return selector.includes('.empty_comp') && options.confirmedEmpty === true; },
-        async count() { return options.noModels ? 0 : 1; },
+        async count() { return selector.includes('avatar') ? 1 : options.noModels ? 0 : 1; },
         async getAttribute(name) {
-          if (selector === '.user-name .text-ellipsis' && name === 'title') return 'Current name';
-          if (selector === '.creality-user-avatar' && name === 'style') {
+          if (selector === '.user-name > span, .user-name .text-ellipsis' && name === 'title') return 'Current name';
+          if (selector === '.user-avatar-box .creality-user-avatar' && name === 'style') {
             if (options.noAvatar) return '';
             return `background-image: url("${options.avatar || `https://pic2-cdn.creality.com/avatar/new-${currentId}`}" );`;
           }
