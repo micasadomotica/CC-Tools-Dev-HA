@@ -2,7 +2,7 @@
 
 CC Tools Dev automatiza tareas de Creality Cloud desde Home Assistant. Es una edición independiente basada en [CC Tools de TitoTB](https://github.com/TitoTB/CC-Tools-HA) y en el trabajo de la comunidad de Aguacatec.
 
-**Versión 1.0.56**. Corrige la lectura de perfiles favoritos con el formato actual de Creality Cloud. Acepta la URL base y las pestañas `/model`, `/profile` y `/pinned-models`, y guarda siempre la URL base del perfil. Incorpora la recuperación de sesión de TitoTB 1.0.43: selecciona la cuenta recordada que coincide con el perfil configurado y comprueba su identidad antes de reanudar las automatizaciones. Mantiene las funciones de Dev, la conexión con **Creality Cloud Dev 1.0.7** y el dispositivo **Creality Cloud Models**.
+**Versión 1.0.56**. Corrige la lectura de perfiles favoritos con el formato actual de Creality Cloud. Acepta la URL base y las pestañas `/model`, `/profile` y `/pinned-models`, y guarda siempre la URL base del perfil. Incorpora la recuperación de sesión de TitoTB 1.0.43: selecciona la cuenta recordada que coincide con el perfil configurado y comprueba su identidad antes de reanudar las automatizaciones. Mantiene las funciones de Dev, la conexión con **Creality Cloud Dev** y el dispositivo **Creality Cloud Models**.
 
 [![Añadir repositorio a Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fmicasadomotica%2FCC-Tools-Dev-HA)
 
@@ -67,6 +67,8 @@ Utiliza la última versión de [Creality Cloud Dev](https://github.com/micasadom
 En **Home Assistant 2026.11 o posterior**, instala la integración desde **Marketplace**:
 
 [![Abrir Creality Cloud Dev en Marketplace](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=micasadomotica&repository=Creality-Cloud-Dev-HA&category=integration)
+
+Comprobado por el mantenedor el **10 de noviembre de 2026**: añadir Creality Cloud Dev desde este botón de Marketplace funciona correctamente en su instalación de Home Assistant.
 
 1. Pulsa el botón anterior y acepta añadir el repositorio de tipo **Integración** si todavía no aparece. También puedes ir a **Ajustes > Marketplace > Añadir desde enlace** y pegar `https://github.com/micasadomotica/Creality-Cloud-Dev-HA`. Conecta GitHub si se solicita, abre el repositorio y pulsa **Instalar**. Reinicia Home Assistant si te lo pide.
 2. En **Ajustes > Dispositivos y servicios > Añadir integración**, selecciona **Creality Cloud Dev**. Detecta automáticamente `34e9898c_cc_tools` si está iniciado y responde con un perfil válido. Si no puede detectarlo, introduce `http://IP_DE_HOME_ASSISTANT:8088` o `http://homeassistant.local:8088`, con el puerto que hayas configurado.
