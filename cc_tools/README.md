@@ -62,12 +62,18 @@ La instalación local anterior debe permanecer detenida cuando pases a la nueva,
 
 ## Conectar Creality Cloud Dev
 
-Utiliza [Creality Cloud Dev 1.0.7](https://github.com/micasadomotica/Creality-Cloud-Dev-HA/releases/tag/v1.0.7), integración independiente con dominio `creality_cloud_dev`, compatible con tener también la integración original.
+Utiliza la última versión de [Creality Cloud Dev](https://github.com/micasadomotica/Creality-Cloud-Dev-HA/releases/), integración independiente con dominio `creality_cloud_dev`, compatible con tener también la integración original.
 
-1. Añade `https://github.com/micasadomotica/Creality-Cloud-Dev-HA` en HACS como repositorio personalizado de tipo **Integración**, instálala y reinicia Home Assistant. Requiere HA **2026.8 o posterior**.
+En **Home Assistant 2026.11 o posterior**, instala la integración desde **Marketplace**:
+
+[![Abrir Creality Cloud Dev en Marketplace](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=micasadomotica&repository=Creality-Cloud-Dev-HA&category=integration)
+
+1. Pulsa el botón anterior y acepta añadir el repositorio de tipo **Integración** si todavía no aparece. También puedes ir a **Ajustes > Marketplace > Añadir desde enlace** y pegar `https://github.com/micasadomotica/Creality-Cloud-Dev-HA`. Conecta GitHub si se solicita, abre el repositorio y pulsa **Instalar**. Reinicia Home Assistant si te lo pide.
 2. En **Ajustes > Dispositivos y servicios > Añadir integración**, selecciona **Creality Cloud Dev**. Detecta automáticamente `34e9898c_cc_tools` si está iniciado y responde con un perfil válido. Si no puede detectarlo, introduce `http://IP_DE_HOME_ASSISTANT:8088` o `http://homeassistant.local:8088`, con el puerto que hayas configurado.
 3. Si ya tenías el hub y conservas esa dirección, utiliza el existente. Para cambiar la dirección, usa **Reconfigurar**; no borres el hub ni lo añadas de nuevo.
 4. Antes de activar **Reinicio automático**, comprueba que `restart_app` identifica la app del nuevo repositorio, con formato `<id_repositorio>_cc_tools`, y que `restart_app_name` es **CC Tools Dev**. Ya no debe apuntar a `local_cc_tools`.
+
+Para **HA 2026.8–2026.10**, instala la integración desde **HACS**, añadiendo el mismo repositorio como tipo **Integración**, y reinicia Home Assistant. Si ya la instalaste con HACS, Marketplace la migra al actualizar HA a 2026.11 o posterior; conserva el hub existente. Consulta la [guía oficial de Marketplace](https://www.home-assistant.io/integrations/marketplace).
 
 La integración resuelve el destino por dirección y puerto. Si conectas mediante la IP o el nombre de Home Assistant y otra app conserva también el puerto 8088, la coincidencia es ambigua aunque esté detenida: cámbiale el puerto a uno libre, por ejemplo 8089, y deja 8088 únicamente en la nueva. Durante el cambio de instalación mantén desactivado **Reinicio automático**, tanto si empiezas de cero como si migras.
 
@@ -89,7 +95,7 @@ Guarda primero la programación inicial en **Subir diseños** de CC Tools. Despu
 
 Los sensores utilizan el registro persistente de entregas, incluso cuando los archivos locales ya se han limpiado. **Subidas hoy** cuenta diseños enviados, manuales o programados; no equivale a los puntos ni a la recompensa **Upload Models**, que depende de la aprobación de Creality. Sin envíos anteriores, la última subida aparece desconocida. Con la programación apagada, la próxima subida aparece desconocida.
 
-Para incorporar estas entidades a una instalación existente, actualiza primero CC Tools Dev y después la integración desde HACS, y reinicia Home Assistant. Conserva el hub existente para mantener sus entidades e historial.
+Para incorporar estas entidades a una instalación existente, actualiza primero CC Tools Dev y después la integración desde **Ajustes > Actualizaciones** o desde **Marketplace** (HACS en HA 2026.8–2026.10), y reinicia Home Assistant. Conserva el hub existente para mantener sus entidades e historial.
 
 ## Descubrir diseños
 
