@@ -1,6 +1,6 @@
 {
   "name": "cc-tools",
-  "version": "1.0.55",
+  "version": "1.0.56",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,7 +8,7 @@
     "dev": "node --watch src/server.js",
     "test": "node --test",
     "test:shop:browser": "node --test scripts/shopRedemption.browser.mjs",
-    "test:favorites:browser": "node --test scripts/favoriteEmpty.browser.mjs",
+    "test:favorites:browser": "node --test scripts/favoriteEmpty.browser.mjs scripts/favoriteProfile.browser.mjs",
     "test:incentives:browser": "node --test scripts/incentiveProgress.browser.mjs",
     "test:checkin:browser": "node --test scripts/checkinReminder.browser.mjs",
     "test:makenow:browser": "node --test scripts/makeNowProjects.browser.mjs",

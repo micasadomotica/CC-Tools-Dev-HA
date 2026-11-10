@@ -1514,7 +1514,9 @@ async function holdForAutomationHealth(config) {
       markAutomaticLoginAttempt(config, 'attempting', '', attemptAt);
       await writeConfig(config);
       try {
-        const automatic = await attemptRememberedSessionLogin();
+        const automatic = await attemptRememberedSessionLogin({
+          expectedUserId: config.crealityProfile?.userId || ''
+        });
         if (automatic.authenticated) {
           markAutomaticLoginAttempt(config, 'success', 'Sesión recordada restablecida.', attemptAt);
           resumeAfterAuthenticatedLogin(config, null, new Date(automatic.checkedAt || Date.now()));
@@ -1525,7 +1527,7 @@ async function holdForAutomationHealth(config) {
           config,
           automatic.reason === 'MANUAL_LOGIN_REQUIRED' ? 'manual_required' : 'skipped',
           automatic.reason === 'MANUAL_LOGIN_REQUIRED'
-            ? 'Creality Cloud requiere completar el inicio de sesión manualmente.'
+            ? automatic.message || 'Creality Cloud requiere completar el inicio de sesión manualmente.'
             : 'El navegador está siendo utilizado por otra operación.',
           attemptAt
         );
