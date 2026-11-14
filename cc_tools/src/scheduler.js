@@ -33,7 +33,7 @@ import {
   shopOrdersRefreshDue,
   shippedShopOrderTransitions
 } from './shopOrdersState.js';
-import { abortAutomationBrowser, verifyPersistedSession } from './browserManager.js';
+import { abortAutomationBrowser, browserManagerState, verifyPersistedSession } from './browserManager.js';
 import {
   pauseForExpiredSession,
   resumeAfterAuthenticatedLogin
@@ -44,6 +44,8 @@ import { withCookieDiagnostics } from './cookieDiagnostics.js';
 
 const TASK_IDS = ['creality', 'finishPrint', 'modelDownloads', 'comments', 'modelBoosts', 'modelLikes', 'modelCollections', 'makeNow', 'uploadDesigns'];
 const MIN_AUTOMATION_GAP_MINUTES = 10;
+const SECURITY_CHALLENGE_RECHECK_MS = 5 * 60 * 1000;
+let securityChallengeRecheckRunning = false;
 const SILENT_RETRY_MINUTES = 10;
 const DEFAULT_TASK_TIMEOUT_MS = 8 * 60 * 1000;
 
@@ -1553,6 +1555,41 @@ async function holdForAutomationHealth(config) {
     }
     return true;
   }
+  if (isSecurityChallengeCode(health.reasonCode)) {
+    if (securityChallengeRecheckRunning || browserChallengeState().active || browserManagerState().mode !== 'idle') return true;
+    const nextCheckAt = Date.parse(health.nextChallengeCheckAt || '');
+    if (Number.isFinite(nextCheckAt) && nextCheckAt > Date.now()) return true;
+    securityChallengeRecheckRunning = true;
+    try {
+      let verification = null, failure = null;
+      try { verification = await verifyPersistedSession(); }
+      catch (error) { failure = error; }
+      // Checking a session can wait for human intervention. Never overwrite a
+      // different pause, migration review or manual resume made during that wait.
+      const latest = await readConfig();
+      const currentHealth = latest.automationHealth || {};
+      if (latest.migrationReview?.required || currentHealth.state !== 'paused'
+        || currentHealth.reasonCode !== health.reasonCode || currentHealth.pausedAt !== health.pausedAt
+        || currentHealth.lastIncidentAt !== health.lastIncidentAt) return true;
+      const checkedAt = new Date();
+      if (failure?.code === 'LOGIN_REQUIRED') {
+        pauseForExpiredSession(latest, health.pauseTaskId || '', failure.diagnostic || failure, checkedAt);
+      } else if (verification?.authenticated === true) {
+        latest.crealitySession = { ...(latest.crealitySession || {}), authenticated: true,
+          checkedAt: checkedAt.toISOString(), reason: '' };
+        latest.automationHealth = { ...currentHealth, state: 'active', reasonCode: '', reason: '',
+          pausedAt: '', pausedUntil: '', pauseSource: '', pauseTaskId: '',
+          lastRecoveredAt: checkedAt.toISOString(), lastChallengeCheckAt: checkedAt.toISOString(), nextChallengeCheckAt: '' };
+      } else {
+        latest.automationHealth = { ...currentHealth, lastChallengeCheckAt: checkedAt.toISOString(),
+          nextChallengeCheckAt: new Date(checkedAt.getTime() + SECURITY_CHALLENGE_RECHECK_MS).toISOString() };
+      }
+      await writeConfig(latest);
+      config.automationHealth = latest.automationHealth;
+      config.crealitySession = latest.crealitySession;
+      return latest.automationHealth.state !== 'active';
+    } finally { securityChallengeRecheckRunning = false; }
+  }
   const pausedUntil = Date.parse(health.pausedUntil || '');
   if (health.reasonCode === 'CREALITY_SERVICE_UNAVAILABLE'
     && Number.isFinite(pausedUntil)
@@ -1563,7 +1600,8 @@ async function holdForAutomationHealth(config) {
       pausedAt: '',
       pausedUntil: '',
       pauseSource: '',
-      pauseTaskId: ''
+      pauseTaskId: '',
+      nextChallengeCheckAt: ''
     };
     await writeConfig(config);
     return false;
@@ -1577,7 +1615,8 @@ async function holdForAutomationHealth(config) {
       pausedAt: '',
       pausedUntil: '',
       pauseSource: '',
-      pauseTaskId: ''
+      pauseTaskId: '',
+      nextChallengeCheckAt: ''
     };
     await writeConfig(config);
     return false;
@@ -1604,7 +1643,8 @@ export function updateAutomationHealth(config, taskId, status, result = {}) {
       pauseTaskId: '',
       serviceFailureCount: 0,
       serviceFailureAt: '',
-      serviceUnavailableNotified: false
+      serviceUnavailableNotified: false,
+      nextChallengeCheckAt: ''
     };
     return recovered ? { recovered: true } : { serviceRecovered: true };
   }
@@ -1618,6 +1658,7 @@ export function updateAutomationHealth(config, taskId, status, result = {}) {
       : 0;
     const rewardCooldownCount = rewardCooldown ? previousRewardCount + 1 : previousRewardCount;
     const loginRequired = incident.code === 'LOGIN_REQUIRED';
+    const securityChallenge = isSecurityChallengeCode(incident.code);
     if (loginRequired) pauseForExpiredSession(config, taskId, incident, now);
     const durationMs = incidentPauseMilliseconds(incident, now);
     const pauseSource = ['RATE_LIMITED', 'RATE_LIMIT_CONFIRMED'].includes(incident.code)
@@ -1635,7 +1676,9 @@ export function updateAutomationHealth(config, taskId, status, result = {}) {
       rewardCooldownDate: rewardCooldown ? rewardCooldownDate : health.rewardCooldownDate || '',
       rewardCooldownCount,
       pauseSource: loginRequired ? 'session' : pauseSource,
-      pauseTaskId: taskId
+      pauseTaskId: taskId,
+      lastChallengeCheckAt: securityChallenge ? '' : health.lastChallengeCheckAt || '',
+      nextChallengeCheckAt: securityChallenge ? new Date(now.getTime() + SECURITY_CHALLENGE_RECHECK_MS).toISOString() : ''
     };
     return {
       paused: !wasPaused || health.reasonCode !== incident.code,
@@ -1671,7 +1714,8 @@ export function updateAutomationHealth(config, taskId, status, result = {}) {
       rewardCooldownDate: rewardRecovered ? '' : health.rewardCooldownDate || '',
       rewardCooldownCount: rewardRecovered ? 0 : Math.max(0, Number(health.rewardCooldownCount) || 0),
       pauseSource: '',
-      pauseTaskId: ''
+      pauseTaskId: '',
+      nextChallengeCheckAt: ''
     };
     return { recovered: true };
   }
@@ -1691,6 +1735,11 @@ export function isGlobalBlockingIncident(incident = {}) {
     'SECURITY_CHALLENGE_CLOUDFLARE',
     'CAPTCHA_REQUIRED'
   ]).has(code);
+}
+
+function isSecurityChallengeCode(value = '') {
+  return ['SECURITY_CHALLENGE', 'SECURITY_CHALLENGE_TIMEOUT', 'SECURITY_CHALLENGE_DATADOME',
+    'SECURITY_CHALLENGE_CLOUDFLARE', 'CAPTCHA_REQUIRED'].includes(String(value));
 }
 
 export function transientCrealityServiceFailure(error) {

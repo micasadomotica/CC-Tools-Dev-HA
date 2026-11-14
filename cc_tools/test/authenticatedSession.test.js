@@ -10,6 +10,7 @@ const authenticated = { code: 0, result: { profileUserInfo: { base: { userId: 't
 function sessionPage({ payload = authenticated, status = 200, missingResponse = false, invalidJson = false, navigationError = null, body = '', login = false } = {}) {
   let url = 'about:blank';
   return {
+    on() {}, off() {},
     url: () => url,
     title: async () => 'Creality Cloud',
     frames: () => [],

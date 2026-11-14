@@ -94,12 +94,14 @@ export async function inspectCrealityPage(page, observer, options = {}) {
     || frameUrls.some((frameUrl) => ACTIVE_SECURITY_FRAME_RE.test(frameUrl));
   const rateLimit = responses.find((entry) => entry.status === 429);
   const challengeResponse = responses.find((entry) => entry.challenge);
+  const challengeProvider = challengeResponse?.challengeProvider
+    || securityChallengeProvider({ url, headers: challengeResponse?.headers || {} });
   const modelReviewFailure = responses.find(isModelReviewFailureResponse);
 
   const liveChallenge = securityLocation || visibleSecurityChallenge || hasStandaloneSecurityText(title, bodyText);
   if (challengeResponse || liveChallenge) {
     const challenge = diagnostic('SECURITY_CHALLENGE', 'security', true,
-      'Creality Cloud ha mostrado una verificación de seguridad.', { url, title, responses, frameUrls });
+      'Creality Cloud ha mostrado una verificación de seguridad.', { url, title, responses, frameUrls, challengeProvider });
     if (liveChallenge && options.handleChallenge !== false
       && await resolveBrowserChallenge(page, challenge)) {
       return inspectCrealityPage(page, observer, { ...options, handleChallenge: false });
@@ -291,6 +293,7 @@ async function captureResponse(response, meta) {
     'retry-after',
     'cf-mitigated',
     'cf-ray',
+    'server',
     'x-dd-b',
     'x-datadome',
     'x-datadomeresponse',
@@ -315,13 +318,18 @@ async function captureResponse(response, meta) {
     headers,
     challenge: isSecurityChallengeResponse({ status, url, resourceType, headers })
   };
+  if (entry.challenge) entry.challengeProvider = securityChallengeProvider({ url, headers });
   if (method !== 'GET') {
     entry.requestBody = redactPayload(request.postData() || '');
   }
   const contentType = String(headers['content-type'] || '').toLowerCase();
-  if (['fetch', 'xhr'].includes(resourceType) && /json|text|javascript/.test(contentType)) {
+  if (['fetch', 'xhr'].includes(resourceType) && /json|text|javascript|html/.test(contentType)) {
     const body = await response.text().catch(() => '');
-    entry.body = redactPayload(body);
+    // Challenge HTML can embed opaque tokens in scripts, URLs and attributes.
+    // Keep its type/provider/headers, but never copy that HTML into exported logs.
+    entry.body = entry.challenge && /html/.test(contentType)
+      ? '[HTML de verificación de seguridad omitido; consultar proveedor y cabeceras.]'
+      : redactPayload(body);
   }
   if (status < 400 && !entry.challenge && !traceableRequest) return null;
   return entry;
@@ -351,13 +359,27 @@ function redactPayload(value) {
 }
 
 export function isSecurityChallengeResponse({ status, url, resourceType, headers = {} }) {
-  if (headers['cf-mitigated'] === 'challenge') return true;
+  headers = lowerCaseHeaders(headers);
+  if (String(headers['cf-mitigated'] || '').toLowerCase() === 'challenge') return true;
   if (headers['x-dd-b']) return true;
   if (headers['x-datadomeresponse'] && String(headers['x-datadomeresponse']) !== '200') return true;
   const trafficRule = String(headers['x-datadome-traffic-rule-response'] || '').toLowerCase();
   if (['block', 'hard_block', 'interstitial'].includes(trafficRule)) return true;
   if (resourceType === 'document' && SECURITY_URL_RE.test(url)) return true;
   return status === 403 && ACTIVE_SECURITY_FRAME_RE.test(url);
+}
+
+export function securityChallengeProvider({ url = '', headers = {} } = {}) {
+  headers = lowerCaseHeaders(headers);
+  if (String(headers['cf-mitigated'] || '').toLowerCase() === 'challenge'
+    || /cloudflare|challenge-platform|cf-challenge/i.test(String(url))) return 'cloudflare';
+  if (headers['x-dd-b'] || headers['x-datadomeresponse'] || headers['x-datadome-traffic-rule-response']
+    || /datadome|captcha-delivery\.com/i.test(String(url))) return 'datadome';
+  return '';
+}
+
+function lowerCaseHeaders(headers = {}) {
+  return Object.fromEntries(Object.entries(headers || {}).map(([name, value]) => [name.toLowerCase(), value]));
 }
 
 export function isModelReviewFailureResponse(response = {}) {

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.62 — integración de TitoTB 1.0.45
+
+- Integra las mejoras de [TitoTB 1.0.45](https://github.com/TitoTB/CC-Tools-HA/commit/d2e9246850e4beacf6319b646d902602410bc318): observación de las respuestas API durante la comprobación de sesión, identificación del proveedor y revisión cada cinco minutos de las pausas por verificación de seguridad.
+- Da prioridad a un desafío confirmado sobre HTTP 429 y evita interpretar una respuesta de verificación HTTP 200 como acción aceptada. Una respuesta API de Cloudflare tampoco se interpreta como sesión caducada por devolver 403.
+- Reanuda las automatizaciones solo con un perfil autenticado confirmado. Conserva la pausa ante comprobaciones inconclusas, respeta el navegador ocupado y evita comprobaciones simultáneas o sobrescribir cambios de estado realizados durante la espera.
+- Conserva la detección visual de Dev, el aviso inmediato, la espera de intervención de hasta 15 minutos, la cancelación y la reutilización del proceso y contexto de Chromium entre módulos. No automatiza la casilla de verificación.
+- Añade el proveedor, cf-ray y el tipo de contenido al diagnóstico de respuestas interceptadas. Omite el HTML de los desafíos para evitar registrar tokens incrustados. Mantiene los diagnósticos de cookies sin valores y el registro persistente del ciclo de vida de Chromium.
+- Amplía las pruebas de respuestas API 200/403/429, pausas y recuperación, intervención manual, cancelación, tiempo límite y reutilización del navegador. Basta con actualizar desde 1.0.61, sin migración.
+
 ## 1.0.61 — diagnóstico de aperturas y cierres de Chromium
 
 - Identifica aperturas, reutilización y sustitución de contextos, cierres manuales, cancelaciones, límites de tiempo, cambios de opciones y recuperación de páginas de descarga cerradas. Enlaza el contexto anterior y el nuevo sin registrar valores de opciones.

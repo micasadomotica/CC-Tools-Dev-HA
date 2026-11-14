@@ -28,7 +28,7 @@ catálogos de diseños y la configuración no se comparten entre las dos aplicac
 
 ## Instalar y actualizar Dev
 
-Añade `https://github.com/micasadomotica/CC-Tools-Dev-HA` en los repositorios de la tienda de Apps e instala **CC Tools Dev**. La versión **1.0.61** conserva Chromium entre módulos y pide intervención al detectar una verificación, sin esperar 40 segundos. Mantiene la corrección del historial de comentarios de 1.0.58. El aviso de datos migrados enlaza a **Logs**, donde puedes pulsar **Reanudar automatizaciones** después de revisar el perfil, las programaciones y las entregas. Conserva las funciones de Dev y el dispositivo Creality Cloud Models. Desde 1.0.50 basta con actualizar la app; no hace falta volver a migrar. Actualizar no activa ninguna migración. La app se construye en tu equipo y utiliza el puerto externo **8088**.
+Añade `https://github.com/micasadomotica/CC-Tools-Dev-HA` en los repositorios de la tienda de Apps e instala **CC Tools Dev**. La versión **1.0.62** conserva Chromium entre módulos y pide intervención al detectar una verificación, sin esperar 40 segundos. Mantiene la corrección del historial de comentarios de 1.0.58. El aviso de datos migrados enlaza a **Logs**, donde puedes pulsar **Reanudar automatizaciones** después de revisar el perfil, las programaciones y las entregas. Conserva las funciones de Dev y el dispositivo Creality Cloud Models. Desde 1.0.50 basta con actualizar la app; no hace falta volver a migrar. Actualizar no activa ninguna migración. La app se construye en tu equipo y utiliza el puerto externo **8088**.
 
 Para las siguientes versiones, utiliza **Actualizar** desde Home Assistant. Crea antes una copia de seguridad y espera a que terminen las tareas en curso. No necesitas descargar ZIP.
 
@@ -116,6 +116,10 @@ Si Cloudflare muestra una verificación durante una navegación, CC Tools Dev co
 **Cancelar espera** detiene la operación. Si no se completa en 15 minutos, se registra el fallo y se libera el navegador. El tiempo de espera no consume el límite normal de la tarea. Las operaciones ya enviadas no se vuelven a ejecutar desde el principio. La aceptación depende de Cloudflare y puede requerir revisar la conexión o contactar con Creality.
 
 En **Ajustes > Sesión**, **Abrir navegador** muestra la ventana existente o inicia una si está cerrada. **Cerrar navegador** guarda y comprueba la sesión, y solo está disponible cuando no hay una verificación pendiente.
+
+Desde 1.0.62 se reconocen también las verificaciones en llamadas API, aunque la página visible parezca normal o la respuesta tenga código 200, 403 o 429. El diagnóstico identifica el proveedor cuando hay evidencia y conserva cabeceras técnicas seleccionadas. El HTML del desafío se omite para no guardar tokens incrustados.
+
+Si las automatizaciones quedan pausadas por una verificación, se comprueba la sesión cada cinco minutos cuando el navegador está libre. Solo se reanudan al confirmar el perfil autenticado; una respuesta inconclusa mantiene la pausa. Esta comprobación también puede requerir intervención manual. No repite automáticamente una acción ya enviada ni interrumpe una verificación o sesión interactiva en curso.
 
 ## Reutilización del navegador y verificaciones
 

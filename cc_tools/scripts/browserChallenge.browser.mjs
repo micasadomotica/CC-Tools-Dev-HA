@@ -5,7 +5,7 @@ import { chromium } from 'playwright';
 import { installChallengeHandling, browserChallengeState, challengeEvents, challengeClock } from '../src/browserChallenge.js';
 import { inspectCrealityPage, observeCrealityPage } from '../src/crealityDiagnostics.js';
 import { executeWithTimeout } from '../src/scheduler.js';
-import { withIsolatedBrowser } from '../src/browserManager.js';
+import { withIsolatedBrowser, assertAuthenticatedSession } from '../src/browserManager.js';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import { captureCommentFeed } from '../src/commentFeed.js';
@@ -39,6 +39,31 @@ async function manualSignal() {
     if (state.phase === 'manual') return state;
   }
 }
+
+test('la comprobación de sesión conserva la intervención y libera sus observadores', async t => {
+  const { page, context, state } = await fixture(t, { manualAfterMs: 0, timeoutMs: 10000 });
+  const before = ['request', 'response', 'requestfailed'].map(event => page.listenerCount(event));
+  const manual = manualSignal();
+  const task = assertAuthenticatedSession(context, page);
+  await manual;
+  assert.equal(browserChallengeState().active, true);
+  state.solved = true;
+  await page.getByRole('button', { name: 'Resolver prueba local' }).click();
+  assert.equal((await task).allowTask, true);
+  assert.equal(page.context(), context);
+  assert.equal(browserChallengeState().active, false);
+  assert.deepEqual(['request', 'response', 'requestfailed'].map(event => page.listenerCount(event)), before);
+});
+
+test('el vencimiento durante la comprobación de sesión no abre otra espera', async t => {
+  const { page, context } = await fixture(t, { manualAfterMs: 0, timeoutMs: 400 });
+  let notices = 0;
+  const count = state => { if (state.active && state.phase === 'manual') notices++; };
+  challengeEvents.on('change', count); t.after(() => challengeEvents.off('change', count));
+  await assert.rejects(assertAuthenticatedSession(context, page), { code: 'SECURITY_CHALLENGE_TIMEOUT' });
+  assert.equal(notices, 1);
+  assert.equal(browserChallengeState().active, false);
+});
 
 test('mantiene ventana y perfil, espera la intervención y continúa una sola vez', async t => {
   const { page, context, state } = await fixture(t, { manualAfterMs: 0 });

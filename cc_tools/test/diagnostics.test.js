@@ -7,7 +7,8 @@ import {
   isCrealityLoginUrl,
   isModelReviewFailureResponse,
   isSecurityChallengeResponse,
-  normalizeCaughtError
+  normalizeCaughtError,
+  securityChallengeProvider
 } from '../src/crealityDiagnostics.js';
 
 test('reconoce el centro de cuentas como cierre de sesión', () => {
@@ -191,6 +192,20 @@ test('una respuesta explícita de bloqueo de DataDome se registra como desafío'
   });
   assert.equal(challenge, true);
 });
+
+for (const status of [200, 403, 429]) {
+  test(`identifica Cloudflare en API HTTP ${status} con cabeceras de distinta capitalización`, async () => {
+    const response = { status, url: 'https://www.crealitycloud.com/api/model/action', resourceType: 'fetch',
+      headers: { 'CF-Mitigated': 'Challenge', 'content-type': 'text/html' } };
+    response.challenge = isSecurityChallengeResponse(response);
+    response.challengeProvider = securityChallengeProvider(response);
+    assert.equal(response.challenge, true);
+    const page = fakePage({ url: 'https://www.crealitycloud.com/es/test', title: 'Creality Cloud', body: 'Contenido de la ficha cargada.' });
+    const diagnostic = await inspectCrealityPage(page, { snapshot: async () => [response] });
+    assert.equal(diagnostic.code, 'SECURITY_CHALLENGE');
+    assert.equal(diagnostic.challengeProvider, 'cloudflare');
+  });
+}
 
 test('una ficha normal no falla aunque el observador haya visto el script de Cloudflare', async () => {
   const page = fakePage({

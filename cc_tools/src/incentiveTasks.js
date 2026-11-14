@@ -205,7 +205,7 @@ export function analyzeActionTrace(trace = {}, actionKey = '', pageDiagnostic = 
   const retryAfter = rateLimited?.headers?.['retry-after'] || pageDiagnostic?.retryAfter || '';
   return {
     observed: relevant.length > 0,
-    accepted: relevant.some((entry) => entry.status >= 200 && entry.status < 400 && !indicatesBusinessFailure(entry.body)),
+    accepted: relevant.some((entry) => entry.status >= 200 && entry.status < 400 && !entry.challenge && !indicatesBusinessFailure(entry.body)),
     rejected: rejected.length > 0,
     code: classification.code,
     message: classification.message,
@@ -426,15 +426,8 @@ function indicatesBusinessFailure(body) {
 }
 
 function classifyTrace({ relevant, relevantFailures, rejected, rateLimited, challenge, pageDiagnostic }) {
-  if (rateLimited || pageDiagnostic?.code === 'RATE_LIMITED') {
-    return {
-      code: 'RATE_LIMIT_CONFIRMED',
-      message: 'Creality Cloud confirmó un límite temporal para esta acción.',
-      systemic: true
-    };
-  }
   if (pageDiagnostic?.code === 'SECURITY_CHALLENGE' || challenge) {
-    const evidence = `${pageDiagnostic?.url || ''} ${(pageDiagnostic?.frameUrls || []).join(' ')} ${challenge?.url || ''}`;
+    const evidence = `${pageDiagnostic?.challengeProvider || ''} ${challenge?.challengeProvider || ''} ${pageDiagnostic?.url || ''} ${(pageDiagnostic?.frameUrls || []).join(' ')} ${challenge?.url || ''} ${challenge?.headers?.['cf-mitigated'] || ''}`;
     if (/datadome|captcha-delivery/i.test(evidence)) {
       return { code: 'SECURITY_CHALLENGE_DATADOME', message: 'DataDome solicitó una verificación de seguridad.', systemic: true };
     }
@@ -442,6 +435,13 @@ function classifyTrace({ relevant, relevantFailures, rejected, rateLimited, chal
       return { code: 'SECURITY_CHALLENGE_CLOUDFLARE', message: 'Cloudflare solicitó una verificación de seguridad.', systemic: true };
     }
     return { code: 'CAPTCHA_REQUIRED', message: 'Creality Cloud mostró una verificación que requiere intervención.', systemic: true };
+  }
+  if (rateLimited || pageDiagnostic?.code === 'RATE_LIMITED') {
+    return {
+      code: 'RATE_LIMIT_CONFIRMED',
+      message: 'Creality Cloud confirmó un límite temporal para esta acción.',
+      systemic: true
+    };
   }
   const abortedDownloadConfirmation = relevantFailures.find((entry) => (
     /\/3mfDownloadSuccess(?:\?|$)/i.test(entry.url || '')
