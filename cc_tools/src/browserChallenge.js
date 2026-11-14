@@ -4,6 +4,7 @@ import { sameNavigationTarget } from './crealityNavigation.js';
 const handlers = new WeakMap();
 const pending = new WeakMap();
 const completedAt = new WeakMap();
+const documents = new WeakMap();
 export const challengeEvents = new EventEmitter();
 export const CHALLENGE_TIMEOUT_MS = 15 * 60 * 1000;
 let current = null;
@@ -28,6 +29,15 @@ export function installChallengeHandling(context, options) {
   const attach = (page) => {
     if (handlers.has(page)) return;
     handlers.set(page, options);
+    page.on('response', response => {
+      const request = response.request();
+      if (request.resourceType() !== 'document' || request.frame() !== page.mainFrame()) return;
+      const responseHeaders = response.headers();
+      const headers = Object.fromEntries(['cf-mitigated', 'cf-ray', 'content-type', 'retry-after']
+        .filter(name => responseHeaders[name]).map(name => [name, responseHeaders[name]]));
+      documents.set(page, { status: response.status(), url: response.url(), resourceType: 'document',
+        startedAt: new Date().toISOString(), headers, challenge: headers['cf-mitigated'] === 'challenge' });
+    });
     for (const method of ['goto', 'reload']) {
       const original = page[method].bind(page);
       page[method] = async (...args) => {
@@ -87,7 +97,9 @@ async function waitForChallenge(page, diagnostic, target, options) {
       if (page.isClosed() || !options.enabled()) {
         throw challengeError('SECURITY_CHALLENGE_CANCELLED', 'La espera de verificación se ha cancelado.');
       }
-      const inspection = await options.inspect(page, null, { handleChallenge: false, requireBody: true });
+      const inspection = await options.inspect(page, {
+        snapshot: async () => documents.has(page) ? [documents.get(page)] : []
+      }, { handleChallenge: false, requireBody: true });
       if (!inspection && sameNavigationTarget(page.url(), target)) {
         const ready = await page.evaluate(() => document.readyState !== 'loading'
           && Boolean(document.body?.innerText.trim())).catch(() => false);
@@ -98,7 +110,7 @@ async function waitForChallenge(page, diagnostic, target, options) {
         }
       } else {
         stable = 0;
-        if (inspection?.code === 'LOGIN_REQUIRED') {
+        if (['LOGIN_REQUIRED', 'CREALITY_HTTP_ERROR', 'MODEL_NOT_FOUND'].includes(inspection?.code)) {
           const error = challengeError(inspection.code, inspection.message);
           error.diagnostic = inspection;
           throw error;

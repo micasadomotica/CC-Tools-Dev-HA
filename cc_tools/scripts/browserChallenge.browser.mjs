@@ -5,6 +5,7 @@ import { chromium } from 'playwright';
 import { installChallengeHandling, browserChallengeState, challengeEvents, challengeClock } from '../src/browserChallenge.js';
 import { inspectCrealityPage, observeCrealityPage } from '../src/crealityDiagnostics.js';
 import { executeWithTimeout } from '../src/scheduler.js';
+import { withIsolatedBrowser } from '../src/browserManager.js';
 
 const target = 'https://www.crealitycloud.com/es/model-detail/local-test';
 const readyHtml = '<title>Modelo de prueba | Creality Cloud</title><h1>Modelo de prueba</h1><p>Ficha disponible con archivos y descripción del modelo de prueba.</p>';
@@ -45,6 +46,7 @@ test('mantiene ventana y perfil, espera la intervención y continúa una sola ve
   assert.equal(actions, 0);
   assert.equal(page.isClosed(), false);
   assert.equal(browserChallengeState().active, true);
+  await assert.rejects(withIsolatedBrowser({}, () => assert.fail('No debe abrir otro navegador')), { code: 'BROWSER_BUSY' });
   assert.equal(notice.url, target);
   state.solved = true;
   await page.getByRole('button', { name: 'Resolver prueba local' }).click();
@@ -87,6 +89,21 @@ test('cerrar la pestaña cancela la espera sin ejecutar la acción', async t => 
   const task = assert.rejects(page.goto(target).then(() => { acted = true; }));
   await manual;
   await page.close();
+  await task;
+  assert.equal(acted, false);
+  assert.equal(browserChallengeState().active, false);
+});
+
+test('una página de error tras la verificación no reanuda la acción', async t => {
+  const { page, context } = await fixture(t);
+  const manual = manualSignal();
+  let acted = false;
+  const task = assert.rejects(page.goto(target).then(() => { acted = true; }), { code: 'CREALITY_HTTP_ERROR' });
+  await manual;
+  await context.unroute('**/*');
+  await context.route('**/*', route => route.fulfill({ status: 503, contentType: 'text/html',
+    body: '<title>Servicio no disponible</title><p>El servicio no puede atender la petición en este momento. Inténtalo más tarde.</p>' }));
+  await page.getByRole('button').click();
   await task;
   assert.equal(acted, false);
   assert.equal(browserChallengeState().active, false);
