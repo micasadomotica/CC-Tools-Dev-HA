@@ -37,6 +37,7 @@ function harness({ mode = '', authenticated = false, userId = '', accounts, expi
     }, close: async () => { calls.closed++; } };
   const context = vm.createContext({ process, URL, calls, fixtureContext, initialMode: mode,
     recordCookieDiagnostics: async () => {},
+    bindBrowserDiagnostics: () => {}, recordBrowserLifecycle: () => {},
     installChallengeHandling: () => {}, browserChallengeState: () => ({ active: false }),
     inspectCrealityPage: async () => null,
     normalizeCaughtError: error => error,

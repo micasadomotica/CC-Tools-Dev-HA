@@ -1388,7 +1388,8 @@ async function loadLogs(page = 1) {
     pageSize: result.pageSize || state.logs.pageSize,
     total: result.total || 0,
     totalPages: result.totalPages || 1,
-    items: result.items || []
+    items: result.items || [],
+    browserDiagnostics: result.browserDiagnostics || null
   };
   renderRuns();
 }
@@ -3515,11 +3516,15 @@ function renderRuns() {
   fields.logsPage.textContent = `Página ${state.logs.page} de ${state.logs.totalPages}`;
   fields.logsPrev.disabled = state.logs.page <= 1;
   fields.logsNext.disabled = state.logs.page >= state.logs.totalPages;
-  fields.downloadVisibleLogs.disabled = !state.logs.items.length;
+  const browserDiagnostics = state.logs.browserDiagnostics;
+  if (browserDiagnostics?.events?.length) {
+    fields.runs.insertAdjacentHTML('beforeend', `<div class="diagnostic-list"><section class="diagnostic-entry"><details class="browser-lifecycle-diagnostics"><summary>Actividad de Chromium · registro global reciente</summary><p>Incluye aperturas, cierres y cambios entre tareas, independientemente de la página del historial. Conserva los últimos ${escapeHtml(String(browserDiagnostics.limit))} eventos sin valores de cookies.</p><pre>${escapeHtml(JSON.stringify(browserDiagnostics, null, 2))}</pre></details></section></div>`);
+  }
+  fields.downloadVisibleLogs.disabled = !state.logs.items.length && !browserDiagnostics?.events?.length;
 }
 
 function downloadVisibleLogs() {
-  if (!state.logs.items.length) return;
+  if (!state.logs.items.length && !state.logs.browserDiagnostics?.events?.length) return;
   const exportedAt = new Date();
   const lines = [
     'CC Tools - Logs',
@@ -3541,6 +3546,10 @@ function downloadVisibleLogs() {
     lines.push('');
   }
 
+  if (state.logs.browserDiagnostics?.events?.length) {
+    lines.push('', 'Actividad de Chromium · registro global reciente (independiente de la página):',
+      JSON.stringify(state.logs.browserDiagnostics, null, 2));
+  }
   const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');

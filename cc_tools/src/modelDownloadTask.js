@@ -1338,7 +1338,7 @@ async function ensureAutomationPage(page, observer, batchDir) {
   observer?.stop();
   const context = await restartAutomationBrowser({
     acceptDownloads: true
-  });
+  }, 'download_page_closed');
   const replacement = context.pages()[0] || await context.newPage();
   return {
     page: replacement,

@@ -67,7 +67,7 @@ async function sync(config, options) {
   let tasks = {};
   let progressError = null;
   try {
-    await withAutomationBrowser({}, async context => {
+    await withAutomationBrowser({ diagnosticSource: 'progress_sync' }, async context => {
       const page = context.pages()[0] || await context.newPage();
       const observer = observeCrealityPage(page, 'rewardSync');
       try {

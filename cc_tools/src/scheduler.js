@@ -128,7 +128,7 @@ async function runTaskWithCookieDiagnostics(taskId, source, options) {
         onTimeout: () => {
           if (runToken !== activeRunToken) return;
           executionAbort.abort(new Error('Tiempo de ejecución agotado.'));
-          return abortAutomationBrowser();
+          return abortAutomationBrowser('task_timeout');
         }
       }
     );
@@ -425,7 +425,7 @@ export async function cancelRunningTask(reason = 'manual', timeoutMs = 10000) {
     requestedAt: new Date().toISOString()
   };
   runningAbortController?.abort(new Error('Ejecución cancelada.'));
-  await abortAutomationBrowser();
+  await abortAutomationBrowser('task_cancelled');
 
   const deadline = Date.now() + Math.max(1000, Number(timeoutMs) || 10000);
   while (running && Date.now() < deadline) {
@@ -875,7 +875,7 @@ async function executeMaintenanceWithTimeout(operation, options) {
     onTimeout: () => {
       if (runToken !== activeRunToken) return;
       controller.abort(new Error('Tiempo de ejecución agotado.'));
-      return abortAutomationBrowser();
+      return abortAutomationBrowser('maintenance_timeout');
     }
   });
   controller.signal.throwIfAborted();
@@ -945,7 +945,7 @@ async function recoverExpiredSchedulerRun(now = new Date()) {
     : 0;
   console.warn(`[scheduler] Liberando ejecución bloqueada: ${taskDisplayName(staleTask)} · ${elapsedSeconds} s`);
   runningAbortController?.abort(new Error('Tiempo de ejecución agotado.'));
-  await abortAutomationBrowser().catch((error) => {
+  await abortAutomationBrowser('stale_task_timeout').catch((error) => {
     console.error('[scheduler] No se pudo cerrar Chromium al liberar la ejecución bloqueada:', error?.message || String(error));
   });
 
