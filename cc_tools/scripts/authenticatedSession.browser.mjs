@@ -14,6 +14,11 @@ const cases = [
   { name: 'token inválido', payload: { code: 4, msg: 'Invalid Token' }, code: 'LOGIN_REQUIRED' },
   { name: 'verificación de seguridad con perfil positivo', payload: authenticated, html: '<h1>Verify you are human</h1>', code: 'SECURITY_CHALLENGE' }
 ];
+for (const status of [200, 403, 429]) {
+  cases.push({ name: `desafío API HTTP ${status} con página normal`, status,
+    headers: { 'CF-Mitigated': 'challenge', 'CF-Ray': 'fixture-ray' }, contentType: 'text/html',
+    raw: '<html><script>const token="PRIVATE_HTML_SENTINEL";</script>Un momento…</html>', code: 'SECURITY_CHALLENGE' });
+}
 for (const tag of ['span', 'button', 'a']) {
   for (const label of ['Log In', 'Iniciar sesión']) {
     cases.push({ name: `segundo ${tag} visible: ${label}`, payload: authenticated,
@@ -32,7 +37,7 @@ test('comprueba la sesión con páginas y respuestas de navegador controladas', 
           await context.route('**/*', route => {
             if (route.request().url().includes('/api/cxy/v3/user/getInfo')) {
               if (scenario.noResponse) return route.abort();
-              return route.fulfill({ status: scenario.status || 200, contentType: 'application/json',
+              return route.fulfill({ status: scenario.status || 200, contentType: scenario.contentType || 'application/json', headers: scenario.headers || {},
                 body: scenario.raw || JSON.stringify(scenario.payload) });
             }
             if (route.request().resourceType() !== 'document') return route.abort();
@@ -43,6 +48,11 @@ test('comprueba la sesión con páginas y respuestas de navegador controladas', 
           if (scenario.code) {
             await assert.rejects(assertAuthenticatedSession(context), error => {
               assert.equal(error.code, scenario.code);
+              if (scenario.headers) {
+                assert.equal(error.diagnostic.challengeProvider, 'cloudflare');
+                assert.equal(JSON.stringify(error.diagnostic).includes('PRIVATE_HTML_SENTINEL'), false);
+                assert.ok(error.diagnostic.responses.some(r => r.headers['cf-ray'] === 'fixture-ray'));
+              }
               if (scenario.code === 'SESSION_CHECK_UNAVAILABLE') {
                 assert.equal(error.silentRetry, true);
                 assert.equal(error.systemic, false);

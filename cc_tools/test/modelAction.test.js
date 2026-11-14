@@ -332,3 +332,14 @@ function progress(done, valid) {
     completed: valid > 0 && done >= valid
   };
 }
+
+for (const status of [200, 403, 429]) {
+  test('un desafío API HTTP ' + status + ' no se acepta ni se convierte en cooldown', () => {
+    const result = analyzeActionResponses([{ status, method: 'POST', resourceType: 'fetch',
+      url: 'https://www.crealitycloud.com/api/model/like', challenge: true, challengeProvider: 'cloudflare',
+      headers: { 'cf-mitigated': 'challenge', 'retry-after': '60' }, body: '<html>Challenge</html>' }], 'like_model');
+    assert.equal(result.code, 'SECURITY_CHALLENGE_CLOUDFLARE');
+    assert.equal(result.accepted, false);
+    assert.equal(result.cooldownConfirmed, false);
+  });
+}
