@@ -35,6 +35,8 @@ jobs:
         run: node scripts/migrationDocker.integration.mjs
       - name: Test authenticated session confirmation in browser
         run: npm run test:session:browser
+      - name: Test security verification handoff and continuation
+        run: npm run test:challenge:browser
       - name: Test check-in reminder in browser
         run: npm run test:checkin:browser
       - name: Test reward counters with the real task-card structure

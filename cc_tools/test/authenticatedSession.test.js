@@ -91,7 +91,7 @@ for (const [name, options, held] of [
     const original = structuredClone(config);
     const scheduler = vm.createContext({
       Date, console, resumeAfterAuthenticatedLogin,
-      automaticLoginDue: () => false,
+      attemptAutomaticSessionRecovery: async () => ({ attempted: false, recovered: false }),
       verifyPersistedSession: async () => {
         const check = await assertAuthenticatedSession({ pages: () => [sessionPage(options)] });
         return { authenticated: check.confirmAuthenticated };

@@ -2,7 +2,7 @@
 
 CC Tools Dev automatiza tareas de Creality Cloud desde Home Assistant. Es una edición independiente basada en [CC Tools de TitoTB](https://github.com/TitoTB/CC-Tools-HA) y en el trabajo de la comunidad de Aguacatec.
 
-**Versión 1.0.56**. Corrige la lectura de perfiles favoritos con el formato actual de Creality Cloud. Acepta la URL base y las pestañas `/model`, `/profile` y `/pinned-models`, y guarda siempre la URL base del perfil. Incorpora la recuperación de sesión de TitoTB 1.0.43: selecciona la cuenta recordada que coincide con el perfil configurado y comprueba su identidad antes de reanudar las automatizaciones. Mantiene las funciones de Dev, la conexión con **Creality Cloud Dev** y el dispositivo **Creality Cloud Models**.
+**Versión 1.0.57**. Cuando una navegación encuentra una verificación de seguridad, mantiene la misma ventana y el perfil de Chromium, espera y continúa al cargar la página de destino. Si hace falta intervenir, muestra un aviso con acceso al navegador y un botón para cancelar. La espera máxima es de 15 minutos y no consume el tiempo de ejecución de la tarea. Incorpora mejoras de TitoTB 1.0.44 en la recuperación de sesión y en la selección de modelos para boosts. Mantiene las funciones de Dev, la conexión con **Creality Cloud Dev** y el dispositivo **Creality Cloud Models**.
 
 [![Añadir repositorio a Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fmicasadomotica%2FCC-Tools-Dev-HA)
 

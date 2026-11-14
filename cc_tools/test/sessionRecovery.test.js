@@ -29,6 +29,8 @@ function harness({ mode = '', authenticated = false, userId = '', accounts, expi
   };
   const fixtureContext = { pages: () => [page], browser: () => null, once() {}, close: async () => { calls.closed++; } };
   const context = vm.createContext({ process, URL, calls, fixtureContext, initialMode: mode,
+    installChallengeHandling: () => {}, browserChallengeState: () => ({ active: false }),
+    inspectCrealityPage: async () => null,
     launchFixture: async () => { calls.launched++; return fixtureContext; },
     checkFixture: async () => ({ ...sessionCheckOutcome(authenticated ? 'authenticated' : 'unknown'), userId }),
     confirmAuthenticatedSession: async () => { calls.confirmed++; return { authenticated: true }; }
@@ -127,4 +129,20 @@ test('una automatización no cierra el navegador remoto ni ejecuta la tarea', as
   assert.equal(ran, 0);
   assert.deepEqual(h.calls, { confirmed: 0, closed: 0, launched: 0 });
   assert.equal(h.context.browserManagerState().mode, 'interactive');
+});
+
+test('la limpieza de una tarea cancelada no cierra el navegador abierto después', async () => {
+  const h = harness();
+  let finish, entered;
+  const gate = new Promise(resolve => { finish = resolve; });
+  const started = new Promise(resolve => { entered = resolve; });
+  const task = h.context.withAutomationBrowser({}, async () => { entered(); await gate; });
+  await started;
+  await h.context.abortAutomationBrowser();
+  await h.context.openInteractiveBrowser('https://www.crealitycloud.com/check-in');
+  finish();
+  await task;
+  assert.equal(h.calls.closed, 1);
+  assert.equal(h.context.browserManagerState().mode, 'interactive');
+  assert.equal(h.context.browserManagerState().active, true);
 });

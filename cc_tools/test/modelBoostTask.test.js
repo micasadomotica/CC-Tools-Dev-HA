@@ -32,14 +32,17 @@ test('excluye los diseños propios de los candidatos para boost', () => {
   assert.deepEqual(candidates.map((design) => design.id), ['external']);
 });
 
-test('prioriza los descargados sobre los favoritos que solo están indexados', () => {
+test('excluye los favoritos que solo están indexados aunque no se limite a favoritos', () => {
   const candidates = selectBoostCandidates([
     { id: 'favorite', favoriteActive: true, indexedOnly: true, url: 'https://example.test/favorite' },
     { id: 'downloaded', indexedOnly: false, url: 'https://example.test/downloaded' },
     { id: 'indexed', indexedOnly: true, url: 'https://example.test/indexed' }
   ], '', false);
 
-  assert.deepEqual(candidates.map((design) => design.id), ['downloaded', 'favorite']);
+  assert.deepEqual(candidates.map((design) => design.id), ['downloaded']);
+  assert.deepEqual(selectBoostCandidates([
+    { favoriteActive: true, indexedOnly: true, url: 'https://example.test/favorite' }
+  ]), []);
 });
 
 test('considera utilizado el boost aunque falle la verificación posterior', () => {
@@ -61,8 +64,8 @@ test('limita el boost diario tanto en ejecuciones manuales como programadas', ()
   assert.equal(shouldSkipBoostForDailyPreference(false, 'schedule'), false);
 });
 
-test('revisa todos los candidatos y conserva la prioridad después de un intento fallido', () => {
-  const designs = ['a', 'b', 'c', 'd'].map((id) => ({ id }));
+test('rota la prioridad en grupos de tres y conserva el resto de candidatos de Dev', () => {
+  const designs = ['a', 'b', 'c', 'd', 'e', 'f'].map((id) => ({ id }));
   const runs = [{
     taskId: 'modelBoosts',
     status: 'error',
@@ -72,7 +75,7 @@ test('revisa todos los candidatos y conserva la prioridad después de un intento
 
   assert.deepEqual(
     boostCandidatesForRun(designs, runs, 'Europe/Madrid', new Date('2026-10-18T10:00:00.000Z')).map((item) => item.id),
-    ['a', 'b', 'c', 'd']
+    ['d', 'e', 'f', 'a', 'b', 'c']
   );
 });
 

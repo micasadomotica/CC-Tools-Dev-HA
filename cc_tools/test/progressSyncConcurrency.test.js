@@ -18,6 +18,7 @@ function harness() {
   const config = { timezone:'Europe/Madrid', dailyProgress:{}, tasks:{creality:{retainDays:7}} };
   const context = vm.createContext({ Date, Promise, AbortController, setTimeout, clearTimeout, process, normalizeCaughtError, console:{log(){},error(){},warn(){}},
     assertMigrationReviewed,
+    challengeClock: () => 0, browserChallengeState: () => ({ active: false }),
     readConfig:async()=> { if(state.deferConfig) await configGate.promise; return config; },
     writeConfig:async()=> { state.writes++; if(state.failWrite) throw new Error('storage unavailable'); },
     readRuns:async()=>[], appendRun:async run=>state.runs.push(run),

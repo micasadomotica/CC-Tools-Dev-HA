@@ -15,6 +15,7 @@ function harness() {
   const pending = () => new Promise(() => {});
   const operation = () => { state.launches++; return pending(); };
   const context = vm.createContext({ Date, Error, Promise, AbortController, setTimeout, clearTimeout, process,
+    challengeClock: () => 0, browserChallengeState: () => ({ active: false }),
     console: { log() {}, warn() {}, error() {} }, normalizeCaughtError, countTodayComments, buildCommentKindPlan,
     isFinishPrintStartRun, markShopOrdersRefreshError,
     pauseProgressSync: () => { state.reservations++; return () => { state.reservations--; }; },

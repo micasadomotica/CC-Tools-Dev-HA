@@ -1075,6 +1075,36 @@ $('#open-login').addEventListener('click', async () => {
   await openCrealityViewer();
 });
 
+$('#novnc-link').addEventListener('click', async event => {
+  event.preventDefault();
+  await openCrealityViewer({ preserve: true });
+});
+$('#security-challenge-open')?.addEventListener('click', () => openCrealityViewer({ preserve: true }));
+$('#security-challenge-cancel')?.addEventListener('click', async () => {
+  const result = await api('/api/browser/challenge/cancel', { method: 'POST' });
+  toast(result.ok ? 'Espera cancelada.' : result.error);
+  await pollBrowserChallenge();
+});
+
+let challengePollBusy = false;
+async function pollBrowserChallenge() {
+  if (challengePollBusy) return;
+  challengePollBusy = true;
+  try {
+    const result = await api('/api/browser/status');
+    if (!result.ok) return;
+    const challenge = result.browser?.challenge;
+    const banner = $('#security-challenge-banner');
+    if (!banner) return;
+    banner.hidden = !challenge?.active;
+    $('#security-challenge-message').textContent = challenge?.message || '';
+    $('#close-login').disabled = Boolean(challenge?.active);
+  } catch { /* Preserve the last state while the server reconnects. */ }
+  finally { challengePollBusy = false; }
+}
+setInterval(pollBrowserChallenge, 2000);
+pollBrowserChallenge();
+
 $('#close-login').addEventListener('click', async () => {
   const result = await api('/api/tasks/creality/login/close', { method: 'POST' });
   toast(result.ok ? result.result.message : (result.message || result.error));
@@ -2632,7 +2662,7 @@ async function runWithProgress({ title, steps, activeMessage, endpoint, body, af
   if (result.ok && after) await after();
 }
 
-async function openCrealityViewer() {
+async function openCrealityViewer({ preserve = false } = {}) {
   const viewer = window.open('about:blank', '_blank');
   if (!viewer) {
     toast('El navegador ha bloqueado la ventana emergente. Permite popups para abrir el visor remoto.');
@@ -2645,7 +2675,7 @@ async function openCrealityViewer() {
     cache: 'no-store',
     credentials: 'same-origin'
   }).catch(() => null);
-  const result = await api('/api/tasks/creality/login/open', { method: 'POST' });
+  const result = await api(preserve ? '/api/browser/open' : '/api/tasks/creality/login/open', { method: 'POST' });
   if (result.ok) {
     await viewerWarmup;
     viewer.location.href = result.url;

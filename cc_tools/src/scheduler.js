@@ -33,13 +33,13 @@ import {
   shopOrdersRefreshDue,
   shippedShopOrderTransitions
 } from './shopOrdersState.js';
-import { abortAutomationBrowser, attemptRememberedSessionLogin, verifyPersistedSession } from './browserManager.js';
+import { abortAutomationBrowser, verifyPersistedSession } from './browserManager.js';
 import {
-  automaticLoginDue,
-  markAutomaticLoginAttempt,
   pauseForExpiredSession,
   resumeAfterAuthenticatedLogin
 } from './sessionHealth.js';
+import { attemptAutomaticSessionRecovery, sessionClosedNotification } from './sessionRecovery.js';
+import { challengeClock, browserChallengeState } from './browserChallenge.js';
 
 const TASK_IDS = ['creality', 'finishPrint', 'modelDownloads', 'comments', 'modelBoosts', 'modelLikes', 'modelCollections', 'makeNow', 'uploadDesigns'];
 const MIN_AUTOMATION_GAP_MINUTES = 10;
@@ -51,6 +51,7 @@ let runningTask = '';
 let runningSource = '';
 let runningStartedAt = '';
 let runningTimeoutAt = '';
+let runningChallengeClock = 0;
 let cancellationRequest = null;
 let runningAbortController = null;
 let runningReleaseProgressSync = null;
@@ -404,8 +405,9 @@ export function schedulerState() {
     runningTask,
     runningSource,
     startedAt: runningStartedAt,
-    timeoutAt: runningTimeoutAt,
-    stale: isSchedulerRunExpired({ running, startedAt: runningStartedAt, timeoutAt: runningTimeoutAt })
+    timeoutAt: effectiveRunTimeoutAt(),
+    waitingForVerification: browserChallengeState().active,
+    stale: isSchedulerRunExpired({ running, startedAt: runningStartedAt, timeoutAt: effectiveRunTimeoutAt() })
   };
 }
 
@@ -429,9 +431,16 @@ export async function cancelRunningTask(reason = 'manual', timeoutMs = 10000) {
 
 export function executeWithTimeout(operation, options = {}) {
   const timeoutMs = Math.max(1, Number(options.timeoutMs) || DEFAULT_TASK_TIMEOUT_MS);
+  const startedMs = Date.now();
+  const initialChallengeClock = challengeClock();
   let timer;
   const timeout = new Promise((_, reject) => {
-    timer = setTimeout(() => {
+    const check = () => {
+      const elapsed = Date.now() - startedMs - (challengeClock() - initialChallengeClock);
+      if (elapsed < timeoutMs) {
+        timer = setTimeout(check, Math.min(1000, Math.max(1, timeoutMs - elapsed)));
+        return;
+      }
       const error = new Error(`La ejecución superó el tiempo máximo de ${Math.round(timeoutMs / 1000)} segundos.`);
       error.code = 'TASK_EXECUTION_TIMEOUT';
       error.systemic = false;
@@ -445,7 +454,8 @@ export function executeWithTimeout(operation, options = {}) {
       Promise.resolve(options.onTimeout?.()).catch((abortError) => {
         console.error('[scheduler] No se pudo cerrar Chromium tras agotar el tiempo:', abortError?.message || String(abortError));
       });
-    }, timeoutMs);
+    };
+    timer = setTimeout(check, timeoutMs);
   });
   return Promise.race([Promise.resolve(operation), timeout])
     .finally(() => clearTimeout(timer));
@@ -456,7 +466,7 @@ function taskExecutionTimeoutMs() {
 }
 
 async function tick() {
-  if (stopping) return;
+  if (stopping || browserChallengeState().active) return;
   await recoverExpiredSchedulerRun();
   if (running) return;
 
@@ -675,10 +685,13 @@ async function redeemScheduledShopGoal(config, now = new Date()) {
         screenshots: [],
         details: { failures: [{ title: goal.name, error: error.message, diagnostic }], diagnostics: [diagnostic] }
       });
-      if (event.notificationRequired && config.telegram.enabled) {
+      const recovery = event.notificationRequired
+        ? await attemptAutomaticSessionRecovery(config, { force: true })
+        : { recovered: false };
+      if (event.notificationRequired && !recovery.recovered && config.telegram.enabled) {
         await sendTelegram(
           config,
-          '⚠️ CC Tools Dev: Sesión de Creality Cloud cerrada\nLas automatizaciones se han pausado. Abre CC Tools e inicia sesión para reanudarlas.'
+          sessionClosedNotification(recovery)
         ).catch((telegramError) => console.error('[telegram]', telegramError.message));
       }
       return true;
@@ -879,6 +892,7 @@ function beginSchedulerRun(taskId, source, timeoutMs, now = new Date()) {
   runningTask = taskId;
   runningSource = source;
   runningStartedAt = now.toISOString();
+  runningChallengeClock = challengeClock();
   runningTimeoutAt = new Date(now.getTime() + timeoutMs).toISOString();
   return token;
 }
@@ -907,11 +921,16 @@ export function isSchedulerRunExpired(state = {}, now = new Date()) {
     && now.getTime() - startedAt >= taskExecutionTimeoutMs();
 }
 
+function effectiveRunTimeoutAt() {
+  if (!runningTimeoutAt) return '';
+  return new Date(Date.parse(runningTimeoutAt) + challengeClock() - runningChallengeClock).toISOString();
+}
+
 async function recoverExpiredSchedulerRun(now = new Date()) {
   if (!isSchedulerRunExpired({
     running,
     startedAt: runningStartedAt,
-    timeoutAt: runningTimeoutAt
+    timeoutAt: effectiveRunTimeoutAt()
   }, now)) return false;
 
   const staleToken = activeRunToken;
@@ -1300,13 +1319,17 @@ export async function notifyTaskResult(config, taskId, status, result, healthEve
 
 
   if (healthEvent.paused) {
-    if (healthEvent.incident?.code === 'LOGIN_REQUIRED' && config.telegram.enabled) {
-      await sendTelegram(
-        config,
-        '⚠️ CC Tools Dev: Sesión de Creality Cloud cerrada\nLas automatizaciones se han pausado. Abre CC Tools e inicia sesión para reanudarlas.'
-      ).catch((error) => {
-        console.error('[telegram]', error.message);
-      });
+    if (healthEvent.incident?.code === 'LOGIN_REQUIRED') {
+      const recovery = await attemptAutomaticSessionRecovery(config, { force: true });
+      if (recovery.recovered) return;
+      if (config.telegram.enabled) {
+        await sendTelegram(
+          config,
+          sessionClosedNotification(recovery)
+        ).catch((error) => {
+          console.error('[telegram]', error.message);
+        });
+      }
     } else if (shouldNotifyIncident(config, taskId)) {
       const pauseUntil = formatPauseUntil(healthEvent.pausedUntil, config.tasks?.[taskId]?.timezone);
       const source = healthEvent.pauseSource === 'retry-after' ? ' (indicado por Creality Cloud)' : '';
@@ -1509,38 +1532,9 @@ async function holdForAutomationHealth(config) {
   const health = config.automationHealth || {};
   if (health.state !== 'paused') return false;
   if (health.reasonCode === 'LOGIN_REQUIRED') {
-    if (automaticLoginDue(config)) {
-      const attemptAt = new Date();
-      markAutomaticLoginAttempt(config, 'attempting', '', attemptAt);
-      await writeConfig(config);
-      try {
-        const automatic = await attemptRememberedSessionLogin({
-          expectedUserId: config.crealityProfile?.userId || ''
-        });
-        if (automatic.authenticated) {
-          markAutomaticLoginAttempt(config, 'success', 'Sesión recordada restablecida.', attemptAt);
-          resumeAfterAuthenticatedLogin(config, null, new Date(automatic.checkedAt || Date.now()));
-          await writeConfig(config);
-          return false;
-        }
-        markAutomaticLoginAttempt(
-          config,
-          automatic.reason === 'MANUAL_LOGIN_REQUIRED' ? 'manual_required' : 'skipped',
-          automatic.reason === 'MANUAL_LOGIN_REQUIRED'
-            ? automatic.message || 'Creality Cloud requiere completar el inicio de sesión manualmente.'
-            : 'El navegador está siendo utilizado por otra operación.',
-          attemptAt
-        );
-        await writeConfig(config);
-      } catch (error) {
-        markAutomaticLoginAttempt(config, 'error', error?.message || String(error), attemptAt);
-        await writeConfig(config);
-        if (!['BROWSER_BUSY', 'SESSION_CHECK_UNAVAILABLE', 'CREALITY_SERVICE_UNAVAILABLE'].includes(error?.code)) {
-          console.warn('[session] Falló el inicio de sesión automático:', error?.message || String(error));
-        }
-      }
-      return true;
-    }
+    const automatic = await attemptAutomaticSessionRecovery(config);
+    if (automatic.recovered) return false;
+    if (automatic.attempted) return true;
     try {
       const verification = await verifyPersistedSession();
       if (verification.authenticated) {
@@ -1687,6 +1681,7 @@ export function isGlobalBlockingIncident(incident = {}) {
     'CREALITY_SERVICE_UNAVAILABLE',
     'LOGIN_REQUIRED',
     'SECURITY_CHALLENGE',
+    'SECURITY_CHALLENGE_TIMEOUT',
     'SECURITY_CHALLENGE_DATADOME',
     'SECURITY_CHALLENGE_CLOUDFLARE',
     'CAPTCHA_REQUIRED'

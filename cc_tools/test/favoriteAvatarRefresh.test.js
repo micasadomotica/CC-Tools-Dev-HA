@@ -46,6 +46,7 @@ function harness(options = {}) {
     }
   };
   const context = vm.createContext({ Date, Map, Set, Promise, console: { error() {} },
+    browserChallengeState: () => ({ active: false }),
     normalizeFavoriteProfiles, normalizeFavoriteAvatarUrl, readFavoriteProfileFromPage,
     canonicalModelUrl, modelKeyFromUrl, ...storage,
     withIsolatedBrowser: async (_options, callback) => callback({ pages: () => [page] }) });

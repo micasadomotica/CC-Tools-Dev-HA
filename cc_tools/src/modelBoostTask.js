@@ -30,7 +30,7 @@ export async function runModelBoost(taskConfig = {}) {
     taskConfig.ownUserId,
     taskConfig.favoriteOnly !== false
   );
-  if (!designs.length) return skipped('No hay diseños disponibles para impulsar.');
+  if (!designs.length) return skipped('No hay modelos descargados aptos para impulsar.');
 
   const runs = await readRuns();
   const alreadyUsedToday = boostConsumedToday(runs, taskConfig.timezone)
@@ -340,9 +340,9 @@ async function readBoostAvailability(page, authenticationHeaders) {
 
 export function selectBoostCandidates(designs = [], ownUserId = '', favoriteOnly = true) {
   return designs
-    .filter((design) => ((design?.favoriteActive === true
-      && design.favoriteAvailability !== 'unavailable')
-      || (favoriteOnly === false && design?.indexedOnly !== true))
+    .filter((design) => design?.indexedOnly !== true
+      && (favoriteOnly === false || (design?.favoriteActive === true
+        && design.favoriteAvailability !== 'unavailable'))
       && design.url
       && !isOwnModel(design, ownUserId))
     .sort((left, right) => {
@@ -373,7 +373,13 @@ export function boostCandidatesForRun(
   limit = designs.length
 ) {
   if (!designs.length) return [];
-  return designs.slice(0, Math.max(1, Number(limit) || designs.length));
+  const failedAttemptsToday = runs.filter(run => run.taskId === 'modelBoosts'
+    && run.details?.boostConsumed !== true && ['error', 'failed'].includes(run.status)
+    && dayKey(timezone, new Date(run.finishedAt || run.createdAt)) === dayKey(timezone, now)).length;
+  const candidateLimit = Math.max(1, Number(limit) || designs.length);
+  // Keep Dev's full candidate scan; rotate its starting group as in TitoTB 1.0.44.
+  const offset = (failedAttemptsToday * Math.min(3, candidateLimit)) % designs.length;
+  return [...designs.slice(offset), ...designs.slice(0, offset)].slice(0, candidateLimit);
 }
 
 export async function resolveBoostTarget(page, design, observer, ownUserId = '', { allowRepeat = false } = {}) {

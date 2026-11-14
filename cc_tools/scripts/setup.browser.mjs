@@ -47,6 +47,38 @@ after(async () => {
   if (dataDir) await fs.rm(dataDir, { recursive: true, force: true });
 });
 
+test('el aviso de verificación abre la ventana existente sin iniciar login ni cancelar la tarea', async () => {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage();
+  let active = true, views = 0, logins = 0, cancels = 0;
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await context.route('**/api/browser/status*', route => route.fulfill({ json: { ok: true,
+    browser: { mode: 'automation', active: true, challenge: { active, phase: 'manual',
+      message: 'Completa la verificación en el navegador. La tarea continuará al cargar la página de destino.' } } } }));
+  await context.route('**/api/browser/open', route => { views++; return route.fulfill({ json: { ok: true, url: '/novnc/test-viewer' } }); });
+  await context.route('**/api/tasks/creality/login/open', route => { logins++; return route.fulfill({ json: { ok: false } }); });
+  await context.route('**/api/browser/challenge/cancel', route => { cancels++; active = false; return route.fulfill({ json: { ok: true, cancelled: true } }); });
+  await context.route('**/novnc/**', route => route.fulfill({ contentType: 'text/html', body: '<p>Visor de prueba</p>' }));
+  try {
+    await page.goto(baseUrl);
+    await page.waitForSelector('#security-challenge-banner:not([hidden])');
+    assert.equal(await page.locator('#close-login').isDisabled(), true);
+    if (process.env.CCTOOLS_QA_DIR) await page.screenshot({ path: path.join(process.env.CCTOOLS_QA_DIR, 'verification-banner.png') });
+    const popup = page.waitForEvent('popup');
+    await page.locator('#security-challenge-open').click();
+    await (await popup).waitForURL('**/novnc/test-viewer');
+    assert.equal(views, 1);
+    assert.equal(logins, 0);
+    assert.equal(cancels, 0);
+    await page.locator('#security-challenge-cancel').click();
+    await page.waitForSelector('#security-challenge-banner', { state: 'hidden' });
+    assert.equal(cancels, 1);
+    assert.equal(await page.locator('#close-login').isDisabled(), false);
+    assert.deepEqual(errors, []);
+  } finally { await context.close(); }
+});
+
 test('Telegram conserva el paso del asistente y las descargas parten de 10', async () => {
   const page = await browser.newPage({ viewport: { width: 1440, height: 1050 } });
   const errors = [];

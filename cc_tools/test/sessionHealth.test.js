@@ -28,6 +28,20 @@ test('pausa una sola vez hasta que se confirme un nuevo login', () => {
   assert.deepEqual(crealitySessionState(config).state, 'open');
 });
 
+test('una nueva caducidad de sesión permite un intento inmediato aunque el anterior sea reciente', () => {
+  const config = {
+    automationHealth: { state: 'active' },
+    crealitySession: {
+      autoLoginEnabled: true,
+      autoLoginLastAttemptAt: '2026-10-15T08:20:00.000Z'
+    }
+  };
+
+  pauseForExpiredSession(config, 'modelDownloads', {}, new Date('2026-10-15T08:25:00.000Z'));
+
+  assert.equal(automaticLoginDue(config, new Date('2026-10-15T08:25:01.000Z')), true);
+});
+
 test('limita los reintentos automáticos y conserva la preferencia al cambiar de estado', () => {
   const config = {
     automationHealth: { state: 'active' },

@@ -28,7 +28,7 @@ catálogos de diseños y la configuración no se comparten entre las dos aplicac
 
 ## Instalar y actualizar Dev
 
-Añade `https://github.com/micasadomotica/CC-Tools-Dev-HA` en los repositorios de la tienda de Apps e instala **CC Tools Dev**. La versión **1.0.56** corrige la lectura de perfiles favoritos y mantiene la URL base al pegar enlaces de sus pestañas. Incorpora la recuperación de sesión de TitoTB 1.0.43, que selecciona la cuenta recordada y verifica que coincide con el perfil configurado antes de reanudar las automatizaciones. El aviso de datos migrados enlaza a **Logs**, donde puedes pulsar **Reanudar automatizaciones** después de revisar el perfil, las programaciones y las entregas. Conserva las funciones de Dev y el dispositivo Creality Cloud Models. Desde 1.0.50 basta con actualizar la app; no hace falta volver a migrar. Actualizar no activa ninguna migración. La app se construye en tu equipo y utiliza el puerto externo **8088**.
+Añade `https://github.com/micasadomotica/CC-Tools-Dev-HA` en los repositorios de la tienda de Apps e instala **CC Tools Dev**. La versión **1.0.57** añade la espera de verificaciones de seguridad en la misma ventana y las mejoras compatibles de TitoTB 1.0.44. El aviso de datos migrados enlaza a **Logs**, donde puedes pulsar **Reanudar automatizaciones** después de revisar el perfil, las programaciones y las entregas. Conserva las funciones de Dev y el dispositivo Creality Cloud Models. Desde 1.0.50 basta con actualizar la app; no hace falta volver a migrar. Actualizar no activa ninguna migración. La app se construye en tu equipo y utiliza el puerto externo **8088**.
 
 Para las siguientes versiones, utiliza **Actualizar** desde Home Assistant. Crea antes una copia de seguridad y espera a que terminen las tareas en curso. No necesitas descargar ZIP.
 
@@ -107,3 +107,12 @@ Subir diseños admite .3mf con configuración de Creality Print, Bambu Studio u 
 Puedes indicar una categoría propia en info.txt: `CATEGORIA: Hogar / Mascotas`. Separa siempre categoría y subcategoría con /. Si falta la línea o está vacía, se usa el selector; si contiene una combinación válida, tiene prioridad. Una combinación desconocida se marca para revisar. Las opciones disponibles aparecen en el módulo; la selección en Creality Cloud desplaza cada menú cuando hace falta.
 
 Al guardar la programación de impresiones, el aviso distingue el objetivo pendiente de la capacidad del horario restante. Por ejemplo: «Quedan 9 impresiones para el objetivo; se programan 5 por el tiempo disponible». Los fallos anteriores no consumen el objetivo diario.
+
+
+## Verificación de seguridad
+
+Si Cloudflare muestra una verificación durante una navegación, CC Tools Dev conserva el navegador y espera. Si no se resuelve sola, aparece un aviso: pulsa **Abrir navegador**, completa la verificación y deja que cargue la página de destino. La tarea continuará desde ese punto. No cambies de página ni cierres Chromium durante la espera.
+
+**Cancelar espera** detiene la operación. Si no se completa en 15 minutos, se registra el fallo y se libera el navegador. El tiempo de espera no consume el límite normal de la tarea. Las operaciones ya enviadas no se vuelven a ejecutar desde el principio. La aceptación depende de Cloudflare y puede requerir revisar la conexión o contactar con Creality.
+
+En **Ajustes > Sesión**, **Abrir navegador** muestra la ventana existente o inicia una si está cerrada. **Cerrar navegador** guarda y comprueba la sesión, y solo está disponible cuando no hay una verificación pendiente.

@@ -5,11 +5,13 @@ import { browserSessionDir } from './storage.js';
 import { inspectCrealityPage, normalizeCaughtError } from './crealityDiagnostics.js';
 import { isNavigationTimeout, navigateToCrealityPage } from './crealityNavigation.js';
 import { confirmAuthenticatedSession } from './sessionMonitor.js';
+import { installChallengeHandling, browserChallengeState } from './browserChallenge.js';
 
 const PROFILE_LOCK_FILES = ['SingletonLock', 'SingletonCookie', 'SingletonSocket', 'lock'];
 const SESSION_CHECK_URL = 'https://www.crealitycloud.com/es/workbench-beta/?type=1';
 const SESSION_PROFILE_API_PATH = '/api/cxy/v3/user/getInfo';
 let activeContext = null;
+let activeOwner = null;
 let activeMode = '';
 let activeBrowserVersion = '';
 let shuttingDown = false;
@@ -47,6 +49,7 @@ export async function withAutomationBrowser(options, callback) {
   }
 
   activeMode = 'automation';
+  const owner = activeOwner = Symbol('automation');
   try {
     activeContext = await launchWithRecovery(
       { ...baseOptions(), ...(options || {}) },
@@ -60,11 +63,14 @@ export async function withAutomationBrowser(options, callback) {
   } catch (error) {
     throw normalizeBrowserError(error);
   } finally {
-    await closeActiveContext();
+    if (activeOwner === owner) await closeActiveContext();
   }
 }
 
 export async function withIsolatedBrowser(options, callback) {
+  if (browserChallengeState().active) {
+    throw browserError('BROWSER_BUSY', 'El navegador espera que completes una verificación de seguridad.', false);
+  }
   const browser = await trackedLaunch(() => chromium.launch({
     headless: true,
     args: ['--no-sandbox', '--disable-dev-shm-usage']
@@ -73,6 +79,7 @@ export async function withIsolatedBrowser(options, callback) {
   let context;
   try {
     assertBrowserAvailable();
+    if (browserChallengeState().active) throw browserError('BROWSER_BUSY', 'La verificación requiere el navegador libre.', false);
     context = await browser.newContext({
       viewport: { width: 1366, height: 768 },
       colorScheme: 'light',
@@ -107,7 +114,9 @@ export async function restartAutomationBrowser(options = {}) {
     throw browserError('BROWSER_BUSY', 'Otra operación está utilizando el navegador.', false);
   }
 
+  const owner = activeOwner;
   await closeActiveContext();
+  activeOwner = owner;
   activeMode = 'automation';
   try {
     activeContext = await launchWithRecovery(
@@ -126,11 +135,13 @@ export async function restartAutomationBrowser(options = {}) {
 export async function openInteractiveBrowser(url) {
   assertBrowserAvailable();
   if (activeMode === 'automation') {
+    if (browserChallengeState().active) return activeContext.pages()[0];
     throw browserError('BROWSER_BUSY', 'Hay una automatización en curso. Inténtalo de nuevo cuando termine.', false);
   }
 
   if (!activeContext) {
     activeMode = 'interactive';
+    activeOwner = Symbol('interactive');
     try {
       activeContext = await launchWithRecovery({ ...baseOptions(), headless: false });
       activeBrowserVersion = activeContext.browser()?.version() || '';
@@ -147,6 +158,9 @@ export async function openInteractiveBrowser(url) {
 }
 
 export async function closeInteractiveBrowser() {
+  if (browserChallengeState().active) {
+    throw browserError('BROWSER_BUSY', 'Completa la verificación o pulsa Cancelar espera antes de cerrar el navegador.', false);
+  }
   if (activeMode !== 'interactive') return false;
   await closeActiveContext();
   return true;
@@ -189,9 +203,10 @@ export async function attemptRememberedSessionLogin(options = {}) {
   }
 
   activeMode = 'automation';
+  const owner = activeOwner = Symbol('session-recovery');
   try {
     activeContext = await launchWithRecovery(
-      { ...baseOptions(), headless: true },
+      { ...baseOptions(), headless: false },
       { allowHeadlessFallback: true }
     );
     activeBrowserVersion = activeContext.browser()?.version() || '';
@@ -267,7 +282,7 @@ export async function attemptRememberedSessionLogin(options = {}) {
     }
     throw normalized;
   } finally {
-    await closeActiveContext();
+    if (activeOwner === owner) await closeActiveContext();
   }
 }
 
@@ -276,7 +291,8 @@ export function browserManagerState() {
     mode: activeMode || 'idle',
     active: Boolean(activeContext),
     engine: 'chromium',
-    version: activeBrowserVersion
+    version: activeBrowserVersion,
+    challenge: browserChallengeState()
   };
 }
 
@@ -480,6 +496,7 @@ function isProcessAlive(pid) {
 async function closeActiveContext() {
   const context = activeContext;
   activeContext = null;
+  activeOwner = null;
   activeMode = '';
   activeBrowserVersion = '';
   if (context) await context.close().catch(error => { if (shuttingDown) throw error; });
@@ -663,9 +680,15 @@ export function sessionCheckUnavailableError(error, currentUrl = '') {
 }
 
 function watchContext(context) {
+  installChallengeHandling(context, {
+    inspect: inspectCrealityPage,
+    onStart: () => Promise.allSettled([...isolatedBrowsers].map(browser => browser.close())),
+    enabled: () => activeContext === context && activeMode === 'automation' && !shuttingDown
+  });
   context.once('close', () => {
     if (activeContext !== context) return;
     activeContext = null;
+    activeOwner = null;
     activeMode = '';
     activeBrowserVersion = '';
   });

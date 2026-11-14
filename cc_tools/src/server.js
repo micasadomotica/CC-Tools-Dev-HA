@@ -36,6 +36,8 @@ import { acknowledgeMigrationReview } from './migrationReview.js';
 import { generateDownloadPlan, scheduleNextRun } from './timeWindow.js';
 import { sendTelegram } from './telegram.js';
 import { browserManagerState, shutdownBrowser, withAutomationBrowser } from './browserManager.js';
+import { abortAutomationBrowser } from './browserManager.js';
+import { browserChallengeState, challengeEvents } from './browserChallenge.js';
 import { buildHealthMetrics } from './healthMetrics.js';
 import { mergePointsState, readPointsSummary } from './pointsCounter.js';
 import { discoverGcodeFiles, discoverGcodeLibrary, discoverPrinters } from './finishPrintDiscovery.js';
@@ -79,6 +81,7 @@ import { normalizeShopGoal, readShopCatalog } from './shopGoal.js';
 import { readShopOrders } from './shopOrders.js';
 import { notifyShippedShopOrders } from './shopOrderNotifications.js';
 import { pauseForExpiredSession, resumeAfterAuthenticatedLogin } from './sessionHealth.js';
+import { attemptAutomaticSessionRecovery, sessionClosedNotification } from './sessionRecovery.js';
 import {
   archiveShopOrder,
   dismissShopOrder,
@@ -1297,8 +1300,44 @@ async function appendManualDesignActionRun({
   });
 }
 
+const browserViewerUrl = '/novnc/vnc.html?autoconnect=1&reconnect=1&reconnect_delay=1000&resize=remote&path=novnc%2Fwebsockify';
+
+challengeEvents.on('change', (state) => {
+  if (state.phase !== 'manual') return;
+  console.log('[browser] La tarea espera una verificación manual en el visor remoto.');
+  readConfig().then(config => {
+    if (config.telegram?.enabled) return sendTelegram(config,
+      '⚠️ CC Tools Dev: Verificación de seguridad\nAbre el navegador desde CC Tools Dev y completa la verificación. La tarea continuará en la misma ventana al cargar la página. Tiempo máximo de espera: 15 minutos.');
+  }).catch(error => console.error('[browser] No se pudo enviar el aviso:', error.message));
+});
+
+app.get('/api/browser/status', (req, res) => {
+  res.set('Cache-Control', 'no-store').json({ ok: true, browser: browserManagerState() });
+});
+
+app.post('/api/browser/open', async (req, res) => {
+  try {
+    // Viewing an active task must never cancel it or navigate away from its challenge.
+    if (!browserManagerState().active) await openLoginBrowser();
+    res.json({ ok: true, url: browserViewerUrl });
+  } catch (error) {
+    res.status(409).json({ ok: false, error: error.message });
+  }
+});
+
+app.post('/api/browser/challenge/cancel', async (req, res) => {
+  if (!browserChallengeState().active) return res.json({ ok: true, cancelled: false });
+  if (schedulerState().running) {
+    const result = await cancelRunningTask('manual');
+    return res.json({ ok: true, ...result });
+  }
+  const cancelled = await abortAutomationBrowser();
+  res.json({ ok: true, cancelled });
+});
+
 app.post('/api/tasks/creality/login/open', async (req, res) => {
   try {
+    if (browserChallengeState().active) return res.json({ ok: true, url: browserViewerUrl });
     if (schedulerState().running) {
       const cancellation = await cancelRunningTask('login');
       if (!cancellation.cancelled) {
@@ -1359,10 +1398,13 @@ async function pauseForLoginAndNotify(taskId, error) {
   const config = await readConfig();
   const event = pauseForExpiredSession(config, taskId, error.diagnostic || error);
   await writeConfig(config);
-  if (event.notificationRequired && config.telegram.enabled) {
+  const recovery = event.notificationRequired
+    ? await attemptAutomaticSessionRecovery(config, { force: true })
+    : { recovered: false };
+  if (event.notificationRequired && !recovery.recovered && config.telegram.enabled) {
     await sendTelegram(
       config,
-      '⚠️ CC Tools Dev: Sesión de Creality Cloud cerrada\nLas automatizaciones se han pausado. Abre CC Tools e inicia sesión para reanudarlas.'
+      sessionClosedNotification(recovery)
     ).catch((notificationError) => console.error('[telegram]', notificationError.message));
   }
 }
