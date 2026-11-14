@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.59 — Chromium compartido y espera de 40 segundos
+
+- Reutiliza el proceso y el contexto de Chromium entre las tareas principales, conservando cookies y almacenamiento. Cierra las pestañas al finalizar y mantiene una pestaña vacía; no deja páginas de trabajo haciendo peticiones entre módulos.
+- Mantiene la exclusión entre tareas y sesión interactiva. Cerrar navegador y detener la app liberan Chromium; los fallos de ejecución o las opciones incompatibles permiten iniciar un contexto nuevo. Conserva también el navegador tras recuperar correctamente una sesión.
+- Desacopla las descargas del directorio de arranque de Chromium: guarda cada archivo en su lote y elimina la copia temporal después de verificarla.
+- Espera 40 segundos antes de mostrar el botón Abrir navegador en el aviso y notificar por Telegram. Comprueba el estado sin recargar ni hacer clic; conserva la cancelación y el límite total de 15 minutos. No resuelve captchas automáticamente ni simula movimientos de ratón.
+- Añade pruebas de reutilización, cancelación, cierre, temporización e interfaz, y una prueba de navegador con cookies, almacenamiento y descargas en dos lotes usando el mismo contexto. La aceptación real de Cloudflare sigue pendiente de comprobar en habeta.
+- Desde 1.0.58 basta con actualizar, sin reinstalar ni migrar. Chromium permanece en memoria entre tareas hasta cerrarlo o detener la app.
+
 ## 1.0.58 — historial de comentarios tras una verificación
 
 - Corrige `COMMENT_HISTORY_UNAVAILABLE` cuando resolver Cloudflare lleva más de 15 segundos. La captura del historial permanece activa durante la navegación y la verificación; el plazo de lectura empieza al comprobar la ficha cargada.

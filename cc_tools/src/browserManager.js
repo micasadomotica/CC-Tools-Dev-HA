@@ -14,10 +14,12 @@ let activeContext = null;
 let activeOwner = null;
 let activeMode = '';
 let activeBrowserVersion = '';
+let activeOptionsKey = '';
 let shuttingDown = false;
 let shutdownPromise = null;
 const pendingLaunches = new Set();
 const isolatedBrowsers = new Set();
+const headlessFallbackContexts = new WeakSet();
 
 function assertBrowserAvailable() {
   if (shuttingDown) throw Object.assign(new Error('CC Tools se está deteniendo.'), { code: 'APP_STOPPING' });
@@ -50,20 +52,21 @@ export async function withAutomationBrowser(options, callback) {
 
   activeMode = 'automation';
   const owner = activeOwner = Symbol('automation');
+  let completed = false;
   try {
-    activeContext = await launchWithRecovery(
-      { ...baseOptions(), ...(options || {}) },
-      { allowHeadlessFallback: true }
-    );
-    activeBrowserVersion = activeContext.browser()?.version() || '';
-    watchContext(activeContext);
+    await ensureActiveContext({ ...baseOptions(), ...(options || {}) });
     const sessionCheck = await assertAuthenticatedSession(activeContext);
     if (sessionCheck.confirmAuthenticated) await confirmAuthenticatedSession();
-    return await callback(activeContext, sessionCheck);
+    const result = await callback(activeContext, sessionCheck);
+    completed = true;
+    return result;
   } catch (error) {
     throw normalizeBrowserError(error);
   } finally {
-    if (activeOwner === owner) await closeActiveContext();
+    if (activeOwner === owner) {
+      if (completed && !shuttingDown) await releaseAutomationContext(owner);
+      else await closeActiveContext();
+    }
   }
 }
 
@@ -115,16 +118,11 @@ export async function restartAutomationBrowser(options = {}) {
   }
 
   const owner = activeOwner;
-  await closeActiveContext();
+  await closeActiveContext({ keepLease: true });
   activeOwner = owner;
   activeMode = 'automation';
   try {
-    activeContext = await launchWithRecovery(
-      { ...baseOptions(), ...options },
-      { allowHeadlessFallback: true }
-    );
-    activeBrowserVersion = activeContext.browser()?.version() || '';
-    watchContext(activeContext);
+    await ensureActiveContext({ ...baseOptions(), ...options });
     return activeContext;
   } catch (error) {
     activeMode = '';
@@ -139,17 +137,13 @@ export async function openInteractiveBrowser(url) {
     throw browserError('BROWSER_BUSY', 'Hay una automatización en curso. Inténtalo de nuevo cuando termine.', false);
   }
 
-  if (!activeContext) {
-    activeMode = 'interactive';
-    activeOwner = Symbol('interactive');
-    try {
-      activeContext = await launchWithRecovery({ ...baseOptions(), headless: false });
-      activeBrowserVersion = activeContext.browser()?.version() || '';
-      watchContext(activeContext);
-    } catch (error) {
-      activeMode = '';
-      throw error;
-    }
+  activeMode = 'interactive';
+  activeOwner = Symbol('interactive');
+  try {
+    await ensureActiveContext({ ...baseOptions(), headless: false }, false);
+  } catch (error) {
+    await closeActiveContext();
+    throw error;
   }
 
   const page = activeContext.pages()[0] || await activeContext.newPage();
@@ -161,7 +155,7 @@ export async function closeInteractiveBrowser() {
   if (browserChallengeState().active) {
     throw browserError('BROWSER_BUSY', 'Completa la verificación o pulsa Cancelar espera antes de cerrar el navegador.', false);
   }
-  if (activeMode !== 'interactive') return false;
+  if (activeMode === 'automation' || !activeContext) return false;
   await closeActiveContext();
   return true;
 }
@@ -204,13 +198,9 @@ export async function attemptRememberedSessionLogin(options = {}) {
 
   activeMode = 'automation';
   const owner = activeOwner = Symbol('session-recovery');
+  let recovered = false;
   try {
-    activeContext = await launchWithRecovery(
-      { ...baseOptions(), headless: false },
-      { allowHeadlessFallback: true }
-    );
-    activeBrowserVersion = activeContext.browser()?.version() || '';
-    watchContext(activeContext);
+    await ensureActiveContext({ ...baseOptions(), headless: false });
     const page = activeContext.pages()[0] || await activeContext.newPage();
 
     await page.goto(SESSION_CHECK_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
@@ -268,6 +258,7 @@ export async function attemptRememberedSessionLogin(options = {}) {
       };
     }
     const session = await confirmAuthenticatedSession();
+    recovered = true;
     return { attempted: true, ...session, authenticated: true, url: page.url() };
   } catch (error) {
     const normalized = normalizeBrowserError(error);
@@ -282,7 +273,10 @@ export async function attemptRememberedSessionLogin(options = {}) {
     }
     throw normalized;
   } finally {
-    if (activeOwner === owner) await closeActiveContext();
+    if (activeOwner === owner) {
+      if (recovered && !shuttingDown) await releaseAutomationContext(owner);
+      else await closeActiveContext();
+    }
   }
 }
 
@@ -399,10 +393,12 @@ async function launchWithRecovery(options, behavior = {}) {
     if (behavior.allowHeadlessFallback && isDisplayError(error)) {
       await recoverBrowserProfile();
       try {
-        return await trackedLaunch(() => chromium.launchPersistentContext(chromiumSessionDir(), {
+        const context = await trackedLaunch(() => chromium.launchPersistentContext(chromiumSessionDir(), {
           ...options,
           headless: true
         }));
+        headlessFallbackContexts.add(context);
+        return context;
       } catch (headlessError) {
         throw normalizeBrowserError(headlessError);
       }
@@ -493,12 +489,43 @@ function isProcessAlive(pid) {
   }
 }
 
-async function closeActiveContext() {
+async function ensureActiveContext(options, allowHeadlessFallback = true) {
+  const key = JSON.stringify(options);
+  if (activeContext && activeOptionsKey === key
+    && (allowHeadlessFallback || !headlessFallbackContexts.has(activeContext))) return;
+  if (activeContext) await closeActiveContext({ keepLease: true });
+  activeContext = await launchWithRecovery(options, { allowHeadlessFallback });
+  activeOptionsKey = key;
+  activeBrowserVersion = activeContext.browser()?.version() || '';
+  watchContext(activeContext);
+}
+
+async function releaseAutomationContext(owner) {
+  const context = activeContext;
+  if (!context) return;
+  try {
+    // A blank keeper preserves Chromium and its cookies without leaving task
+    // timers, listeners or background requests running between modules.
+    const previousPages = context.pages();
+    await context.newPage();
+    await Promise.all(previousPages.map(page => page.close()));
+    if (activeOwner !== owner || activeContext !== context) return;
+    activeOwner = null;
+    activeMode = '';
+  } catch {
+    if (activeOwner === owner) await closeActiveContext();
+  }
+}
+
+async function closeActiveContext({ keepLease = false } = {}) {
   const context = activeContext;
   activeContext = null;
-  activeOwner = null;
-  activeMode = '';
+  if (!keepLease) {
+    activeOwner = null;
+    activeMode = '';
+  }
   activeBrowserVersion = '';
+  activeOptionsKey = '';
   if (context) await context.close().catch(error => { if (shuttingDown) throw error; });
 }
 
@@ -691,6 +718,7 @@ function watchContext(context) {
     activeOwner = null;
     activeMode = '';
     activeBrowserVersion = '';
+    activeOptionsKey = '';
   });
 }
 

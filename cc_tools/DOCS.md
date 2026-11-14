@@ -28,7 +28,7 @@ catálogos de diseños y la configuración no se comparten entre las dos aplicac
 
 ## Instalar y actualizar Dev
 
-Añade `https://github.com/micasadomotica/CC-Tools-Dev-HA` en los repositorios de la tienda de Apps e instala **CC Tools Dev**. La versión **1.0.58** corrige el error de historial de comentarios después de completar una verificación: conserva la respuesta durante la espera y comprueba los comentarios previos antes de publicar. Mantiene la espera en la misma ventana y las mejoras compatibles de TitoTB 1.0.44. El aviso de datos migrados enlaza a **Logs**, donde puedes pulsar **Reanudar automatizaciones** después de revisar el perfil, las programaciones y las entregas. Conserva las funciones de Dev y el dispositivo Creality Cloud Models. Desde 1.0.50 basta con actualizar la app; no hace falta volver a migrar. Actualizar no activa ninguna migración. La app se construye en tu equipo y utiliza el puerto externo **8088**.
+Añade `https://github.com/micasadomotica/CC-Tools-Dev-HA` en los repositorios de la tienda de Apps e instala **CC Tools Dev**. La versión **1.0.59** conserva Chromium entre módulos y espera 40 segundos antes de pedir intervención ante una verificación. Mantiene la corrección del historial de comentarios de 1.0.58. El aviso de datos migrados enlaza a **Logs**, donde puedes pulsar **Reanudar automatizaciones** después de revisar el perfil, las programaciones y las entregas. Conserva las funciones de Dev y el dispositivo Creality Cloud Models. Desde 1.0.50 basta con actualizar la app; no hace falta volver a migrar. Actualizar no activa ninguna migración. La app se construye en tu equipo y utiliza el puerto externo **8088**.
 
 Para las siguientes versiones, utiliza **Actualizar** desde Home Assistant. Crea antes una copia de seguridad y espera a que terminen las tareas en curso. No necesitas descargar ZIP.
 
@@ -116,3 +116,11 @@ Si Cloudflare muestra una verificación durante una navegación, CC Tools Dev co
 **Cancelar espera** detiene la operación. Si no se completa en 15 minutos, se registra el fallo y se libera el navegador. El tiempo de espera no consume el límite normal de la tarea. Las operaciones ya enviadas no se vuelven a ejecutar desde el principio. La aceptación depende de Cloudflare y puede requerir revisar la conexión o contactar con Creality.
 
 En **Ajustes > Sesión**, **Abrir navegador** muestra la ventana existente o inicia una si está cerrada. **Cerrar navegador** guarda y comprueba la sesión, y solo está disponible cuando no hay una verificación pendiente.
+
+## Reutilización del navegador y verificaciones
+
+Las tareas principales reutilizan el proceso y el contexto de Chromium. Al terminar cierran sus pestañas y dejan una pestaña vacía para conservar cookies y almacenamiento sin mantener las páginas de trabajo activas. Chromium permanece en memoria hasta cerrar el navegador, detener la app o necesitar recuperarse de un fallo. La sesión interactiva sigue reservada al usuario mientras esté abierta.
+
+Ante una verificación se comprueba la página aproximadamente cada segundo, sin recargarla ni pulsar controles. El botón del aviso para abrir el navegador y la notificación de Telegram aparecen tras 40 segundos si sigue pendiente. Se puede cancelar durante la espera. El límite total sigue siendo de 15 minutos. Son comprobaciones del estado, no cinco intentos de marcar la casilla.
+
+La reutilización no garantiza que Creality deje de pedir verificaciones. Crear un proyecto ya comparte el navegador dentro de una ejecución y puede recibir varios desafíos al navegar. No se simulan movimientos de ratón ni se resuelven captchas automáticamente.

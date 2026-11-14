@@ -1,6 +1,6 @@
 {
   "name": "cc-tools",
-  "version": "1.0.58",
+  "version": "1.0.59",
   "private": true,
   "type": "module",
   "scripts": {
@@ -17,7 +17,7 @@
     "test:logs:browser": "node --test scripts/logs.browser.mjs",
     "test:boosts:browser": "node --test scripts/modelBoost.browser.mjs",
     "test:session:browser": "node --test scripts/authenticatedSession.browser.mjs",
-    "test:challenge:browser": "node --test scripts/browserChallenge.browser.mjs"
+    "test:challenge:browser": "node --test scripts/browserChallenge.browser.mjs scripts/browserReuse.browser.mjs"
   },
   "dependencies": {
     "dotenv": "^16.4.7",
