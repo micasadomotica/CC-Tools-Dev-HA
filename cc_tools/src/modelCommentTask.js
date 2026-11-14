@@ -6,6 +6,7 @@ import { compareIncentiveProgress, readIncentiveProgress, waitForIncentiveProgre
 import { commentImagesDir, markDesignCommentUnavailable, markDesignCommented, readDesigns, readRuns, updateDesignOwnership } from './storage.js';
 import { isOwnModel, readModelOwnership } from './modelOwnership.js';
 import { selectFavoriteCandidates } from './favoriteModelIndex.js';
+import { captureCommentFeed } from './commentFeed.js';
 
 const INCENTIVES = {
   image: { title: 'Image comments', points: 2, label: 'Comentario con imagen' },
@@ -53,30 +54,34 @@ export async function runModelComment(taskConfig = {}, options = {}) {
         const candidate = candidates.shift();
         observer.responses.length = 0;
         observer.failedRequests.length = 0;
-        const commentFeedResponse = waitForCommentFeed(page);
-        await page.goto(candidate.url, { waitUntil: 'domcontentloaded' });
-        await page.waitForTimeout(3500);
-        const pageDiagnostic = await inspectCrealityPage(page, observer, { requireBody: true });
-        if (pageDiagnostic?.code === 'MODEL_NOT_FOUND') {
-          await markDesignCommentUnavailable(candidate.id);
-          continue;
+        const commentFeed = captureCommentFeed(page, candidate.url);
+        try {
+          await page.goto(candidate.url, { waitUntil: 'domcontentloaded' });
+          await page.waitForTimeout(3500);
+          const pageDiagnostic = await inspectCrealityPage(page, observer, { requireBody: true });
+          if (pageDiagnostic?.code === 'MODEL_NOT_FOUND') {
+            await markDesignCommentUnavailable(candidate.id);
+            continue;
+          }
+          if (pageDiagnostic) throw diagnosticError(pageDiagnostic);
+          const ownership = await readModelOwnership(page);
+          const updated = await updateDesignOwnership(candidate.id, ownership, options.ownUserId);
+          if (isOwnModel(ownership, options.ownUserId)) continue;
+          const existingComment = await findExistingUserComment(page, commentFeed.read(), options.ownUserId);
+          if (existingComment) {
+            const updatedComment = await markDesignCommented(candidate.id, {
+              kind: existingComment.kind,
+              actionState: 'already_applied',
+              completedAt: existingComment.createdAt
+            });
+            alreadyApplied.push(updatedComment || candidate);
+            continue;
+          }
+          design = updated || candidate;
+          break;
+        } finally {
+          commentFeed.stop();
         }
-        if (pageDiagnostic) throw diagnosticError(pageDiagnostic);
-        const ownership = await readModelOwnership(page);
-        const updated = await updateDesignOwnership(candidate.id, ownership, options.ownUserId);
-        if (isOwnModel(ownership, options.ownUserId)) continue;
-        const existingComment = await findExistingUserComment(page, commentFeedResponse, options.ownUserId);
-        if (existingComment) {
-          const updatedComment = await markDesignCommented(candidate.id, {
-            kind: existingComment.kind,
-            actionState: 'already_applied',
-            completedAt: existingComment.createdAt
-          });
-          alreadyApplied.push(updatedComment || candidate);
-          continue;
-        }
-        design = updated || candidate;
-        break;
       }
       if (!design) {
         return skipped(
@@ -278,14 +283,6 @@ export function buildCommentKindPlan(taskConfig = {}, counts = { image: 0, text:
     [kinds[index], kinds[swapIndex]] = [kinds[swapIndex], kinds[index]];
   }
   return kinds;
-}
-
-function waitForCommentFeed(page) {
-  return page.waitForResponse(
-    (response) => /\/api\/cxy\/comment\/modelFeedList(?:\?|$)/.test(response.url())
-      && response.request().method() === 'POST',
-    { timeout: 15000 }
-  ).catch(() => null);
 }
 
 async function findExistingUserComment(page, responsePromise, userId) {

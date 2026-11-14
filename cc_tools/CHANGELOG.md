@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.58 — historial de comentarios tras una verificación
+
+- Corrige `COMMENT_HISTORY_UNAVAILABLE` cuando resolver Cloudflare lleva más de 15 segundos. La captura del historial permanece activa durante la navegación y la verificación; el plazo de lectura empieza al comprobar la ficha cargada.
+- Conserva la respuesta recibida mientras se resolvía la verificación. Solo acepta solicitudes iniciadas en la ficha correspondiente y libera la captura al terminar, cancelar u omitir un diseño.
+- Mantiene la comprobación de comentarios existentes antes de publicar. Si el historial no llega, la tarea se detiene; no interpreta el fallo como un historial vacío.
+- Añade pruebas de espera, cancelación y aislamiento, y una prueba con Chromium que simula más de 15 segundos de verificación y comprueba que un comentario previo no se duplica. No cambia el mecanismo de Cloudflare ni garantiza que acepte la casilla al primer intento.
+- Desde 1.0.57 basta con actualizar la app; no requiere migración. La comprobación en habeta queda pendiente.
+
 ## 1.0.57 — verificación de seguridad y recuperación de sesión
 
 - Conserva la misma ventana, pestaña y perfil de Chromium cuando una navegación muestra una verificación de seguridad. Espera su resolución automática o permite completarla manualmente desde el visor, y continúa desde ese punto tras comprobar la página de destino. No pulsa captchas ni repite la tarea completa.
