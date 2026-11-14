@@ -6,6 +6,10 @@ import { installChallengeHandling, browserChallengeState, challengeEvents, chall
 import { inspectCrealityPage, observeCrealityPage } from '../src/crealityDiagnostics.js';
 import { executeWithTimeout } from '../src/scheduler.js';
 import { withIsolatedBrowser } from '../src/browserManager.js';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import { captureCommentFeed } from '../src/commentFeed.js';
+import { isOwnModel } from '../src/modelOwnership.js';
 
 const target = 'https://www.crealitycloud.com/es/model-detail/local-test';
 const readyHtml = '<title>Modelo de prueba | Creality Cloud</title><h1>Modelo de prueba</h1><p>Ficha disponible con archivos y descripción del modelo de prueba.</p>';
@@ -124,4 +128,59 @@ test('el watchdog excluye el tiempo de intervención y vuelve a controlar la eje
   await task;
   assert.ok(challengeClock() - initialClock >= 450);
   await assert.rejects(executeWithTimeout(new Promise(() => {}), { timeoutMs: 10 }), { code: 'TASK_EXECUTION_TIMEOUT' });
+});
+
+test('comentarios conserva el historial tras más de 15 segundos de verificación y evita duplicados', async t => {
+  const { page, context, state } = await fixture(t, { timeoutMs: 25000 });
+  await context.unroute('**/*');
+  let posted = 0;
+  await context.route('**/*', async route => {
+    const request = route.request();
+    if (request.url().includes('/api/cxy/comment/postComment')) {
+      posted++;
+      return route.fulfill({ json: { code: 0 } });
+    }
+    if (request.url().includes('/api/cxy/comment/modelFeedList')) {
+      return route.fulfill({ json: { code: 0, result: { count: 1, list: [
+        { comment: { id: 'existing-comment', userId: 'current-user', createTime: 1790422091 } }
+      ] } } });
+    }
+    return route.fulfill({ status: state.solved ? 200 : 429, contentType: 'text/html',
+      headers: state.solved ? {} : { 'cf-mitigated': 'challenge' },
+      body: state.solved ? readyHtml + `<script>
+        fetch('/api/cxy/comment/modelFeedList', { method: 'POST', headers: {'content-type':'application/json'},
+          body: JSON.stringify({modelGroupId:'fixture-model',page:1,pageSize:10}) });
+      </script>` : challengeHtml });
+  });
+  const marked = [];
+  const sandbox = vm.createContext({ Date, captureCommentFeed, isOwnModel,
+    readDesigns: async () => [{ id: 'fixture-model', url: target, downloadVerified: true }],
+    readRuns: async () => [],
+    withAutomationBrowser: async (_options, callback) => callback(context),
+    observeCrealityPage, inspectCrealityPage,
+    readIncentiveProgress: async () => ({ found: true, completed: false }),
+    readModelOwnership: async () => ({ ownerUserId: 'another-author' }),
+    updateDesignOwnership: async () => null,
+    markDesignCommented: async (id, evidence) => { marked.push({ id, ...evidence }); },
+    diagnoseTaskError: async error => { throw error; }
+  });
+  const source = fs.readFileSync(new URL('../src/modelCommentTask.js', import.meta.url), 'utf8')
+    .replace(/^import[\s\S]*?;\r?$/gm, '').replace(/^export /gm, '');
+  vm.runInContext(source, sandbox);
+  const manual = manualSignal();
+  const task = sandbox.runModelComment({ textDailyLimit: 1, prioritizeFavorites: false,
+    comments: [{ id: 'text-1', text: 'Comentario de prueba' }] }, { ownUserId: 'current-user' });
+  await manual;
+  await new Promise(resolve => setTimeout(resolve, 15500));
+  assert.equal(marked.length, 0);
+  state.solved = true;
+  await page.getByRole('button', { name: 'Resolver prueba local' }).click();
+  const result = await task;
+  assert.equal(result.success, true);
+  assert.equal(result.skipped, true);
+  assert.match(result.message, /ya tenían un comentario/);
+  assert.equal(marked.length, 1);
+  assert.equal(marked[0].actionState, 'already_applied');
+  assert.equal(posted, 0);
+  assert.equal(page.listenerCount('request'), 0, 'libera la captura al omitir el diseño');
 });
