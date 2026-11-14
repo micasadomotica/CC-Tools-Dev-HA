@@ -293,6 +293,22 @@ test('un HTTP 504 conserva el estado y se marca como transitorio', async () => {
   assert.equal(result.transient, true);
 });
 
+test('Cloudflare activo prevalece sobre el 429 del documento sin perder la evidencia', async () => {
+  const page = fakePage({ url: 'https://www.crealitycloud.com/es/model-detail/test', title: 'Un momento…', body: 'Verificación de seguridad en curso' });
+  const entry = { status: 429, resourceType: 'document', headers: { 'cf-mitigated': 'challenge' } };
+  const result = await inspectCrealityPage(page, { snapshot: async () => [entry] });
+  assert.equal(result.code, 'SECURITY_CHALLENGE');
+  assert.equal(result.responses[0].status, 429);
+  assert.equal(isSecurityChallengeResponse({ ...entry, url: page.url() }), true);
+});
+
+test('un 429 sin verificación conserva el diagnóstico de límite de solicitudes', async () => {
+  const page = fakePage({ url: 'https://www.crealitycloud.com/es/model-detail/test', title: 'Creality Cloud', body: 'Demasiadas solicitudes. Espera antes de volver a intentarlo.' });
+  const result = await inspectCrealityPage(page, { snapshot: async () => [{ status: 429, headers: { 'retry-after': '120' } }] });
+  assert.equal(result.code, 'RATE_LIMITED');
+  assert.equal(result.retryAfter, '120');
+});
+
 function fakePage({ url, title, body }) {
   return {
     url: () => url,

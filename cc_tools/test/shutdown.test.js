@@ -64,7 +64,8 @@ test('real cleanup failures still report nonzero after flushing writes', async (
 function browserModule(chromium) {
   const source = fs.readFileSync(new URL('../src/browserManager.js', import.meta.url), 'utf8')
     .replace(/^import[\s\S]*?;\r?$/gm, '').replace(/^export /gm, '');
-  const context = vm.createContext({ chromium, process, console, setTimeout, clearTimeout });
+  const context = vm.createContext({ chromium, process, console, setTimeout, clearTimeout,
+    browserChallengeState: () => ({ active: false }) });
   vm.runInContext(source, context);
   return context;
 }

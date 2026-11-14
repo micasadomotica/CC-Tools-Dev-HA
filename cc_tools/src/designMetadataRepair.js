@@ -1,4 +1,5 @@
 import { canonicalModelUrl } from './modelIdentity.js';
+import { browserChallengeState } from './browserChallenge.js';
 import { findStructuredAuthorName, normalizeModelOwnership, selectModelOwnership } from './modelOwnership.js';
 import { selectModelCategoryFromTitle } from './modelDownloadTask.js';
 import { readConfig, readDesigns, updateDesignMetadata } from './storage.js';
@@ -21,6 +22,7 @@ export function stopDesignMetadataRepair() {
 }
 
 export async function repairMissingDesignMetadata(limit = BATCH_SIZE) {
+  if (browserChallengeState().active) return { repaired: 0, pending: 1 };
   if (running) return { repaired: 0, pending: 0 };
   running = true;
   try {
@@ -33,6 +35,7 @@ export async function repairMissingDesignMetadata(limit = BATCH_SIZE) {
     const targets = sortRepairTargets(missing)
       .slice(0, Math.max(1, Number(limit) || BATCH_SIZE));
     for (const design of targets) {
+      if (browserChallengeState().active) break;
       const attemptedAt = new Date().toISOString();
       const metadata = await fetchPublicModelMetadata(design);
       const patch = {

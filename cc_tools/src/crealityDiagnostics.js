@@ -1,14 +1,16 @@
 import path from 'path';
 import fs from 'fs/promises';
 import { screenshotsDir } from './storage.js';
+import { resolveBrowserChallenge, challengeResolvedAt } from './browserChallenge.js';
 
-const SECURITY_TEXT_RE = /checking your browser|verify you are human|just a moment|performing security verification|enable javascript and cookies to continue|unusual traffic|access denied|captcha|device check|security check|comprueba que eres humano|verificaci[oó]n de seguridad/i;
+const SECURITY_TEXT_RE = /checking your browser|verify you are human|just a moment|un momento|performing security verification|enable javascript and cookies to continue|unusual traffic|access denied|captcha|device check|security check|comprueba que eres humano|verifique que es un ser humano|verificaci[oó]n de seguridad/i;
 const SECURITY_URL_RE = /captcha-delivery\.com|datadome|challenge-platform|\/captcha(?:\/|\?|$)/i;
 const ACTIVE_SECURITY_FRAME_RE = /captcha-delivery\.com|datadome|\/captcha(?:\/|\?|$)/i;
 const SECURITY_SELECTORS = [
   '#challenge-form',
   '#cf-challenge-running',
   '.cf-challenge',
+  'iframe[src*="challenges.cloudflare.com"][src*="turnstile"]',
   'iframe[src*="captcha-delivery.com"]',
   'iframe[src*="datadome"]',
   'iframe[src*="/captcha"]',
@@ -80,7 +82,9 @@ export function observeCrealityPage(page, taskId) {
 }
 
 export async function inspectCrealityPage(page, observer, options = {}) {
-  const responses = await observer?.snapshot?.() || [];
+  const resolvedAt = challengeResolvedAt(page);
+  const responses = (await observer?.snapshot?.() || []).filter(entry =>
+    !resolvedAt || Date.parse(entry.startedAt || '') > resolvedAt);
   const url = page?.url?.() || '';
   const title = await page?.title?.().catch(() => '') || '';
   const bodyText = normalize(await page?.locator?.('body')?.innerText({ timeout: 2500 }).catch(() => '') || '');
@@ -92,17 +96,23 @@ export async function inspectCrealityPage(page, observer, options = {}) {
   const challengeResponse = responses.find((entry) => entry.challenge);
   const modelReviewFailure = responses.find(isModelReviewFailureResponse);
 
+  const liveChallenge = securityLocation || visibleSecurityChallenge || hasStandaloneSecurityText(title, bodyText);
+  if (challengeResponse || liveChallenge) {
+    const challenge = diagnostic('SECURITY_CHALLENGE', 'security', true,
+      'Creality Cloud ha mostrado una verificación de seguridad.', { url, title, responses, frameUrls });
+    if (liveChallenge && options.handleChallenge !== false
+      && await resolveBrowserChallenge(page, challenge)) {
+      return inspectCrealityPage(page, observer, { ...options, handleChallenge: false });
+    }
+    return challenge;
+  }
+
   if (rateLimit) {
     return diagnostic('RATE_LIMITED', 'rate_limit', true,
       'Creality Cloud ha limitado temporalmente las solicitudes.', {
         url, title, responses, frameUrls,
         retryAfter: rateLimit.headers?.['retry-after'] || ''
       });
-  }
-
-  if (challengeResponse || securityLocation || visibleSecurityChallenge || hasStandaloneSecurityText(title, bodyText)) {
-    return diagnostic('SECURITY_CHALLENGE', 'security', true,
-      'Creality Cloud ha mostrado una verificación de seguridad.', { url, title, responses, frameUrls });
   }
 
   if (await loginRequired(page)) {
@@ -279,6 +289,8 @@ async function captureResponse(response, meta) {
   const headers = {};
   for (const name of [
     'retry-after',
+    'cf-mitigated',
+    'cf-ray',
     'x-dd-b',
     'x-datadome',
     'x-datadomeresponse',
@@ -339,6 +351,7 @@ function redactPayload(value) {
 }
 
 export function isSecurityChallengeResponse({ status, url, resourceType, headers = {} }) {
+  if (headers['cf-mitigated'] === 'challenge') return true;
   if (headers['x-dd-b']) return true;
   if (headers['x-datadomeresponse'] && String(headers['x-datadomeresponse']) !== '200') return true;
   const trafficRule = String(headers['x-datadome-traffic-rule-response'] || '').toLowerCase();

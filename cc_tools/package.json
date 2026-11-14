@@ -1,6 +1,6 @@
 {
   "name": "cc-tools",
-  "version": "1.0.56",
+  "version": "1.0.57",
   "private": true,
   "type": "module",
   "scripts": {
@@ -16,7 +16,8 @@
     "test:uploads:browser": "node --test scripts/uploadDesigns.browser.mjs scripts/uploadDesignForm.browser.mjs",
     "test:logs:browser": "node --test scripts/logs.browser.mjs",
     "test:boosts:browser": "node --test scripts/modelBoost.browser.mjs",
-    "test:session:browser": "node --test scripts/authenticatedSession.browser.mjs"
+    "test:session:browser": "node --test scripts/authenticatedSession.browser.mjs",
+    "test:challenge:browser": "node --test scripts/browserChallenge.browser.mjs"
   },
   "dependencies": {
     "dotenv": "^16.4.7",

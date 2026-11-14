@@ -1,4 +1,5 @@
 import { withIsolatedBrowser } from './browserManager.js';
+import { browserChallengeState } from './browserChallenge.js';
 import { canonicalModelUrl, modelKeyFromUrl } from './modelIdentity.js';
 import { normalizeFavoriteProfiles, normalizeFavoriteAvatarUrl } from './favoriteProfiles.js';
 import { readFavoriteProfileFromPage } from './crealityFavoriteProfile.js';
@@ -36,6 +37,7 @@ export function queueFavoriteProfileSync(profile, options = {}) {
     .then(() => syncFavoriteProfile(profile, options));
   const promise = run
     .catch(async (error) => {
+      if (browserChallengeState().active) return { ok: false, deferred: true };
       await updateProfileSyncState(userId, { indexStatus: 'error', indexedAt: new Date().toISOString() });
       console.error(`[favorites] ${profile.name || userId}: ${error.message}`);
       try {
@@ -76,6 +78,7 @@ export function queueFavoriteProfilesFullRefresh(profiles = [], options = {}) {
 }
 
 export async function queueConfiguredFavoriteSyncs() {
+  if (browserChallengeState().active) return [];
   const config = await readConfig();
   if (!shouldSyncConfiguredFavorites(config)) return [];
 
@@ -120,6 +123,7 @@ export function shouldSyncConfiguredFavorites(config = {}) {
 }
 
 export async function syncFavoriteProfile(profile, options = {}) {
+  if (browserChallengeState().active) return { ok: false, deferred: true };
   const full = options.full === true || !profile.fullIndexedAt;
   await updateProfileSyncState(profile.userId, { indexStatus: 'syncing' });
   const currentDesigns = await readDesigns();

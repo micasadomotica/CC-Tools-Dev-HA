@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import { pauseForExpiredSession } from '../src/sessionHealth.js';
+import { sessionClosedNotification } from '../src/sessionRecovery.js';
 
 function harness(outcome) {
   const source = fs.readFileSync(new URL('../src/scheduler.js', import.meta.url), 'utf8');
@@ -11,6 +12,7 @@ function harness(outcome) {
   const writes = [], messages = [], runs = [];
   let attempts = 0;
   const context = vm.createContext({ Date, Number, Error, console,
+    attemptAutomaticSessionRecovery: async () => ({ recovered: false }), sessionClosedNotification,
     pauseForExpiredSession, activeRunToken: 1, taskExecutionTimeoutMs: () => 60000,
     beginSchedulerRun: () => 1, releaseSchedulerRun: () => {},
     executeMaintenanceWithTimeout: operation => operation(),

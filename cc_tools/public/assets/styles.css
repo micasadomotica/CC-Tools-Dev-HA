@@ -4675,3 +4675,19 @@ textarea {
 }
 
 .schedule-makeNow { border-right-color: #53b8a3; }
+/* Visible above task dialogs so a waiting task can always be opened or cancelled. */
+.security-challenge-banner {
+  position: fixed;
+  z-index: 10000;
+  right: 16px;
+  bottom: 16px;
+  max-width: min(440px, calc(100vw - 32px));
+  padding: 18px;
+  border: 1px solid #e8b24a;
+  border-radius: 12px;
+  background: #191e23;
+  color: #f4f7f6;
+  box-shadow: 0 6px 24px #0008;
+}
+.security-challenge-banner[hidden] { display: none; }
+.security-challenge-banner p { margin: 8px 0 14px; }

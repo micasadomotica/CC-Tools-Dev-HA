@@ -29,6 +29,8 @@ function harness({ mode = '', authenticated = false, userId = '', accounts, expi
   };
   const fixtureContext = { pages: () => [page], browser: () => null, once() {}, close: async () => { calls.closed++; } };
   const context = vm.createContext({ process, URL, calls, fixtureContext, initialMode: mode,
+    installChallengeHandling: () => {}, browserChallengeState: () => ({ active: false }),
+    inspectCrealityPage: async () => null,
     launchFixture: async () => { calls.launched++; return fixtureContext; },
     checkFixture: async () => ({ ...sessionCheckOutcome(authenticated ? 'authenticated' : 'unknown'), userId }),
     confirmAuthenticatedSession: async () => { calls.confirmed++; return { authenticated: true }; }

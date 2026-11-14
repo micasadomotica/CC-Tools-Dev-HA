@@ -27,6 +27,7 @@ function harness(code = 'TASK_EXECUTION_TIMEOUT') {
     error.technical = 'Navigation timeout al abrir Creality Cloud.';
   }
   const context = vm.createContext({
+    challengeClock: () => 0, browserChallengeState: () => ({ active: false }),
     assertMigrationReviewed,
     Date, Promise, AbortController, setTimeout, clearTimeout, process, normalizeCaughtError,
     console: { log() {}, error() {}, warn() {} },

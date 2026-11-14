@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.57 — verificación de seguridad y recuperación de sesión
+
+- Conserva la misma ventana, pestaña y perfil de Chromium cuando una navegación muestra una verificación de seguridad. Espera su resolución automática o permite completarla manualmente desde el visor, y continúa desde ese punto tras comprobar la página de destino. No pulsa captchas ni repite la tarea completa.
+- Muestra un aviso en toda la interfaz con Abrir navegador y Cancelar espera. Si Telegram está configurado, envía un aviso cuando sigue pendiente la intervención. La espera máxima es de 15 minutos; el watchdog excluye ese tiempo y vuelve a controlar la ejecución al continuar.
+- Abrir navegador inicia Chromium si está cerrado o muestra la ventana existente sin cancelar ni redirigir la tarea. Logearme tampoco cancela una tarea que espera verificación. Cerrar navegador queda bloqueado durante esa espera; Cancelar espera detiene la operación.
+- Evita nuevas consultas auxiliares con otros navegadores durante la verificación y cierra las consultas aisladas en curso. Aplaza la indexación de favoritos y las siguientes consultas de metadatos mientras se interviene.
+- Da prioridad al diagnóstico de verificación sobre un HTTP 429 asociado y conserva las cabeceras cf-mitigated y cf-ray. Los errores anteriores a una verificación resuelta no contaminan la inspección de la nueva página.
+- Adapta TitoTB 1.0.44 (86728a55): excluye de los boosts los modelos solo indexados y rota la prioridad en grupos de tres después de un fallo. Conserva la búsqueda completa de candidatos de Dev, la preferencia por favoritos y el límite diario de un boost, también en ejecución manual.
+- Recupera cada nueva caducidad de sesión antes de alertar, siempre que Inicio de sesión automático esté activado. Comprueba la cuenta configurada, evita intentos simultáneos y explica los fallos o resultados inconclusos.
+- Añade pruebas de navegador con desafíos simulados y pruebas de diagnóstico, recuperación y concurrencia. Superar la verificación real depende de Cloudflare; las pruebas no acreditan todavía su aceptación en habeta. Desde 1.0.56 basta con actualizar, sin migrar datos.
+
 ## 1.0.56 — favoritos y recuperación de sesión
 
 - Corrige el error al añadir perfiles cuyos nombres no incluyen la clase de texto truncado en el formato actual de Creality Cloud.
