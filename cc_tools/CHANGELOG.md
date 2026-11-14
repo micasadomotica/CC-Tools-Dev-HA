@@ -1,9 +1,11 @@
 # Changelog
 
-## 1.0.60 — aviso de verificación sin demora
+## 1.0.60 — aviso sin demora y diagnóstico de cookies
 
 - Elimina la espera previa de 40 segundos. Muestra Abrir navegador y envía el aviso de Telegram, si está configurado, al detectar la verificación.
 - Conserva la reutilización de Chromium de 1.0.59, la cancelación y el límite de 15 minutos para completar la verificación.
+- Registra la presencia y los metadatos de `cf_clearance` y `__cf_bm` antes y después de la verificación, al empezar y terminar cada módulo y al cerrar Chromium. Identifica el contexto reutilizado y las cookies que aparecen o desaparecen, sin registrar valores, hashes ni cabeceras de cookies.
+- Incluye el diagnóstico en el historial y en la exportación de logs. Compara metadatos, no valores; la presencia de una cookie no garantiza que Cloudflare la acepte. Añade pruebas con cookies sintéticas, navegación y exportación.
 - Actualiza las pruebas del aviso inmediato y de continuación en el mismo navegador. Desde 1.0.59 basta con actualizar, sin migración.
 
 ## 1.0.59 — Chromium compartido y espera de 40 segundos

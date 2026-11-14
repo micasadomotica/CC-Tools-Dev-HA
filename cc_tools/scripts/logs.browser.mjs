@@ -9,13 +9,21 @@ import { once } from 'node:events';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { requireMigrationReview } from '../src/migrationReview.js';
+import { cloudflareCookieMetadata } from '../src/cookieDiagnostics.js';
+
+const cookieTrace = { traceId: 'test-trace', taskId: 'makeNow', events: [{
+  phase: 'module_start', contextId: 'test-context', readStatus: 'ok', clearancePresent: true,
+  cookies: cloudflareCookieMetadata([{ name: 'cf_clearance', value: 'PRIVATE_EXPORT_SENTINEL',
+    domain: '.crealitycloud.com', expires: -1, secure: true, httpOnly: true, sameSite: 'None' }])
+}], omittedEvents: 0 };
 
 let browser, server, dataDir, baseUrl;
 before(async () => {
   dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cctools-setup-'));
   await fs.writeFile(path.join(dataDir, 'runs.json'), JSON.stringify(Array.from({ length: 45 }, (_, index) => ({
     id: 'log-' + index, taskId: 'makeNow', status: 'success', source: 'manual',
-    message: 'Registro ' + index, finishedAt: new Date(Date.now() - index * 1000).toISOString(), details: {}
+    message: 'Registro ' + index, finishedAt: new Date(Date.now() - index * 1000).toISOString(),
+    details: index === 20 ? { cookieDiagnostics: cookieTrace } : {}
   }))));
   const socket = net.createServer();
   socket.listen(0, '127.0.0.1');
@@ -128,6 +136,11 @@ test('Logs pagina, conserva la página al refrescar y descarga solo los registro
     await page.locator('#logs-next').click();
     await page.waitForFunction(() => document.querySelector('#logs-page').textContent === 'Página 2 de 3');
     assert.match(await page.locator('#runs').innerText(), /Registro 20/);
+    const cookieDetails = page.locator('#runs .cookie-diagnostics');
+    await cookieDetails.locator('summary').click();
+    assert.match(await cookieDetails.innerText(), /cf_clearance/);
+    assert.match(await cookieDetails.innerText(), /module_start/);
+    assert.doesNotMatch(await cookieDetails.innerText(), /PRIVATE_EXPORT_SENTINEL/);
     await page.waitForResponse(response => response.url().includes('/api/runs?page=2'), { timeout: 15000 });
     assert.equal(await page.locator('#logs-page').innerText(), 'Página 2 de 3');
     const downloaded = page.waitForEvent('download');
@@ -136,6 +149,9 @@ test('Logs pagina, conserva la página al refrescar y descarga solo los registro
     const content = await fs.readFile(await download.path(), 'utf8');
     assert.match(content, /Página: 2 de 3/); assert.match(content, /Registro 20/);
     assert.doesNotMatch(content, /Registro 0\n/);
+    assert.match(content, /cookieDiagnostics/);
+    assert.match(content, /cf_clearance/);
+    assert.doesNotMatch(content, /PRIVATE_EXPORT_SENTINEL/);
     await page.locator('#logs-next').click();
     await page.waitForFunction(() => document.querySelector('#logs-page').textContent === 'Página 3 de 3');
     assert.equal(await page.locator('#runs .run').count(), 5);

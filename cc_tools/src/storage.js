@@ -5,6 +5,7 @@ import { DEFAULT_FAVORITE_PROFILES, normalizeFavoriteProfiles } from './favorite
 import { activateFinishPrintProfile, normalizeFinishPrintProfiles } from './finishPrintProfiles.js';
 import { normalizeShopOrdersState } from './shopOrdersState.js';
 import { mergePointTransactions } from './pointsCounter.js';
+import { cookieDiagnosticsSnapshot } from './cookieDiagnostics.js';
 
 const DATA_DIR = process.env.CCTOOLS_DATA_DIR || path.resolve('data');
 const CONFIG_PATH = path.join(DATA_DIR, 'config.json');
@@ -312,12 +313,14 @@ export async function readRuns() {
 }
 
 export async function appendRun(run) {
+  const cookies = cookieDiagnosticsSnapshot();
+  const loggedRun = cookies ? { ...run, details: { ...(run.details || {}), cookieDiagnostics: cookies } } : run;
   return enqueue('runs', async () => {
     const runs = await readJsonArray(LOGS_PATH);
     runs.unshift({
       id: crypto.randomUUID(),
       createdAt: new Date().toISOString(),
-      ...run
+      ...loggedRun
     });
     await writeJsonAtomic(LOGS_PATH, runs.slice(0, 200));
   });

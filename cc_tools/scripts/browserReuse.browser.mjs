@@ -7,11 +7,13 @@ import vm from 'node:vm';
 import { chromium } from 'playwright';
 import { installChallengeHandling, browserChallengeState } from '../src/browserChallenge.js';
 import { inspectCrealityPage, normalizeCaughtError } from '../src/crealityDiagnostics.js';
+import { recordCookieDiagnostics, withCookieDiagnostics, cookieDiagnosticsSnapshot } from '../src/cookieDiagnostics.js';
 
 test('conserva el proceso, contexto, cookies y almacenamiento entre módulos y descargas', async t => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'cc-tools-reuse-'));
   let launches = 0;
   const sandbox = vm.createContext({ process, URL, installChallengeHandling, browserChallengeState,
+    recordCookieDiagnostics,
     inspectCrealityPage, normalizeCaughtError,
     confirmAuthenticatedSession: async () => {},
     launchFixture: async () => {
@@ -43,14 +45,21 @@ test('conserva el proceso, contexto, cookies y almacenamiento entre módulos y d
     .replace(/^import[\s\S]*?;\r?$/gm, '').replace(/^export /gm, '');
   vm.runInContext(downloadSource, downloadScope);
   let firstContext;
-  await sandbox.withAutomationBrowser({}, async context => {
-    firstContext = context;
-    const page = context.pages()[0];
-    await page.goto('https://www.crealitycloud.com/es/test');
-    await context.addCookies([{ name: 'session_test', value: 'kept', url: page.url() }]);
-    await page.evaluate(() => localStorage.setItem('session_test', 'kept'));
-    await context.newPage();
+  const firstTrace = await withCookieDiagnostics('comments', async () => {
+    await sandbox.withAutomationBrowser({}, async context => {
+      firstContext = context;
+      const page = context.pages()[0];
+      await page.goto('https://www.crealitycloud.com/es/test');
+      await context.addCookies([{ name: 'session_test', value: 'kept', url: page.url() }]);
+      await context.addCookies([{ name: 'cf_clearance', value: 'PRIVATE_TEST_CLEARANCE', url: page.url(),
+        expires: Math.floor(Date.now() / 1000) + 3600, httpOnly: true, secure: true }]);
+      await page.evaluate(() => localStorage.setItem('session_test', 'kept'));
+      await context.newPage();
+    });
+    return cookieDiagnosticsSnapshot();
   });
+  assert.equal(firstTrace.events.find(e => e.phase === 'module_start').clearancePresent, false);
+  assert.equal(firstTrace.events.find(e => e.phase === 'module_end').clearancePresent, true);
   assert.equal(sandbox.browserManagerState().mode, 'idle');
   assert.equal(sandbox.browserManagerState().active, true);
   assert.equal(firstContext.pages().length, 1);
@@ -59,18 +68,28 @@ test('conserva el proceso, contexto, cookies y almacenamiento entre módulos y d
   for (const batch of ['batch-one', 'batch-two']) {
     const dir = path.join(root, batch);
     await fs.mkdir(dir);
-    await sandbox.withAutomationBrowser({ acceptDownloads: true }, async context => {
-      assert.equal(context, firstContext);
-      const page = context.pages()[0];
-      await page.goto('https://www.crealitycloud.com/es/test');
-      assert.equal((await context.cookies()).find(c => c.name === 'session_test').value, 'kept');
-      assert.equal(await page.evaluate(() => localStorage.getItem('session_test')), 'kept');
-      const pending = page.waitForEvent('download');
-      await page.getByRole('link', { name: 'Descargar' }).click();
-      const download = await pending;
-      await downloadScope.persistBrowserDownload(download, dir, 'test');
-      assert.equal(await fs.readFile(path.join(dir, 'model.stl'), 'utf8'), 'solid test\nendsolid test');
+    const nextTrace = await withCookieDiagnostics('modelDownloads', async () => {
+      await sandbox.withAutomationBrowser({ acceptDownloads: true }, async context => {
+        assert.equal(context, firstContext);
+        const page = context.pages()[0];
+        await page.goto('https://www.crealitycloud.com/es/test');
+        assert.equal((await context.cookies()).find(c => c.name === 'session_test').value, 'kept');
+        assert.equal(await page.evaluate(() => localStorage.getItem('session_test')), 'kept');
+        const pending = page.waitForEvent('download');
+        await page.getByRole('link', { name: 'Descargar' }).click();
+        const download = await pending;
+        await downloadScope.persistBrowserDownload(download, dir, 'test');
+        assert.equal(await fs.readFile(path.join(dir, 'model.stl'), 'utf8'), 'solid test\nendsolid test');
+      });
+      return cookieDiagnosticsSnapshot();
     });
+    const start = nextTrace.events.find(e => e.phase === 'module_start');
+    assert.equal(start.clearancePresent, true);
+    assert.equal(start.sameContext, true);
+    assert.equal(start.sameMetadata, true);
+    assert.equal(start.reused, true);
+    assert.equal(start.contextId, firstTrace.events[0].contextId);
+    assert.equal(JSON.stringify(nextTrace).includes('PRIVATE_TEST_CLEARANCE'), false);
   }
   assert.equal(launches, 1);
   await sandbox.openInteractiveBrowser('https://www.crealitycloud.com/es/test');
@@ -78,4 +97,17 @@ test('conserva el proceso, contexto, cookies y almacenamiento entre módulos y d
   await assert.rejects(sandbox.withAutomationBrowser({}, () => {}), { code: 'REMOTE_BROWSER_OPEN' });
   await sandbox.closeInteractiveBrowser();
   assert.equal(sandbox.browserManagerState().active, false);
+  const reopened = await withCookieDiagnostics('makeNow', async () => {
+    await sandbox.withAutomationBrowser({}, async context => {
+      assert.notEqual(context, firstContext);
+    });
+    return cookieDiagnosticsSnapshot();
+  });
+  const restarted = reopened.events.find(e => e.phase === 'module_start');
+  assert.equal(launches, 2);
+  assert.equal(restarted.clearancePresent, true, 'la cookie persistente sobrevive al cierre del perfil');
+  assert.equal(restarted.reused, false);
+  assert.equal(restarted.sameContext, false);
+  assert.equal(restarted.sameMetadata, true);
+  assert.equal(JSON.stringify(reopened).includes('PRIVATE_TEST_CLEARANCE'), false);
 });

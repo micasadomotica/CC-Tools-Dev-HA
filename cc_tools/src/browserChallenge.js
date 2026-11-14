@@ -1,5 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { sameNavigationTarget } from './crealityNavigation.js';
+import { recordCookieDiagnostics } from './cookieDiagnostics.js';
 
 const handlers = new WeakMap();
 const pending = new WeakMap();
@@ -93,7 +94,9 @@ async function waitForChallenge(page, diagnostic, target, options) {
   current = state;
   challengeEvents.emit('change', browserChallengeState());
   let stable = 0;
+  let solved = false;
   try {
+    await recordCookieDiagnostics(page.context?.(), 'challenge_before', { url: target });
     await options.onStart?.();
     await page.bringToFront().catch(() => {});
     while (Date.now() - startedMs < timeoutMs) {
@@ -108,6 +111,11 @@ async function waitForChallenge(page, diagnostic, target, options) {
           && Boolean(document.body?.innerText.trim())).catch(() => false);
         stable = ready ? stable + 1 : 0;
         if (stable >= 2) {
+          await recordCookieDiagnostics(page.context?.(), 'challenge_after', { url: target });
+          if (page.isClosed() || !options.enabled()) {
+            throw challengeError('SECURITY_CHALLENGE_CANCELLED', 'La espera de verificación se ha cancelado.');
+          }
+          solved = true;
           completedAt.set(page, Date.now());
           return true;
         }
@@ -131,6 +139,7 @@ async function waitForChallenge(page, diagnostic, target, options) {
     error.diagnostic = { ...diagnostic, code: error.code, message: error.message, systemic: true };
     throw error;
   } finally {
+    if (!solved) await recordCookieDiagnostics(page.context?.(), 'challenge_unsolved', { url: target });
     pausedMs += Date.now() - startedMs;
     if (current === state) current = null;
     challengeEvents.emit('change', browserChallengeState());

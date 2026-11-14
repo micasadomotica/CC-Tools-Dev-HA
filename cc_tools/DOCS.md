@@ -121,6 +121,12 @@ En **Ajustes > Sesión**, **Abrir navegador** muestra la ventana existente o ini
 
 Las tareas principales reutilizan el proceso y el contexto de Chromium. Al terminar cierran sus pestañas y dejan una pestaña vacía para conservar cookies y almacenamiento sin mantener las páginas de trabajo activas. Chromium permanece en memoria hasta cerrar el navegador, detener la app o necesitar recuperarse de un fallo. La sesión interactiva sigue reservada al usuario mientras esté abierta.
 
+Desde 1.0.60, cada ejecución con muestras de cookies incluye **Cookies de Cloudflare · datos técnicos** en Logs. La descarga de registros incluye el mismo contenido en `cookieDiagnostics`. Los logs del complemento también muestran las muestras con el prefijo `[browser-cookies]`, incluidas las de apertura y cierre del navegador interactivo.
+
+Para comprobar la conservación, completa la verificación y ejecuta otro módulo. Compara `challenge_before` y `challenge_after` con `module_end` y el siguiente `module_start`: `clearancePresent` indica si existe `cf_clearance`, `contextId` identifica el contexto y `reused` indica si se ha reutilizado al iniciar el módulo. `appeared` y `disappeared` muestran cambios de nombre y dominio respecto a la muestra anterior, identificada en `previous`. `expiresAt` indica la caducidad y `session` si es una cookie de sesión.
+
+Solo se registran metadatos de `cf_clearance` y `__cf_bm` en dominios de Creality: nunca sus valores, hashes ni cabeceras. `sameMetadata` compara esos metadatos y no demuestra que el valor sea idéntico. `readStatus: unavailable` indica que no se pudo leer, no que se hayan perdido las cookies. Este diagnóstico comprueba su presencia en Chromium; no demuestra que se envíen en una petición concreta ni que Cloudflare las acepte. Los identificadores de contexto se renuevan al reiniciar la app.
+
 Ante una verificación se comprueba la página aproximadamente cada segundo, sin recargarla ni pulsar controles. El botón del aviso para abrir el navegador y la notificación de Telegram aparecen al detectar la verificación. Se puede cancelar durante la espera. El límite total sigue siendo de 15 minutos. Son comprobaciones del estado, no cinco intentos de marcar la casilla.
 
 La reutilización no garantiza que Creality deje de pedir verificaciones. Crear un proyecto ya comparte el navegador dentro de una ejecución y puede recibir varios desafíos al navegar. No se simulan movimientos de ratón ni se resuelven captchas automáticamente.
