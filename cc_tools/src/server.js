@@ -284,7 +284,7 @@ app.delete('/api/shop/goal', async (req, res) => {
 });
 
 app.post('/api/creality/profile/refresh', async (req, res) => {
-  if (browserManagerState().active) {
+  if (browserManagerState().mode !== 'idle') {
     return res.status(409).json({ ok: false, error: 'BROWSER_BUSY' });
   }
   try {
@@ -1318,7 +1318,7 @@ app.get('/api/browser/status', (req, res) => {
 app.post('/api/browser/open', async (req, res) => {
   try {
     // Viewing an active task must never cancel it or navigate away from its challenge.
-    if (!browserManagerState().active) await openLoginBrowser();
+    if (browserManagerState().mode === 'idle') await openLoginBrowser();
     res.json({ ok: true, url: browserViewerUrl });
   } catch (error) {
     res.status(409).json({ ok: false, error: error.message });

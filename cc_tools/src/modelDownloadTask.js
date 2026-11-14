@@ -77,7 +77,7 @@ export async function runModelDownloads(taskConfig = {}, options = {}) {
   const screenshots = [];
 
   try {
-    return await withAutomationBrowser({ acceptDownloads: true, downloadsPath: batchDir }, async (context) => {
+    return await withAutomationBrowser({ acceptDownloads: true }, async (context) => {
       let page = context.pages()[0] || await context.newPage();
       let observer = observeCrealityPage(page, 'modelDownloads');
       try {
@@ -863,7 +863,9 @@ async function persistBrowserDownload(download, batchDir, title) {
   if (downloadFailure) {
     throw taskError('DOWNLOAD_FAILED', 'download', `El navegador indicó que la descarga falló: ${downloadFailure}`);
   }
-  return verifiedFile(filePath, suggestedName);
+  const result = await verifiedFile(filePath, suggestedName);
+  await download.delete().catch(() => {});
+  return result;
 }
 
 export async function persistSignedDownload(downloadUrl, batchDir, title, preferredName = '') {
@@ -1335,8 +1337,7 @@ async function ensureAutomationPage(page, observer, batchDir) {
 
   observer?.stop();
   const context = await restartAutomationBrowser({
-    acceptDownloads: true,
-    downloadsPath: batchDir
+    acceptDownloads: true
   });
   const replacement = context.pages()[0] || await context.newPage();
   return {

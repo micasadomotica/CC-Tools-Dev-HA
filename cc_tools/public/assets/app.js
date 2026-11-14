@@ -1098,6 +1098,7 @@ async function pollBrowserChallenge() {
     if (!banner) return;
     banner.hidden = !challenge?.active;
     $('#security-challenge-message').textContent = challenge?.message || '';
+    $('#security-challenge-open').hidden = challenge?.phase !== 'manual';
     $('#close-login').disabled = Boolean(challenge?.active);
   } catch { /* Preserve the last state while the server reconnects. */ }
   finally { challengePollBusy = false; }
