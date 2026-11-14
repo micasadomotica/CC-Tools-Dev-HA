@@ -6,6 +6,7 @@ import { inspectCrealityPage, normalizeCaughtError } from './crealityDiagnostics
 import { isNavigationTimeout, navigateToCrealityPage } from './crealityNavigation.js';
 import { confirmAuthenticatedSession } from './sessionMonitor.js';
 import { installChallengeHandling, browserChallengeState } from './browserChallenge.js';
+import { recordCookieDiagnostics } from './cookieDiagnostics.js';
 
 const PROFILE_LOCK_FILES = ['SingletonLock', 'SingletonCookie', 'SingletonSocket', 'lock'];
 const SESSION_CHECK_URL = 'https://www.crealitycloud.com/es/workbench-beta/?type=1';
@@ -54,7 +55,9 @@ export async function withAutomationBrowser(options, callback) {
   const owner = activeOwner = Symbol('automation');
   let completed = false;
   try {
+    const previousContext = activeContext;
     await ensureActiveContext({ ...baseOptions(), ...(options || {}) });
+    await recordCookieDiagnostics(activeContext, 'module_start', { reused: previousContext === activeContext });
     const sessionCheck = await assertAuthenticatedSession(activeContext);
     if (sessionCheck.confirmAuthenticated) await confirmAuthenticatedSession();
     const result = await callback(activeContext, sessionCheck);
@@ -63,6 +66,9 @@ export async function withAutomationBrowser(options, callback) {
   } catch (error) {
     throw normalizeBrowserError(error);
   } finally {
+    if (activeOwner === owner) {
+      await recordCookieDiagnostics(activeContext, 'module_end');
+    }
     if (activeOwner === owner) {
       if (completed && !shuttingDown) await releaseAutomationContext(owner);
       else await closeActiveContext();
@@ -148,6 +154,7 @@ export async function openInteractiveBrowser(url) {
 
   const page = activeContext.pages()[0] || await activeContext.newPage();
   await page.goto(url, { waitUntil: 'domcontentloaded' });
+  await recordCookieDiagnostics(activeContext, 'interactive_open', { url: page.url() });
   return page;
 }
 
@@ -171,6 +178,7 @@ export async function verifyPersistedSession() {
       return { checked: false, authenticated: false, reason: 'LOGIN_IN_PROGRESS' };
     }
     const sessionCheck = await assertAuthenticatedSession(activeContext, page);
+    await recordCookieDiagnostics(activeContext, 'interactive_check', { url: page.url() });
     if (!sessionCheck.confirmAuthenticated) {
       return { checked: false, authenticated: false, reason: 'SESSION_CHECK_INCONCLUSIVE' };
     }
@@ -526,7 +534,10 @@ async function closeActiveContext({ keepLease = false } = {}) {
   }
   activeBrowserVersion = '';
   activeOptionsKey = '';
-  if (context) await context.close().catch(error => { if (shuttingDown) throw error; });
+  if (context) {
+    await recordCookieDiagnostics(context, 'context_before_close');
+    await context.close().catch(error => { if (shuttingDown) throw error; });
+  }
 }
 
 export async function assertAuthenticatedSession(context, preferredPage = null) {

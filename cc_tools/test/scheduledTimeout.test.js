@@ -6,6 +6,7 @@ import { assertMigrationReviewed } from '../src/migrationReview.js';
 import { normalizeCaughtError } from '../src/crealityDiagnostics.js';
 import { activateFinishPrintProfile, activateNextFinishPrintProfile, normalizeFinishPrintProfiles, syncActiveFinishPrintProfile } from '../src/finishPrintProfiles.js';
 import { isFinishPrintStartRun } from '../src/finishPrintSelection.js';
+import { withCookieDiagnostics } from '../src/cookieDiagnostics.js';
 
 // Exercise the scheduler's error path without a live browser, account or Telegram.
 function harness(code = 'TASK_EXECUTION_TIMEOUT') {
@@ -29,6 +30,7 @@ function harness(code = 'TASK_EXECUTION_TIMEOUT') {
   const context = vm.createContext({
     challengeClock: () => 0, browserChallengeState: () => ({ active: false }),
     assertMigrationReviewed,
+    withCookieDiagnostics,
     Date, Promise, AbortController, setTimeout, clearTimeout, process, normalizeCaughtError,
     console: { log() {}, error() {}, warn() {} },
     pauseProgressSync: () => () => { state.released = true; },

@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import { captureCommentFeed } from '../src/commentFeed.js';
 import { isOwnModel } from '../src/modelOwnership.js';
+import { withCookieDiagnostics, cookieDiagnosticsSnapshot } from '../src/cookieDiagnostics.js';
 
 const target = 'https://www.crealitycloud.com/es/model-detail/local-test';
 const readyHtml = '<title>Modelo de prueba | Creality Cloud</title><h1>Modelo de prueba</h1><p>Ficha disponible con archivos y descripción del modelo de prueba.</p>';
@@ -40,21 +41,30 @@ async function manualSignal() {
 }
 
 test('mantiene ventana y perfil, espera la intervención y continúa una sola vez', async t => {
-  const { page, context, state } = await fixture(t);
+  const { page, context, state } = await fixture(t, { manualAfterMs: 0 });
   await context.addCookies([{ name: 'test_session', value: 'preserved', url: target }]);
   const observer = observeCrealityPage(page, 'fixture');
   const manual = manualSignal();
   let actions = 0;
-  const task = page.goto(target).then(() => { actions++; });
+  const task = withCookieDiagnostics('comments', async () => {
+    await page.goto(target);
+    actions++;
+    return cookieDiagnosticsSnapshot();
+  });
   const notice = await manual;
   assert.equal(actions, 0);
   assert.equal(page.isClosed(), false);
   assert.equal(browserChallengeState().active, true);
   await assert.rejects(withIsolatedBrowser({}, () => assert.fail('No debe abrir otro navegador')), { code: 'BROWSER_BUSY' });
   assert.equal(notice.url, target);
+  await context.addCookies([{ name: 'cf_clearance', value: 'PRIVATE_CHALLENGE_VALUE', url: target,
+    expires: Math.floor(Date.now() / 1000) + 3600, httpOnly: true, secure: true }]);
   state.solved = true;
   await page.getByRole('button', { name: 'Resolver prueba local' }).click();
-  await task;
+  const trace = await task;
+  assert.equal(trace.events.find(e => e.phase === 'challenge_before').clearancePresent, false);
+  assert.equal(trace.events.find(e => e.phase === 'challenge_after').clearancePresent, true);
+  assert.equal(JSON.stringify(trace).includes('PRIVATE_CHALLENGE_VALUE'), false);
   assert.equal(actions, 1);
   assert.equal(state.requests, 2);
   assert.equal((await context.cookies()).find(c => c.name === 'test_session').value, 'preserved');

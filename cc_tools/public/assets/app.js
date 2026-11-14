@@ -3926,7 +3926,11 @@ function renderRunDetails(run) {
   }
 
   const resultDetails = items.length ? `<ul class="run-details">${items.join('')}</ul>` : '';
-  return `${resultDetails}${renderDiagnostics(diagnostics)}`;
+  const cookieDiagnostics = run.details?.cookieDiagnostics;
+  const cookieDetails = cookieDiagnostics?.events?.length
+    ? `<div class="diagnostic-list"><section class="diagnostic-entry"><details class="cookie-diagnostics"><summary>Cookies de Cloudflare · datos técnicos</summary><p>Presencia y metadatos; no se registran valores. Una cookie presente no garantiza que Cloudflare acepte la sesión.</p><pre>${escapeHtml(JSON.stringify(cookieDiagnostics, null, 2))}</pre></details></section></div>`
+    : '';
+  return `${resultDetails}${renderDiagnostics(diagnostics)}${cookieDetails}`;
 }
 
 function renderDiagnostics(diagnostics) {

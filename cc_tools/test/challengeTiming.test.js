@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { installChallengeHandling, resolveBrowserChallenge, challengeEvents, CHALLENGE_MANUAL_AFTER_MS } from '../src/browserChallenge.js';
 
-test('solicita intervención solo después de 40 segundos sin recargar ni interactuar', async t => {
+test('solicita intervención al detectar la verificación sin esperar ni recargar', async t => {
   t.mock.timers.enable({ apis: ['Date'], now: 1000000 });
   const context = new EventEmitter();
   const page = new EventEmitter();
@@ -29,8 +29,8 @@ test('solicita intervención solo después de 40 segundos sin recargar ni intera
   try {
     await assert.rejects(resolveBrowserChallenge(page, { code: 'SECURITY_CHALLENGE' }),
       { code: 'SECURITY_CHALLENGE_CANCELLED' });
-    assert.equal(CHALLENGE_MANUAL_AFTER_MS, 40000);
-    assert.equal(manualAt, 40000);
-    assert.ok(ticks >= 40);
+    assert.equal(CHALLENGE_MANUAL_AFTER_MS, 0);
+    assert.equal(manualAt, 0);
+    assert.equal(ticks, 0);
   } finally { challengeEvents.off('change', onChange); }
 });
