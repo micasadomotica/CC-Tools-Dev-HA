@@ -7,7 +7,7 @@ const completedAt = new WeakMap();
 const documents = new WeakMap();
 export const challengeEvents = new EventEmitter();
 export const CHALLENGE_TIMEOUT_MS = 15 * 60 * 1000;
-export const CHALLENGE_MANUAL_AFTER_MS = 40000;
+export const CHALLENGE_MANUAL_AFTER_MS = 0;
 let current = null;
 let pausedMs = 0;
 
@@ -81,12 +81,14 @@ async function waitForChallenge(page, diagnostic, target, options) {
   }
   const startedMs = Date.now();
   const timeoutMs = options.timeoutMs ?? CHALLENGE_TIMEOUT_MS;
+  const manualAfterMs = options.manualAfterMs ?? CHALLENGE_MANUAL_AFTER_MS;
+  const manualMessage = 'Completa la verificación en el navegador. La tarea continuará al cargar la página de destino.';
   const state = {
-    page, active: true, phase: 'checking', startedMs,
+    page, active: true, phase: manualAfterMs > 0 ? 'checking' : 'manual', startedMs,
     startedAt: new Date(startedMs).toISOString(),
     deadlineAt: new Date(startedMs + timeoutMs).toISOString(),
     url: safeTarget(target),
-    message: 'Verificación de seguridad en curso. Esperando hasta 40 segundos antes de solicitar tu intervención.'
+    message: manualAfterMs > 0 ? 'Verificación de seguridad en curso. La tarea espera en el mismo navegador.' : manualMessage
   };
   current = state;
   challengeEvents.emit('change', browserChallengeState());
@@ -117,9 +119,9 @@ async function waitForChallenge(page, diagnostic, target, options) {
           throw error;
         }
       }
-      if (state.phase === 'checking' && Date.now() - startedMs >= (options.manualAfterMs ?? CHALLENGE_MANUAL_AFTER_MS)) {
+      if (state.phase === 'checking' && Date.now() - startedMs >= manualAfterMs) {
         state.phase = 'manual';
-        state.message = 'Completa la verificación en el navegador. La tarea continuará al cargar la página de destino.';
+        state.message = manualMessage;
         challengeEvents.emit('change', browserChallengeState());
       }
       await page.waitForTimeout(options.pollMs ?? 1000);

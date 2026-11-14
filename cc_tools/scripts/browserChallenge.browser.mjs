@@ -40,7 +40,7 @@ async function manualSignal() {
 }
 
 test('mantiene ventana y perfil, espera la intervención y continúa una sola vez', async t => {
-  const { page, context, state } = await fixture(t);
+  const { page, context, state } = await fixture(t, { manualAfterMs: 0 });
   await context.addCookies([{ name: 'test_session', value: 'preserved', url: target }]);
   const observer = observeCrealityPage(page, 'fixture');
   const manual = manualSignal();

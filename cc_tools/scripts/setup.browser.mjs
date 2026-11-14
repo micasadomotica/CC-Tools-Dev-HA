@@ -50,11 +50,11 @@ after(async () => {
 test('el aviso de verificación abre la ventana existente sin iniciar login ni cancelar la tarea', async () => {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page = await context.newPage();
-  let active = true, views = 0, logins = 0, cancels = 0, phase = 'checking';
+  let active = true, views = 0, logins = 0, cancels = 0;
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await context.route('**/api/browser/status*', route => route.fulfill({ json: { ok: true,
-    browser: { mode: 'automation', active: true, challenge: { active, phase,
+    browser: { mode: 'automation', active: true, challenge: { active, phase: 'manual',
       message: 'Completa la verificación en el navegador. La tarea continuará al cargar la página de destino.' } } } }));
   await context.route('**/api/browser/open', route => { views++; return route.fulfill({ json: { ok: true, url: '/novnc/test-viewer' } }); });
   await context.route('**/api/tasks/creality/login/open', route => { logins++; return route.fulfill({ json: { ok: false } }); });
@@ -64,10 +64,8 @@ test('el aviso de verificación abre la ventana existente sin iniciar login ni c
     await page.goto(baseUrl);
     await page.waitForSelector('#security-challenge-banner:not([hidden])');
     assert.equal(await page.locator('#close-login').isDisabled(), true);
-    assert.equal(await page.locator('#security-challenge-open').isVisible(), false);
+    assert.equal(await page.locator('#security-challenge-open').isVisible(), true);
     assert.equal(views, 0);
-    phase = 'manual';
-    await page.waitForSelector('#security-challenge-open:not([hidden])');
     if (process.env.CCTOOLS_QA_DIR) await page.screenshot({ path: path.join(process.env.CCTOOLS_QA_DIR, 'verification-banner.png') });
     const popup = page.waitForEvent('popup');
     await page.locator('#security-challenge-open').click();

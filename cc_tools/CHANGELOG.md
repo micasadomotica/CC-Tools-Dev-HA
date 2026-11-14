@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.60 — aviso de verificación sin demora
+
+- Elimina la espera previa de 40 segundos. Muestra Abrir navegador y envía el aviso de Telegram, si está configurado, al detectar la verificación.
+- Conserva la reutilización de Chromium de 1.0.59, la cancelación y el límite de 15 minutos para completar la verificación.
+- Actualiza las pruebas del aviso inmediato y de continuación en el mismo navegador. Desde 1.0.59 basta con actualizar, sin migración.
+
 ## 1.0.59 — Chromium compartido y espera de 40 segundos
 
 - Reutiliza el proceso y el contexto de Chromium entre las tareas principales, conservando cookies y almacenamiento. Cierra las pestañas al finalizar y mantiene una pestaña vacía; no deja páginas de trabajo haciendo peticiones entre módulos.
