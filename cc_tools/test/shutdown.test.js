@@ -66,6 +66,7 @@ function browserModule(chromium) {
     .replace(/^import[\s\S]*?;\r?$/gm, '').replace(/^export /gm, '');
   const context = vm.createContext({ chromium, process, console, setTimeout, clearTimeout,
     recordCookieDiagnostics: async () => {},
+    bindBrowserDiagnostics: () => {}, recordBrowserLifecycle: () => {},
     browserChallengeState: () => ({ active: false }) });
   vm.runInContext(source, context);
   return context;

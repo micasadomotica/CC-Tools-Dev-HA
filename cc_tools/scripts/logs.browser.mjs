@@ -20,6 +20,11 @@ const cookieTrace = { traceId: 'test-trace', taskId: 'makeNow', events: [{
 let browser, server, dataDir, baseUrl;
 before(async () => {
   dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cctools-setup-'));
+  await fs.writeFile(path.join(dataDir, 'browser-diagnostics.json'), JSON.stringify({ events: [{
+    at: new Date().toISOString(), processId: 'previous-process', sequence: 1,
+    kind: 'lifecycle', phase: 'context_closed', contextId: 'previous-context',
+    source: 'interactive', reason: 'manual_close', requested: true
+  }], discardedEvents: 0 }));
   await fs.writeFile(path.join(dataDir, 'runs.json'), JSON.stringify(Array.from({ length: 45 }, (_, index) => ({
     id: 'log-' + index, taskId: 'makeNow', status: 'success', source: 'manual',
     message: 'Registro ' + index, finishedAt: new Date(Date.now() - index * 1000).toISOString(),
@@ -152,6 +157,11 @@ test('Logs pagina, conserva la página al refrescar y descarga solo los registro
     assert.match(content, /cookieDiagnostics/);
     assert.match(content, /cf_clearance/);
     assert.doesNotMatch(content, /PRIVATE_EXPORT_SENTINEL/);
+    assert.match(content, /Actividad de Chromium/);
+    assert.match(content, /previous-context/);
+    assert.match(content, /manual_close/);
+    assert.match(content, /process_start/);
+    assert.equal(await page.locator('.browser-lifecycle-diagnostics').count(), 1);
     await page.locator('#logs-next').click();
     await page.waitForFunction(() => document.querySelector('#logs-page').textContent === 'Página 3 de 3');
     assert.equal(await page.locator('#runs .run').count(), 5);

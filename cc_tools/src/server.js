@@ -38,6 +38,7 @@ import { sendTelegram } from './telegram.js';
 import { browserManagerState, shutdownBrowser, withAutomationBrowser } from './browserManager.js';
 import { abortAutomationBrowser } from './browserManager.js';
 import { browserChallengeState, challengeEvents } from './browserChallenge.js';
+import { browserDiagnosticJournal } from './browserDiagnosticJournal.js';
 import { buildHealthMetrics } from './healthMetrics.js';
 import { mergePointsState, readPointsSummary } from './pointsCounter.js';
 import { discoverGcodeFiles, discoverGcodeLibrary, discoverPrinters } from './finishPrintDiscovery.js';
@@ -99,6 +100,7 @@ import {
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const publicDir = path.resolve(__dirname, '..', 'public');
+await browserDiagnosticJournal.configure(path.resolve(process.env.CCTOOLS_DATA_DIR || 'data', 'browser-diagnostics.json'));
 const app = express();
 const server = createServer(app);
 const shutdown = installShutdownHandlers({
@@ -110,7 +112,7 @@ const shutdown = installShutdownHandlers({
     return stopScheduler();
   },
   closeResources: shutdownBrowser,
-  flushWrites: () => Promise.all([flushStorageWrites(), uploadLibrary.flush()]),
+  flushWrites: () => Promise.all([flushStorageWrites(), uploadLibrary.flush(), browserDiagnosticJournal.flush()]),
 });
 app.use((_req, res, next) => shutdown.isStopping()
   ? res.status(503).json({ ok: false, error: 'APP_STOPPING' }) : next());
@@ -365,7 +367,8 @@ app.get('/api/runs', async (req, res) => {
     pageSize,
     total,
     totalPages,
-    items: runs.slice(offset, offset + pageSize)
+    items: runs.slice(offset, offset + pageSize),
+    browserDiagnostics: browserDiagnosticJournal.snapshot()
   });
 });
 
@@ -1331,7 +1334,7 @@ app.post('/api/browser/challenge/cancel', async (req, res) => {
     const result = await cancelRunningTask('manual');
     return res.json({ ok: true, ...result });
   }
-  const cancelled = await abortAutomationBrowser();
+  const cancelled = await abortAutomationBrowser('verification_cancelled', 'server');
   res.json({ ok: true, cancelled });
 });
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.61 — diagnóstico de aperturas y cierres de Chromium
+
+- Identifica aperturas, reutilización y sustitución de contextos, cierres manuales, cancelaciones, límites de tiempo, cambios de opciones y recuperación de páginas de descarga cerradas. Enlaza el contexto anterior y el nuevo sin registrar valores de opciones.
+- Registra cierres no solicitados, desconexiones y fallos de pestaña. Conserva `module_end` aunque el contexto se cierre durante la tarea; una lectura imposible aparece como `unavailable`, no como pérdida de cookies.
+- Añade un registro global persistente de los últimos 500 eventos, incluidos los de comprobaciones de sesión y progreso entre tareas. Se muestra en Logs y se incluye en el TXT exportado, independientemente de la página del historial. Distingue cada arranque de la app y señala si se han descartado eventos antiguos.
+- Mantiene el diagnóstico de cookies sin valores, hashes, cabeceras ni mensajes de error sin filtrar. Añade pruebas de cierre inesperado, sustitución, cancelación, persistencia y exportación.
+- Desde 1.0.60 basta con actualizar, sin migración. Esta versión permite investigar los cierres; no atribuye a una causa concreta el cambio observado en habeta ni garantiza que Cloudflare deje de pedir verificación.
+
 ## 1.0.60 — aviso sin demora y diagnóstico de cookies
 
 - Elimina la espera previa de 40 segundos. Muestra Abrir navegador y envía el aviso de Telegram, si está configurado, al detectar la verificación.

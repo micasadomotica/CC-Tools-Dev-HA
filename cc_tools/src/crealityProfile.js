@@ -4,7 +4,7 @@ const PROFILE_PAGE_URL = 'https://www.crealitycloud.com/es/workbench-beta/?type=
 const PROFILE_API_PATH = '/api/cxy/v3/user/getInfo';
 
 export async function readCrealityProfile() {
-  return withAutomationBrowser({}, async (context) => {
+  return withAutomationBrowser({ diagnosticSource: 'profile_refresh' }, async (context) => {
     const page = context.pages()[0] || await context.newPage();
     const profileResponse = page.waitForResponse((response) => (
       response.request().method() === 'POST' && response.url().includes(PROFILE_API_PATH)

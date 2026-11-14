@@ -1,5 +1,6 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { randomUUID } from 'node:crypto';
+import { browserDiagnosticJournal } from './browserDiagnosticJournal.js';
 
 const traces = new AsyncLocalStorage();
 const contexts = new WeakMap();
@@ -9,6 +10,16 @@ const phases = new Set(['module_start', 'module_end', 'challenge_before', 'chall
   'challenge_unsolved', 'interactive_open', 'interactive_check', 'context_before_close']);
 let previous = null;
 const MAX_EVENTS = 100;
+
+export function browserDiagnosticContextId(context) {
+  if (!contexts.has(context)) contexts.set(context, randomUUID());
+  return contexts.get(context);
+}
+
+export function cookieDiagnosticScope() {
+  const trace = traces.getStore();
+  return trace ? { taskId: trace.taskId, traceId: trace.traceId } : {};
+}
 
 export function withCookieDiagnostics(taskId, callback) {
   const trace = { taskId, traceId: randomUUID(), events: [], omittedEvents: 0 };
@@ -59,9 +70,8 @@ export function cloudflareCookieMetadata(cookies, now = Date.now()) {
 
 export async function recordCookieDiagnostics(context, phase, { url = '', reused = null } = {}) {
   if (!context || !phases.has(phase)) return;
-  if (!contexts.has(context)) contexts.set(context, randomUUID());
   const trace = traces.getStore();
-  const entry = { at: new Date().toISOString(), phase, contextId: contexts.get(context),
+  const entry = { at: new Date().toISOString(), phase, contextId: browserDiagnosticContextId(context),
     origin: originOnly(url), reused: typeof reused === 'boolean' ? reused : null };
   let timer;
   try {
@@ -93,6 +103,7 @@ export async function recordCookieDiagnostics(context, phase, { url = '', reused
     else trace.omittedEvents++;
   }
   // The record is fully sanitized before either log sink sees it.
+  browserDiagnosticJournal.append({ ...entry, ...cookieDiagnosticScope(), kind: 'cookies' });
   try { console.log('[browser-cookies]', JSON.stringify({ ...entry,
     ...(trace ? { taskId: trace.taskId, traceId: trace.traceId } : {}) })); } catch {}
 }

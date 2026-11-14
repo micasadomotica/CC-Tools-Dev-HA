@@ -7,13 +7,15 @@ import vm from 'node:vm';
 import { chromium } from 'playwright';
 import { installChallengeHandling, browserChallengeState } from '../src/browserChallenge.js';
 import { inspectCrealityPage, normalizeCaughtError } from '../src/crealityDiagnostics.js';
+import { bindBrowserDiagnostics, recordBrowserLifecycle } from '../src/browserLifecycle.js';
+import { browserDiagnosticJournal } from '../src/browserDiagnosticJournal.js';
 import { recordCookieDiagnostics, withCookieDiagnostics, cookieDiagnosticsSnapshot } from '../src/cookieDiagnostics.js';
 
 test('conserva el proceso, contexto, cookies y almacenamiento entre módulos y descargas', async t => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'cc-tools-reuse-'));
   let launches = 0;
   const sandbox = vm.createContext({ process, URL, installChallengeHandling, browserChallengeState,
-    recordCookieDiagnostics,
+    recordCookieDiagnostics, bindBrowserDiagnostics, recordBrowserLifecycle,
     inspectCrealityPage, normalizeCaughtError,
     confirmAuthenticatedSession: async () => {},
     launchFixture: async () => {
@@ -110,4 +112,17 @@ test('conserva el proceso, contexto, cookies y almacenamiento entre módulos y d
   assert.equal(restarted.sameContext, false);
   assert.equal(restarted.sameMetadata, true);
   assert.equal(JSON.stringify(reopened).includes('PRIVATE_TEST_CLEARANCE'), false);
+  const journal = browserDiagnosticJournal.snapshot();
+  const manualClose = journal.events.find(e => e.phase === 'context_closed' && e.reason === 'manual_close');
+  assert.equal(manualClose.contextId, firstTrace.events[0].contextId);
+  assert.equal(manualClose.requested, true);
+  assert.equal(JSON.stringify(journal).includes('PRIVATE_TEST_CLEARANCE'), false);
+  const externalClose = await withCookieDiagnostics('comments', async () => {
+    await sandbox.withAutomationBrowser({}, context => context.close());
+    return cookieDiagnosticsSnapshot();
+  });
+  assert.equal(externalClose.events.at(-1).phase, 'module_end');
+  assert.equal(externalClose.events.at(-1).readStatus, 'unavailable');
+  assert.ok(browserDiagnosticJournal.snapshot().events.some(e => e.traceId === externalClose.traceId
+    && e.phase === 'context_closed' && e.reason === 'unrequested_close'));
 });
