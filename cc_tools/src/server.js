@@ -1437,7 +1437,7 @@ app.use('/novnc', createProxyMiddleware({
 app.use('/', express.static(publicDir, { index: 'index.html' }));
 
 const initialBrowserConfig = await readConfig();
-await setBrowserConnectionMode(initialBrowserConfig.browserConnectionMode === 'external-cdp' ? 'external-cdp' : 'standard');
+await setBrowserConnectionMode(initialBrowserConfig.browserConnectionMode === 'standard' ? 'standard' : 'external-cdp');
 await reconcileDownloadRewardHistory();
 await reconcileDownloadedDesignHistory();
 await reconcileDesignActionHistory();

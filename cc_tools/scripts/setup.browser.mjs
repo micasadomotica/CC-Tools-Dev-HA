@@ -34,6 +34,9 @@ before(async () => {
     await new Promise(resolve => setTimeout(resolve, 100));
   }
   assert.equal(ready, true, logs);
+  const startupStatus = await (await fetch(`${baseUrl}/api/status`)).json();
+  assert.equal(startupStatus.config.browserConnectionMode, 'external-cdp');
+  assert.equal(startupStatus.browser.connectionMode, 'external-cdp');
   browser = await chromium.launch({ headless: true, ...(process.platform === 'win32' ? { channel: 'chrome' } : {}) });
 });
 
@@ -138,7 +141,7 @@ test('Telegram conserva el paso del asistente y las descargas parten de 10', asy
     await page.locator('#creality-user-avatar').click();
     await page.locator('#creality-menu-settings').click();
     assert.equal(await page.locator('#session-auto-login').isChecked(), false);
-    assert.equal(await page.locator('#browser-connection-mode').inputValue(), 'standard');
+    assert.equal(await page.locator('#browser-connection-mode').inputValue(), 'external-cdp');
     await page.locator('#browser-connection-mode').selectOption('external-cdp');
     const modeSaved = page.waitForResponse(response => response.url().endsWith('/api/browser/settings'));
     await page.locator('#save-browser-mode').click();

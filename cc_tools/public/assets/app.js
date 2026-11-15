@@ -2776,7 +2776,7 @@ function render() {
   fields.windowEnd.value = checkin.windowEnd;
   renderTimezoneOptions(state.config.timezone || checkin.timezone || 'Europe/Madrid');
   fields.sessionAutoLogin.checked = state.config.crealitySession?.autoLoginEnabled === true;
-  $('#browser-connection-mode').value = state.config.browserConnectionMode || 'standard';
+  $('#browser-connection-mode').value = state.config.browserConnectionMode || 'external-cdp';
   renderDailyCounters();
 
   renderLastExecution(fields.finishPrintLastRun, finishPrint);
@@ -3506,6 +3506,7 @@ function renderHealthSummary() {
 }
 
 function renderRuns() {
+  const browserDiagnosticsOpen = fields.runs.querySelector('.browser-lifecycle-diagnostics')?.open === true;
   fields.runs.innerHTML = '';
   for (const run of state.logs.items) {
     const item = document.createElement('article');
@@ -3532,6 +3533,8 @@ function renderRuns() {
   if (browserDiagnostics?.events?.length) {
     fields.runs.insertAdjacentHTML('beforeend', `<div class="diagnostic-list"><section class="diagnostic-entry"><details class="browser-lifecycle-diagnostics"><summary>Actividad de Chromium · registro global reciente</summary><p>Incluye aperturas, cierres y cambios entre tareas, independientemente de la página del historial. Conserva los últimos ${escapeHtml(String(browserDiagnostics.limit))} eventos sin valores de cookies.</p><pre>${escapeHtml(JSON.stringify(browserDiagnostics, null, 2))}</pre></details></section></div>`);
   }
+  const browserDiagnosticsPanel = fields.runs.querySelector('.browser-lifecycle-diagnostics');
+  if (browserDiagnosticsPanel) browserDiagnosticsPanel.open = browserDiagnosticsOpen;
   fields.downloadVisibleLogs.disabled = !state.logs.items.length && !browserDiagnostics?.events?.length;
 }
 
