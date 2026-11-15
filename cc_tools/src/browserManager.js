@@ -6,7 +6,6 @@ import { inspectCrealityPage, normalizeCaughtError, observeCrealityPage } from '
 import { isNavigationTimeout, navigateToCrealityPage } from './crealityNavigation.js';
 import { confirmAuthenticatedSession } from './sessionMonitor.js';
 import { installChallengeHandling, browserChallengeState, challengeResolvedAt } from './browserChallenge.js';
-import { recordCookieDiagnostics } from './cookieDiagnostics.js';
 import { bindBrowserDiagnostics, recordBrowserLifecycle } from './browserLifecycle.js';
 import { launchExternalChromium, externalConnectionDiagnostics } from './externalChromium.js';
 
@@ -18,16 +17,14 @@ let activeOwner = null;
 let activeMode = '';
 let activeBrowserVersion = '';
 let activeOptionsKey = '';
-let connectionMode = 'standard';
+const connectionMode = 'external-cdp';
 let activeEnvironment = null;
 let shuttingDown = false;
 let shutdownPromise = null;
 const pendingLaunches = new Set();
 const isolatedBrowsers = new Set();
-const headlessFallbackContexts = new WeakSet();
 const requestedClosures = new WeakMap();
 const operationContexts = new Map();
-const contextConnectionModes = new WeakMap();
 const contextEnvironments = new WeakMap();
 
 function assertBrowserAvailable() {
@@ -66,10 +63,8 @@ export async function withAutomationBrowser(options, callback) {
   let operationContext = null;
   const { diagnosticSource = 'automation', ...launchOptions } = options || {};
   try {
-    const previousContext = activeContext;
-    await ensureActiveContext({ ...baseOptions(), ...launchOptions }, true, diagnosticSource);
+    await ensureActiveContext({ ...baseOptions(), ...launchOptions }, diagnosticSource);
     operationContext = activeContext;
-    await recordCookieDiagnostics(activeContext, 'module_start', { reused: previousContext === activeContext });
     const sessionCheck = await assertAuthenticatedSession(activeContext);
     if (sessionCheck.confirmAuthenticated) await confirmAuthenticatedSession();
     const result = await callback(activeContext, sessionCheck);
@@ -80,7 +75,6 @@ export async function withAutomationBrowser(options, callback) {
   } finally {
     const endContext = operationContexts.get(owner) || operationContext;
     operationContexts.delete(owner);
-    if (endContext) await recordCookieDiagnostics(endContext, 'module_end');
     if (activeOwner !== owner && endContext) {
       recordBrowserLifecycle(endContext, 'module_lease_lost', { reason: 'lease_lost', source: diagnosticSource });
     }
@@ -145,7 +139,7 @@ export async function restartAutomationBrowser(options = {}, reason = 'restart_r
   activeOwner = owner;
   activeMode = 'automation';
   try {
-    await ensureActiveContext({ ...baseOptions(), ...options }, true, 'download');
+    await ensureActiveContext({ ...baseOptions(), ...options }, 'download');
     recordBrowserLifecycle(activeContext, 'context_replacement', { reason, source: 'download', relatedContext: previousContext });
     return activeContext;
   } catch (error) {
@@ -166,7 +160,7 @@ export async function openInteractiveBrowser(url) {
   activeMode = 'interactive';
   activeOwner = Symbol('interactive');
   try {
-    await ensureActiveContext({ ...baseOptions(), headless: false }, false, 'interactive');
+    await ensureActiveContext({ ...baseOptions(), headless: false }, 'interactive');
   } catch (error) {
     await closeActiveContext({ reason: 'interactive_launch_failed', source: 'interactive' });
     throw error;
@@ -174,7 +168,6 @@ export async function openInteractiveBrowser(url) {
 
   const page = activeContext.pages()[0] || await activeContext.newPage();
   await page.goto(url, { waitUntil: 'domcontentloaded' });
-  await recordCookieDiagnostics(activeContext, 'interactive_open', { url: page.url() });
   return page;
 }
 
@@ -198,7 +191,6 @@ export async function verifyPersistedSession() {
       return { checked: false, authenticated: false, reason: 'LOGIN_IN_PROGRESS' };
     }
     const sessionCheck = await assertAuthenticatedSession(activeContext, page);
-    await recordCookieDiagnostics(activeContext, 'interactive_check', { url: page.url() });
     if (!sessionCheck.confirmAuthenticated) {
       return { checked: false, authenticated: false, reason: 'SESSION_CHECK_INCONCLUSIVE' };
     }
@@ -228,7 +220,7 @@ export async function attemptRememberedSessionLogin(options = {}) {
   const owner = activeOwner = Symbol('session-recovery');
   let recovered = false;
   try {
-    await ensureActiveContext({ ...baseOptions(), headless: false }, true, 'session_recovery');
+    await ensureActiveContext({ ...baseOptions(), headless: false }, 'session_recovery');
     const page = activeContext.pages()[0] || await activeContext.newPage();
 
     await page.goto(SESSION_CHECK_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
@@ -320,20 +312,6 @@ export function browserManagerState() {
   };
 }
 
-export async function setBrowserConnectionMode(mode, persist = async () => {}) {
-  assertBrowserAvailable();
-  if (!['standard', 'external-cdp'].includes(mode)) throw browserError('INVALID_BROWSER_MODE', 'Modo de navegador no válido.', false);
-  if (activeMode || browserChallengeState().active) throw browserError('BROWSER_BUSY',
-    'Termina la tarea o cierra la sesión interactiva antes de cambiar el modo de navegador.', false);
-  activeMode = 'settings';
-  try {
-    if (mode !== connectionMode) await closeActiveContext({ keepLease: true, reason: 'connection_mode_changed', source: 'server' });
-    assertBrowserAvailable();
-    await persist();
-    connectionMode = mode;
-  } finally { activeMode = ''; }
-}
-
 export function shutdownBrowser() {
   if (shutdownPromise) return shutdownPromise;
   shuttingDown = true;
@@ -417,7 +395,7 @@ function crealityServiceUnavailableError(error) {
   return normalized;
 }
 
-async function launchWithRecovery(options, behavior = {}) {
+async function launchWithRecovery(options) {
   assertBrowserAvailable();
   const preflightRecovery = await recoverBrowserProfile('profile_preflight');
   if (!preflightRecovery.recovered) {
@@ -431,46 +409,14 @@ async function launchWithRecovery(options, behavior = {}) {
     throw error;
   }
 
-  if (connectionMode === 'external-cdp') {
-    // No headless fallback: this mode is explicitly a visible, external browser.
-    let context;
+  let context;
+  try {
     context = await trackedLaunch(() => launchExternalChromium(chromiumSessionDir(), { ...options, headless: false }, info => {
       recordBrowserLifecycle(context, 'process_exited', { reason: 'process_exit', source: 'playwright',
         exitCode: info.code, signal: info.signal, pid: info.pid });
     }));
     return context;
-  }
-
-  try {
-    return await trackedLaunch(() => chromium.launchPersistentContext(chromiumSessionDir(), options));
-  } catch (error) {
-    if (behavior.allowHeadlessFallback && isDisplayError(error)) {
-      recordBrowserLifecycle(null, 'headless_fallback', { reason: 'display_unavailable', source: 'automation' });
-      await recoverBrowserProfile('display_unavailable');
-      try {
-        const context = await trackedLaunch(() => chromium.launchPersistentContext(chromiumSessionDir(), {
-          ...options,
-          headless: true
-        }));
-        headlessFallbackContexts.add(context);
-        return context;
-      } catch (headlessError) {
-        throw normalizeBrowserError(headlessError);
-      }
-    }
-    if (!isProfileLockError(error)) throw normalizeBrowserError(error);
-
-    const recovery = await recoverBrowserProfile('profile_lock_retry');
-    if (!recovery.recovered) throw normalizeBrowserError(error);
-
-    try {
-      return await trackedLaunch(() => chromium.launchPersistentContext(chromiumSessionDir(), options));
-    } catch (retryError) {
-      const normalized = normalizeBrowserError(retryError);
-      normalized.recovery = recovery;
-      throw normalized;
-    }
-  }
+  } catch (error) { throw normalizeBrowserError(error); }
 }
 
 async function recoverBrowserProfile(reason) {
@@ -548,26 +494,23 @@ function isProcessAlive(pid) {
   }
 }
 
-async function ensureActiveContext(options, allowHeadlessFallback = true, source = 'automation') {
+async function ensureActiveContext(options, source = 'automation') {
   const key = JSON.stringify(options);
-  if (activeContext && activeOptionsKey === key
-    && (allowHeadlessFallback || !headlessFallbackContexts.has(activeContext))) {
+  if (activeContext && activeOptionsKey === key) {
     bindBrowserDiagnostics(activeContext, source);
     if (operationContexts.has(activeOwner)) operationContexts.set(activeOwner, activeContext);
     recordBrowserLifecycle(activeContext, 'context_reused', { reason: 'compatible_options', source });
     return;
   }
   const previousContext = activeContext;
-  const reason = activeContext && !allowHeadlessFallback && headlessFallbackContexts.has(activeContext)
-    ? 'visible_browser_required' : activeContext ? 'options_changed' : 'new_context';
+  const reason = activeContext ? 'options_changed' : 'new_context';
   if (activeContext) {
     const oldOptions = JSON.parse(activeOptionsKey || '{}');
     const changedOptions = [...new Set([...Object.keys(oldOptions), ...Object.keys(options)])]
       .filter(name => JSON.stringify(oldOptions[name]) !== JSON.stringify(options[name]));
     await closeActiveContext({ keepLease: true, reason, source, changedOptions });
   }
-  activeContext = await launchWithRecovery(options, { allowHeadlessFallback });
-  contextConnectionModes.set(activeContext, connectionMode);
+  activeContext = await launchWithRecovery(options);
   activeOptionsKey = key;
   activeBrowserVersion = activeContext.browser()?.version() || '';
   bindBrowserDiagnostics(activeContext, source);
@@ -581,7 +524,7 @@ async function recordEnvironment(context, page = context.pages()[0]) {
   if (!page?.evaluate) return;
   let webdriver = null;
   try { webdriver = await page.evaluate(() => navigator.webdriver); } catch {}
-  const environment = { connectionMode: contextConnectionModes.get(context) || 'standard', browserVersion: context.browser()?.version() || '',
+  const environment = { connectionMode, browserVersion: context.browser()?.version() || '',
     webdriver: typeof webdriver === 'boolean' ? webdriver : null,
     ...(typeof externalConnectionDiagnostics === 'function' ? externalConnectionDiagnostics(context) : {}) };
   if (activeContext === context) activeEnvironment = environment;
@@ -621,7 +564,6 @@ async function closeActiveContext({ keepLease = false, reason = 'abort_requested
   if (context) {
     requestedClosures.set(context, { reason, source });
     recordBrowserLifecycle(context, 'context_close_requested', { reason, source, changedOptions, requested: true });
-    await recordCookieDiagnostics(context, 'context_before_close');
     await context.close().catch(error => {
       recordBrowserLifecycle(context, 'context_close_failed', { reason: 'close_failed', source });
       if (shuttingDown) throw error;

@@ -40,7 +40,7 @@ import {
 } from './sessionHealth.js';
 import { attemptAutomaticSessionRecovery, sessionClosedNotification } from './sessionRecovery.js';
 import { challengeClock, browserChallengeState } from './browserChallenge.js';
-import { withCookieDiagnostics } from './cookieDiagnostics.js';
+import { withBrowserTrace } from './browserTrace.js';
 
 const TASK_IDS = ['creality', 'finishPrint', 'modelDownloads', 'comments', 'modelBoosts', 'modelLikes', 'modelCollections', 'makeNow', 'uploadDesigns'];
 const MIN_AUTOMATION_GAP_MINUTES = 10;
@@ -82,10 +82,10 @@ export async function runTaskNow(taskId, source = 'manual', options = {}) {
   if (!TASK_IDS.includes(taskId)) {
     throw new Error(`Tarea desconocida: ${taskId}`);
   }
-  return withCookieDiagnostics(taskId, () => runTaskWithCookieDiagnostics(taskId, source, options));
+  return withBrowserTrace(taskId, () => runTracedTask(taskId, source, options));
 }
 
-async function runTaskWithCookieDiagnostics(taskId, source, options) {
+async function runTracedTask(taskId, source, options) {
   await recoverExpiredSchedulerRun();
   const startedAt = new Date().toISOString();
   const scheduledFor = source === 'schedule' ? String(options.scheduledFor || '') : '';

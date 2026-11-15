@@ -5,7 +5,6 @@ import { DEFAULT_FAVORITE_PROFILES, normalizeFavoriteProfiles } from './favorite
 import { activateFinishPrintProfile, normalizeFinishPrintProfiles } from './finishPrintProfiles.js';
 import { normalizeShopOrdersState } from './shopOrdersState.js';
 import { mergePointTransactions } from './pointsCounter.js';
-import { cookieDiagnosticsSnapshot } from './cookieDiagnostics.js';
 
 const DATA_DIR = process.env.CCTOOLS_DATA_DIR || path.resolve('data');
 const CONFIG_PATH = path.join(DATA_DIR, 'config.json');
@@ -25,7 +24,6 @@ let designsQueue = Promise.resolve();
 let configBackupReady = false;
 
 const DEFAULT_CONFIG = {
-  browserConnectionMode: 'external-cdp',
   dailyProgress: { tasks: {}, status: 'unavailable', checkedAt: '', lastAttemptAt: '', error: '' },
   timezone: 'Europe/Madrid',
   setup: {
@@ -287,6 +285,7 @@ export async function writeConfig(config) {
   const baseline = config?.[CONFIG_BASELINE] ? structuredClone(config[CONFIG_BASELINE]) : null;
   const requested = mergeConfig(DEFAULT_CONFIG, config);
   delete requested.auth;
+  delete requested.browserConnectionMode;
   return enqueue('config', async () => {
     await ensureDataDirs();
     const current = await loadConfigWithRecovery();
@@ -301,12 +300,18 @@ export async function writeConfig(config) {
   });
 }
 
+function withoutCookieDiagnostics(run) {
+  if (!run?.details || !Object.hasOwn(run.details, 'cookieDiagnostics')) return run;
+  const { cookieDiagnostics, ...details } = run.details;
+  return { ...run, details };
+}
+
 export async function readRuns() {
   await ensureDataDirs();
   try {
     const raw = await fs.readFile(LOGS_PATH, 'utf8');
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.map(withoutCookieDiagnostics) : [];
   } catch (error) {
     if (error.code !== 'ENOENT') throw error;
     return [];
@@ -314,8 +319,7 @@ export async function readRuns() {
 }
 
 export async function appendRun(run) {
-  const cookies = cookieDiagnosticsSnapshot();
-  const loggedRun = cookies ? { ...run, details: { ...(run.details || {}), cookieDiagnostics: cookies } } : run;
+  const loggedRun = withoutCookieDiagnostics(run);
   return enqueue('runs', async () => {
     const runs = await readJsonArray(LOGS_PATH);
     runs.unshift({
@@ -884,6 +888,7 @@ export async function setDesignActionCompleted(designId, actionKey, completed) {
 
 function normalizeStoredConfig(stored) {
   const config = mergeConfig(DEFAULT_CONFIG, stored);
+  delete config.browserConnectionMode;
   delete config.auth;
   const storedDownloadTask = config.tasks.modelDownloads;
   config.tasks.modelDownloads = Object.fromEntries(

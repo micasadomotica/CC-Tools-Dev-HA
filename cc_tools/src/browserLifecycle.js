@@ -1,4 +1,4 @@
-import { browserDiagnosticContextId, cookieDiagnosticScope } from './cookieDiagnostics.js';
+import { browserDiagnosticContextId, browserTraceScope } from './browserTrace.js';
 import { browserDiagnosticJournal } from './browserDiagnosticJournal.js';
 
 const owners = new WeakMap();
@@ -7,19 +7,19 @@ const sources = new Set(['automation', 'interactive', 'session_check', 'session_
 const phases = new Set(['context_created', 'context_reused', 'context_close_requested',
   'context_closed', 'context_close_failed', 'context_restart_requested', 'context_replacement',
   'module_released', 'module_lease_lost', 'page_closed', 'page_crashed', 'browser_disconnected',
-  'profile_recovery', 'headless_fallback', 'browser_environment', 'process_exited']);
-const reasons = new Set(['new_context', 'compatible_options', 'options_changed', 'visible_browser_required',
+  'profile_recovery', 'browser_environment', 'process_exited']);
+const reasons = new Set(['new_context', 'compatible_options', 'options_changed',
   'task_failed', 'task_completed', 'manual_close', 'interactive_launch_failed', 'session_recovery_failed',
   'application_shutdown', 'task_timeout', 'maintenance_timeout', 'stale_task_timeout', 'task_cancelled',
   'verification_cancelled', 'abort_requested', 'restart_requested', 'download_page_closed',
   'keeper_failed', 'unrequested_close', 'requested_close', 'close_failed', 'lease_lost',
-  'page_event', 'page_crash', 'disconnect_event', 'profile_preflight', 'profile_lock_retry', 'display_unavailable',
-  'environment_probe', 'process_exit', 'connection_mode_changed']);
+  'page_event', 'page_crash', 'disconnect_event', 'profile_preflight',
+  'environment_probe', 'process_exit']);
 const optionNames = new Set(['headless', 'viewport', 'screen', 'deviceScaleFactor', 'colorScheme',
   'acceptDownloads', 'timeout', 'locale', 'timezoneId', 'args', 'downloadsPath', 'userAgent']);
 
 export function bindBrowserDiagnostics(context, source) {
-  if (context) owners.set(context, { ...cookieDiagnosticScope(),
+  if (context) owners.set(context, { ...browserTraceScope(),
     source: sources.has(source) ? source : 'automation' });
 }
 
@@ -28,7 +28,7 @@ export function recordBrowserLifecycle(context, phase, options = {}) {
   const owner = context ? owners.get(context) : null;
   const entry = { at: new Date().toISOString(), kind: 'lifecycle', phase,
     contextId: context ? browserDiagnosticContextId(context) : null,
-    ...cookieDiagnosticScope(), ...owner,
+    ...browserTraceScope(), ...owner,
     source: sources.has(options.source) ? options.source : owner?.source || 'playwright',
     reason: reasons.has(options.reason) ? options.reason : 'unrequested_close' };
   if (options.relatedContext) entry.relatedContextId = browserDiagnosticContextId(options.relatedContext);

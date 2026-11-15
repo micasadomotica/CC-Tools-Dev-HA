@@ -36,7 +36,7 @@ function harness({ mode = '', authenticated = false, userId = '', accounts, expi
       return fresh;
     }, close: async () => { calls.closed++; } };
   const context = vm.createContext({ process, URL, calls, fixtureContext, initialMode: mode,
-    recordCookieDiagnostics: async () => {},
+
     bindBrowserDiagnostics: () => {}, recordBrowserLifecycle: () => {},
     installChallengeHandling: () => {}, browserChallengeState: () => ({ active: false }),
     inspectCrealityPage: async () => null,
@@ -209,14 +209,4 @@ test('un cambio de opciones incompatibles sustituye Chromium antes de la siguien
   });
   assert.equal(h.calls.launched, 2);
   assert.equal(h.calls.closed, 1);
-});
-
-test('abrir el visor sustituye un contexto que arrancó sin pantalla como respaldo', async () => {
-  const h = harness();
-  await h.context.withAutomationBrowser({}, async () => {});
-  vm.runInContext('headlessFallbackContexts.add(activeContext)', h.context);
-  await h.context.openInteractiveBrowser('https://www.crealitycloud.com/check-in');
-  assert.equal(h.calls.launched, 2);
-  assert.equal(h.calls.closed, 1);
-  assert.equal(h.context.browserManagerState().mode, 'interactive');
 });

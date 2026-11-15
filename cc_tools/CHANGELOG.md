@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.65 — Chromium externo definitivo y limpieza de diagnósticos
+
+- Chromium externo es el único navegador compartido desde el arranque, también al actualizar desde una selección antigua del modo estándar. Se retiran el selector, su API y la ruta alternativa de arranque. Se conserva el mismo perfil persistente.
+- Se elimina el diagnóstico temporal de cookies de Cloudflare: muestras, consola y panel por ejecución. Los diagnósticos antiguos se omiten en la vista y exportación de logs; las cookies del navegador no se borran.
+- Se mantienen la reutilización entre módulos, la espera de intervención, la cancelación y el registro global de actividad de Chromium para investigar cierres y fallos.
+- Se retiran las pruebas del selector y de alternancia entre modos. Las pruebas funcionales siguen comprobando persistencia de sesión y cookies, descargas, subida de archivos, reutilización y recuperación.
+- No se cambian las programaciones ni se atribuyen puntos a comentarios sin recompensa confirmada.
+
 ## 1.0.64 — Chromium externo predeterminado y claridad en los registros
 
 - Chromium externo pasa a ser el modo predeterminado cuando no hay una selección guardada. Se aplica antes de iniciar los procesos de trabajo; una elección explícita del modo estándar se conserva.

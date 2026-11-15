@@ -1121,17 +1121,6 @@ $('#save-session').addEventListener('click', async () => {
   if (await saveConfig({ includeSession: true })) toast('Ajustes de sesión guardados.');
 });
 
-$('#save-browser-mode').addEventListener('click', async () => {
-  const button = $('#save-browser-mode');
-  button.disabled = true;
-  try {
-    await api('/api/browser/settings', { method: 'PATCH', body: { connectionMode: $('#browser-connection-mode').value } });
-    await refresh();
-    toast('Modo guardado. Se utilizará al abrir el navegador o ejecutar la siguiente tarea.');
-  } catch (error) { toast(error.message); }
-  finally { button.disabled = false; }
-});
-
 async function programTool(toggle, save) {
   const previous = toggle.checked;
   toggle.checked = true;
@@ -2776,7 +2765,6 @@ function render() {
   fields.windowEnd.value = checkin.windowEnd;
   renderTimezoneOptions(state.config.timezone || checkin.timezone || 'Europe/Madrid');
   fields.sessionAutoLogin.checked = state.config.crealitySession?.autoLoginEnabled === true;
-  $('#browser-connection-mode').value = state.config.browserConnectionMode || 'external-cdp';
   renderDailyCounters();
 
   renderLastExecution(fields.finishPrintLastRun, finishPrint);
@@ -3950,11 +3938,7 @@ function renderRunDetails(run) {
   }
 
   const resultDetails = items.length ? `<ul class="run-details">${items.join('')}</ul>` : '';
-  const cookieDiagnostics = run.details?.cookieDiagnostics;
-  const cookieDetails = cookieDiagnostics?.events?.length
-    ? `<div class="diagnostic-list"><section class="diagnostic-entry"><details class="cookie-diagnostics"><summary>Cookies de Cloudflare · datos técnicos</summary><p>Presencia y metadatos; no se registran valores. Una cookie presente no garantiza que Cloudflare acepte la sesión.</p><pre>${escapeHtml(JSON.stringify(cookieDiagnostics, null, 2))}</pre></details></section></div>`
-    : '';
-  return `${resultDetails}${renderDiagnostics(diagnostics)}${cookieDetails}`;
+  return `${resultDetails}${renderDiagnostics(diagnostics)}`;
 }
 
 function renderDiagnostics(diagnostics) {
