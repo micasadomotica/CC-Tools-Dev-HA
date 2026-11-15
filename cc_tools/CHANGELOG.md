@@ -7,6 +7,7 @@
 - Mantiene la reutilización entre módulos, la espera manual, la cancelación y el límite de 15 minutos. No pulsa la casilla ni modifica navigator.webdriver mediante scripts. No garantiza que Cloudflare acepte la sesión.
 - Añade eventos browser_environment al registro global con modo, versión y valor observado de navigator.webdriver. En el modo externo compara también la medición previa a conectar Playwright. Registra PID, código de salida y señal del proceso externo, sin valores de cookies ni URLs de depuración.
 - Gestiona el cierre del proceso externo, los fallos de arranque y la limpieza al detener la app. Añade pruebas de persistencia al cambiar de modo, descargas, selección de archivos, ventanas, intervención y reutilización, además de pruebas del selector y del bloqueo de cambios cuando el navegador está ocupado.
+- Mantiene la misma configuración de pruebas internas de Chromium que Playwright para compartir el formato de almacenamiento del perfil. El cierre externo deja una pestaña vacía para evitar restaurar páginas de trabajo antes de conectar.
 - Actualización directa desde 1.0.62, sin migración. El modo externo no se activa automáticamente al actualizar.
 
 ## 1.0.62 — integración de TitoTB 1.0.45

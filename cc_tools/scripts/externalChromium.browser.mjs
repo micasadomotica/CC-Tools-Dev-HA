@@ -18,6 +18,14 @@ test('Chromium externo visible: webdriver, cookies, descarga, subida y cierre de
   const profile = path.join(root, 'profile');
   let context, exits = [];
   t.after(async () => { await context?.close(); await fs.rm(root, { recursive: true, force: true }); });
+  const seed = await chromium.launchPersistentContext(profile, { headless: false,
+    ...(executablePath ? { executablePath } : {}) });
+  try {
+    await seed.route('**/*', route => route.fulfill({ contentType: 'text/html', body: '<p>Fixture</p>' }));
+    await seed.pages()[0].goto(target);
+    await seed.pages()[0].evaluate(() => localStorage.setItem('existing-session', 'seeded'));
+    await seed.pages()[0].goto('about:blank');
+  } finally { await seed.close(); }
   context = await launchExternalChromium(profile, launchOptions, event => exits.push(event));
   assert.equal(externalConnectionDiagnostics(context).webdriverBeforeConnect, false);
   await context.route('**/*', route => route.fulfill(route.request().url().endsWith('/download')
@@ -25,6 +33,7 @@ test('Chromium externo visible: webdriver, cookies, descarga, subida y cierre de
     : { contentType: 'text/html', body: '<title>Prueba local</title><a href="/download">Descargar</a><input type="file"><button onclick="window.open(\'/popup\')">Abrir</button>' }));
   let page = context.pages()[0];
   await page.goto(target);
+  assert.equal(await page.evaluate(() => localStorage.getItem('existing-session')), 'seeded', 'existing standard profile remains readable in external mode');
   assert.equal(await page.evaluate(() => navigator.webdriver), false);
   await context.addCookies([{ name: 'cf_clearance', value: 'LOCAL_FIXTURE_ONLY', url: target, expires: Math.floor(Date.now()/1000)+3600 }]);
   await page.evaluate(() => localStorage.setItem('local-test', 'persisted'));
@@ -53,7 +62,7 @@ test('Chromium externo visible: webdriver, cookies, descarga, subida y cierre de
     assert.equal(await standard.pages()[0].evaluate(() => navigator.webdriver), true);
     await standard.route('**/*', route => route.fulfill({ contentType: 'text/html', body: '<p>Fixture</p>' }));
     await standard.pages()[0].goto(target);
-    assert.equal(await standard.pages()[0].evaluate(() => localStorage.getItem('local-test')), 'persisted', 'localStorage survives the external process exit');
+    assert.equal(await standard.pages()[0].evaluate(() => localStorage.getItem('local-test')), 'persisted', 'external localStorage remains readable in standard mode');
     await standard.pages()[0].goto('about:blank');
   } finally { await standard.close(); }
   context = await launchExternalChromium(profile, launchOptions, event => exits.push(event));

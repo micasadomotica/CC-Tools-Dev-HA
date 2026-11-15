@@ -41,6 +41,9 @@ export async function launchExternalChromium(profile, options = {}, onExit = () 
   const port = await reservePort();
   const args = [
     `--user-data-dir=${profile}`, `--remote-debugging-port=${port}`, '--remote-debugging-address=127.0.0.1',
+    // Match Playwright's storage feature defaults when sharing the same profile.
+    // Chromium's field trials can otherwise select a different DOM storage backend.
+    '--disable-field-trial-config',
     '--no-first-run', '--no-default-browser-check', '--no-sandbox', '--disable-dev-shm-usage',
     `--lang=${options.locale || 'es-ES'}`, '--window-size=1366,768',
     ...(options.headless ? ['--headless=new'] : []), 'about:blank'
