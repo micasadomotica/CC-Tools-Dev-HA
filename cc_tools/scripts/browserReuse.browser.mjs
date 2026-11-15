@@ -14,7 +14,7 @@ import { withBrowserTrace, browserTraceScope } from '../src/browserTrace.js';
 const traceSnapshot = () => ({ ...browserTraceScope(), events: browserDiagnosticJournal.snapshot().events.filter(e => e.traceId === browserTraceScope().traceId) });
 
 const mode = 'external-cdp';
-test(`${mode}: conserva el proceso, contexto, cookies y almacenamiento entre módulos y descargas`, async t => {
+test(`${mode}: cierra el proceso y conserva el perfil entre módulos y descargas`, async t => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'cc-tools-reuse-'));
   let launches = 0;
   const sandbox = vm.createContext({ process, URL, fs, path, chromium, setTimeout, clearTimeout,
@@ -57,7 +57,7 @@ test(`${mode}: conserva el proceso, contexto, cookies y almacenamiento entre mó
       firstContext = context;
       const page = context.pages()[0];
       await page.goto('https://www.crealitycloud.com/es/test');
-      await context.addCookies([{ name: 'session_test', value: 'kept', url: page.url() }]);
+      await context.addCookies([{ name: 'session_test', value: 'kept', url: page.url(), expires: Math.floor(Date.now()/1000)+3600 }]);
       await context.addCookies([{ name: 'cf_clearance', value: 'PRIVATE_TEST_CLEARANCE', url: page.url(),
         expires: Math.floor(Date.now() / 1000) + 3600, httpOnly: true, secure: true }]);
       await page.evaluate(() => localStorage.setItem('session_test', 'kept'));
@@ -66,17 +66,15 @@ test(`${mode}: conserva el proceso, contexto, cookies y almacenamiento entre mó
     return traceSnapshot();
   });
   assert.equal(sandbox.browserManagerState().mode, 'idle');
-  assert.equal(sandbox.browserManagerState().active, true);
-  assert.equal(sandbox.browserManagerState().environment.webdriver, mode !== 'external-cdp');
-  assert.equal(firstContext.pages().length, 1);
-  assert.equal(firstContext.pages()[0].url(), 'about:blank');
+  assert.equal(sandbox.browserManagerState().active, false);
+  assert.equal(firstContext.pages().length, 0);
 
   for (const batch of ['batch-one', 'batch-two']) {
     const dir = path.join(root, batch);
     await fs.mkdir(dir);
     const nextTrace = await withBrowserTrace('modelDownloads', async () => {
       await sandbox.withAutomationBrowser({ acceptDownloads: true }, async context => {
-        assert.equal(context, firstContext);
+        assert.notEqual(context, firstContext);
         const page = context.pages()[0];
         await page.goto('https://www.crealitycloud.com/es/test');
         assert.equal((await context.cookies()).find(c => c.name === 'session_test').value, 'kept');
@@ -92,9 +90,9 @@ test(`${mode}: conserva el proceso, contexto, cookies y almacenamiento entre mó
     });
     assert.equal(JSON.stringify(nextTrace).includes('PRIVATE_TEST_CLEARANCE'), false);
   }
-  assert.equal(launches, 1);
+  assert.equal(launches, 3);
   await sandbox.openInteractiveBrowser('https://www.crealitycloud.com/es/test');
-  assert.equal(launches, 1);
+  assert.equal(launches, 4);
   await assert.rejects(sandbox.withAutomationBrowser({}, () => {}), { code: 'REMOTE_BROWSER_OPEN' });
   await sandbox.closeInteractiveBrowser();
   assert.equal(sandbox.browserManagerState().active, false);
@@ -105,11 +103,11 @@ test(`${mode}: conserva el proceso, contexto, cookies y almacenamiento entre mó
     });
     return traceSnapshot();
   });
-  assert.equal(launches, 2);
+  assert.equal(launches, 5);
   assert.equal(JSON.stringify(reopened).includes('PRIVATE_TEST_CLEARANCE'), false);
   const journal = browserDiagnosticJournal.snapshot();
   const firstContextId = firstTrace.events.find(e => e.phase === 'context_created').contextId;
-  const manualClose = journal.events.find(e => e.phase === 'context_closed' && e.reason === 'manual_close'
+  const manualClose = journal.events.find(e => e.phase === 'context_closed' && e.reason === 'task_completed'
     && e.contextId === firstContextId);
   assert.equal(manualClose.contextId, firstContextId);
   assert.equal(manualClose.requested, true);

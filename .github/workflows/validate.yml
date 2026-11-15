@@ -39,6 +39,8 @@ jobs:
         run: xvfb-run -a npm run test:challenge:browser
       - name: Test external Chromium connection and persistent profile
         run: xvfb-run -a node --test scripts/externalChromium.browser.mjs
+      - name: Test optional cookie rejection and profile persistence
+        run: xvfb-run -a node --test scripts/cookieConsent.browser.mjs
       - name: Test check-in reminder in browser
         run: npm run test:checkin:browser
       - name: Test reward counters with the real task-card structure

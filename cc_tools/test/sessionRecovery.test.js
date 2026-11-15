@@ -62,7 +62,7 @@ for (const mode of ['', 'interactive']) {
       assert.equal(result.checked, authenticated);
       assert.equal(h.calls.confirmed, authenticated ? 1 : 0);
       if (!authenticated) assert.equal(result.reason, 'SESSION_CHECK_INCONCLUSIVE');
-      assert.equal(h.calls.closed, 0);
+      assert.equal(h.calls.closed, mode ? 0 : 1);
     });
   }
 }
@@ -73,7 +73,7 @@ for (const authenticated of [false, true]) {
     const result = await h.context.attemptRememberedSessionLogin();
     assert.equal(result.authenticated, authenticated);
     assert.equal(h.calls.confirmed, authenticated ? 1 : 0);
-    assert.equal(h.calls.closed, authenticated ? 0 : 1);
+    assert.equal(h.calls.closed, 1);
   });
 }
 
@@ -86,7 +86,7 @@ test('la tarea puede continuar con un perfil inconcluso sin confirmar la recuper
   });
   assert.equal(ran, 1);
   assert.equal(h.calls.confirmed, 0);
-  assert.equal(h.calls.closed, 0);
+  assert.equal(h.calls.closed, 1);
 });
 
 test('la recuperación exige confirmar el ID de la cuenta configurada', async () => {
@@ -95,7 +95,7 @@ test('la recuperación exige confirmar el ID de la cuenta configurada', async ()
     const result = await h.context.attemptRememberedSessionLogin({ expectedUserId: 'configured' });
     assert.equal(result.authenticated, userId === 'configured');
     assert.equal(h.calls.confirmed, userId === 'configured' ? 1 : 0);
-    assert.equal(h.calls.closed, userId === 'configured' ? 0 : 1);
+    assert.equal(h.calls.closed, 1);
     if (userId === 'other') assert.equal(result.reason, 'MANUAL_LOGIN_REQUIRED');
     if (!userId) assert.equal(result.reason, 'SESSION_CHECK_INCONCLUSIVE');
   }
@@ -113,7 +113,7 @@ test('el acceso OAuth prioriza la cuenta configurada y comprueba el perfil de re
   assert.equal(h.calls.accounts[0].time, 20);
   assert.ok(h.calls.accounts[1].time > 20);
   assert.equal(h.calls.confirmed, 1);
-  assert.equal(h.calls.closed, 0);
+  assert.equal(h.calls.closed, 1);
 });
 
 test('no confirma ni reanuda una recuperación ambigua, ajena o caducada', async () => {
@@ -157,38 +157,30 @@ test('la limpieza de una tarea cancelada no cierra el navegador abierto después
   assert.equal(h.context.browserManagerState().active, true);
 });
 
-test('dos módulos reutilizan Chromium, liberan las pestañas y mantienen la exclusión mutua', async () => {
+test('dos módulos cierran Chromium entre tareas y mantienen la exclusión mutua', async () => {
   const h = harness();
-  let firstContext, firstPage;
-  await h.context.withAutomationBrowser({}, async context => {
-    firstContext = context;
-    firstPage = context.pages()[0];
-    await context.newPage();
+  await h.context.withAutomationBrowser({}, async () => {
     await assert.rejects(h.context.withAutomationBrowser({}, () => {}), { code: 'BROWSER_BUSY' });
   });
   assert.equal(h.context.browserManagerState().mode, 'idle');
-  assert.equal(h.context.browserManagerState().active, true);
-  assert.equal(firstContext.pages().length, 1);
-  assert.notEqual(firstContext.pages()[0], firstPage);
-  await h.context.withAutomationBrowser({ acceptDownloads: true }, async context => {
-    assert.equal(context, firstContext);
-  });
-  assert.equal(h.calls.launched, 1);
-  assert.equal(h.calls.closed, 0);
-  await h.context.shutdownBrowser();
-  assert.equal(h.calls.closed, 1);
   assert.equal(h.context.browserManagerState().active, false);
+  assert.equal(h.calls.closed, 1);
+  await h.context.withAutomationBrowser({ acceptDownloads: true }, async () => {});
+  assert.equal(h.calls.launched, 2);
+  assert.equal(h.calls.closed, 2);
+  await h.context.shutdownBrowser();
+  assert.equal(h.calls.closed, 2);
 });
 
-test('abrir el navegador conservado reserva la sesión interactiva y cerrar lo libera', async () => {
+test('abrir el navegador inicia una sesión interactiva independiente y cerrar la libera', async () => {
   const h = harness();
   await h.context.withAutomationBrowser({}, async () => {});
   await h.context.openInteractiveBrowser('https://www.crealitycloud.com/check-in');
-  assert.equal(h.calls.launched, 1);
+  assert.equal(h.calls.launched, 2);
   assert.equal(h.context.browserManagerState().mode, 'interactive');
   await assert.rejects(h.context.withAutomationBrowser({}, () => {}), { code: 'REMOTE_BROWSER_OPEN' });
   assert.equal(await h.context.closeInteractiveBrowser(), true);
-  assert.equal(h.calls.closed, 1);
+  assert.equal(h.calls.closed, 2);
 });
 
 test('un error de ejecución descarta el navegador y la tarea siguiente inicia uno nuevo', async () => {
@@ -201,12 +193,12 @@ test('un error de ejecución descarta el navegador y la tarea siguiente inicia u
   assert.equal(h.calls.launched, 2);
 });
 
-test('un cambio de opciones incompatibles sustituye Chromium antes de la siguiente tarea', async () => {
+test('cada tarea inicia Chromium con sus opciones', async () => {
   const h = harness();
   await h.context.withAutomationBrowser({}, async () => {});
   await h.context.withAutomationBrowser({ locale: 'en-US' }, async () => {
     assert.equal(h.context.browserManagerState().mode, 'automation');
   });
   assert.equal(h.calls.launched, 2);
-  assert.equal(h.calls.closed, 1);
+  assert.equal(h.calls.closed, 2);
 });

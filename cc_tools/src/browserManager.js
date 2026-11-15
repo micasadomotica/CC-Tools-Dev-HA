@@ -8,6 +8,7 @@ import { confirmAuthenticatedSession } from './sessionMonitor.js';
 import { installChallengeHandling, browserChallengeState, challengeResolvedAt } from './browserChallenge.js';
 import { bindBrowserDiagnostics, recordBrowserLifecycle } from './browserLifecycle.js';
 import { launchExternalChromium, externalConnectionDiagnostics } from './externalChromium.js';
+import { installCookieConsentHandling } from './cookieConsent.js';
 
 const PROFILE_LOCK_FILES = ['SingletonLock', 'SingletonCookie', 'SingletonSocket', 'lock'];
 const SESSION_CHECK_URL = 'https://www.crealitycloud.com/es/workbench-beta/?type=1';
@@ -79,7 +80,7 @@ export async function withAutomationBrowser(options, callback) {
       recordBrowserLifecycle(endContext, 'module_lease_lost', { reason: 'lease_lost', source: diagnosticSource });
     }
     if (activeOwner === owner) {
-      if (completed && !shuttingDown) await releaseAutomationContext(owner);
+      if (completed && !shuttingDown) await releaseAutomationContext(owner, diagnosticSource);
       else await closeActiveContext({ reason: 'task_failed', source: diagnosticSource });
     }
   }
@@ -106,6 +107,7 @@ export async function withIsolatedBrowser(options, callback) {
       ...(options || {})
     });
     assertBrowserAvailable();
+    await installCookieConsentHandling(context);
     return await callback(context);
   } finally {
     await context?.close().catch(() => {});
@@ -294,7 +296,7 @@ export async function attemptRememberedSessionLogin(options = {}) {
     throw normalized;
   } finally {
     if (activeOwner === owner) {
-      if (recovered && !shuttingDown) await releaseAutomationContext(owner);
+      if (recovered && !shuttingDown) await releaseAutomationContext(owner, 'session_recovery');
       else await closeActiveContext({ reason: 'session_recovery_failed', source: 'session_recovery' });
     }
   }
@@ -533,21 +535,13 @@ async function recordEnvironment(context, page = context.pages()[0]) {
   recordBrowserLifecycle(context, 'browser_environment', { reason: 'environment_probe', source: 'playwright', ...environment });
 }
 
-async function releaseAutomationContext(owner) {
-  const context = activeContext;
-  if (!context) return;
+async function releaseAutomationContext(owner, source = 'automation') {
+  if (!activeContext || activeOwner !== owner) return;
   try {
-    // A blank keeper preserves Chromium and its cookies without leaving task
-    // timers, listeners or background requests running between modules.
-    const previousPages = context.pages();
-    await context.newPage();
-    await Promise.all(previousPages.map(page => page.close()));
-    if (activeOwner !== owner || activeContext !== context) return;
-    recordBrowserLifecycle(context, 'module_released', { reason: 'task_completed', pageCount: context.pages().length });
-    activeOwner = null;
-    activeMode = '';
-  } catch {
-    if (activeOwner === owner) await closeActiveContext({ reason: 'keeper_failed', source: 'automation' });
+    // Keep the lease until the external process exits and flushes its profile.
+    await closeActiveContext({ keepLease: true, reason: 'task_completed', source });
+  } finally {
+    if (activeOwner === owner) { activeOwner = null; activeMode = ''; }
   }
 }
 

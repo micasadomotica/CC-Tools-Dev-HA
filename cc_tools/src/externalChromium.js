@@ -3,6 +3,7 @@ import net from 'node:net';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { chromium } from 'playwright';
+import { installCookieConsentHandling } from './cookieConsent.js';
 
 const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 const connectionDiagnostics = new WeakMap();
@@ -104,6 +105,7 @@ export async function launchExternalChromium(profile, options = {}, onExit = () 
     context.close = stop;
     connectionDiagnostics.set(context, { webdriverBeforeConnect });
     browser.once('disconnected', () => { void stop().catch(() => {}); });
+    await installCookieConsentHandling(context);
     return context;
   } catch (error) {
     await stop();

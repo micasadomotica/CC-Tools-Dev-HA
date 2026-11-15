@@ -2,7 +2,7 @@
 
 CC Tools Dev automatiza tareas de Creality Cloud desde Home Assistant. Es una edición independiente basada en [CC Tools de TitoTB](https://github.com/TitoTB/CC-Tools-HA) y en el trabajo de la comunidad de Aguacatec.
 
-**Versión 1.0.65**. Chromium externo es el único navegador compartido y se aplica automáticamente al iniciar. Conserva el perfil, las cookies, la reutilización entre módulos y la espera de intervención. Se retiran el selector de navegador y los diagnósticos temporales de cookies de los registros, también en la vista y exportación de ejecuciones antiguas. Se mantiene Actividad de Chromium para investigar cierres y fallos.
+**Versión 1.0.66**. Chromium externo se cierra al terminar cada tarea y conserva el perfil persistente para la siguiente. El aviso de cookies de Creality se rechaza automáticamente mediante «Reject all», manteniendo las necesarias. Se conserva la espera de intervención si aparece una verificación de seguridad.
 
 [![Añadir repositorio a Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fmicasadomotica%2FCC-Tools-Dev-HA)
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.66 — Cierre entre tareas y rechazo del aviso de cookies
+
+- Chromium externo se cierra al terminar cada tarea y se vuelve a iniciar con el mismo perfil persistente en la siguiente, siguiendo el ciclo de tareas del proyecto original. Se mantiene bloqueado el acceso hasta terminar el cierre del proceso.
+- Al aparecer el aviso inicial de cookies de Creality, se pulsa «Reject all»: el sitio rechaza las cookies opcionales y conserva las necesarias. No se borran cookies ni se escriben preferencias manualmente.
+- Conserva la elección en el perfil y actúa también en pestañas nuevas y en el navegador interactivo. No modifica decisiones previas si el aviso no aparece ni interviene en el editor de preferencias.
+- Mantiene la ventana durante una verificación pendiente, la cancelación y los diagnósticos de actividad. No automatiza controles de Cloudflare.
+- Añade pruebas de rechazo, límites por dominio y diálogo, conservación de cookies necesarias y consentimiento después de reabrir, y exclusión de tareas durante el cierre.
+
+
 ## 1.0.65 — Chromium externo definitivo y limpieza de diagnósticos
 
 - Chromium externo es el único navegador compartido desde el arranque, también al actualizar desde una selección antigua del modo estándar. Se retiran el selector, su API y la ruta alternativa de arranque. Se conserva el mismo perfil persistente.

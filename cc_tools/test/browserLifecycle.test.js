@@ -73,11 +73,27 @@ test('los cierres entre tareas mantienen origen y contexto sin atribuirlos a la 
   });
   const events = browserDiagnosticJournal.snapshot().events;
   const close = events.find(e => e.traceId === first.traceId && e.phase === 'context_closed');
-  assert.equal(close.reason, 'manual_close');
-  assert.equal(close.source, 'interactive');
+  assert.equal(close.reason, 'task_completed');
+  assert.equal(close.source, 'automation');
   assert.equal(close.requested, true);
   assert.notEqual(first.events[0].contextId, second.events[0].contextId);
   assert.equal(second.events.some(e => e.phase === 'context_before_close'), false);
+});
+
+test('no permite otra tarea mientras el proceso anterior está cerrando el perfil', async t => {
+  const { sandbox } = harness(t);
+  let closing, finish;
+  const entered = new Promise(resolve => { closing = resolve; });
+  const gate = new Promise(resolve => { finish = resolve; });
+  const task = sandbox.withAutomationBrowser({}, async context => {
+    const close = context.close;
+    context.close = async () => { closing(); await gate; await close(); };
+  });
+  await entered;
+  await assert.rejects(sandbox.withAutomationBrowser({}, async () => {}), { code: 'BROWSER_BUSY' });
+  finish(); await task;
+  assert.equal(sandbox.browserManagerState().active, false);
+  await sandbox.withAutomationBrowser({}, async () => {});
 });
 
 test('identifica cambios de opciones y verificaciones de sesión sin registrar sus valores', async t => {
@@ -87,10 +103,10 @@ test('identifica cambios de opciones y verificaciones de sesión sin registrar s
   await sandbox.withAutomationBrowser({ locale: 'PRIVATE_OPTION', diagnosticSource: 'progress_sync' }, async () => {});
   const events = browserDiagnosticJournal.snapshot().events.filter(e => e.sequence > before);
   const close = events.find(e => e.phase === 'context_close_requested');
-  assert.equal(close.reason, 'options_changed');
-  assert.deepEqual(close.changedOptions, ['locale']);
+  assert.equal(close.reason, 'task_completed');
+  assert.equal(close.changedOptions, undefined);
   assert.equal(close.source, 'progress_sync');
-  assert.equal(events.find(e => e.phase === 'context_created').relatedContextId, close.contextId);
+  assert.equal(events.find(e => e.phase === 'context_created').contextId, close.contextId);
   assert.equal(JSON.stringify(events).includes('PRIVATE_OPTION'), false);
 });
 
