@@ -41,6 +41,11 @@ test('Chromium externo visible: webdriver, cookies, descarga, subida y cierre de
   await popup.close();
   await context.close();
   assert.equal(exits.length, 1); assert.equal(exits[0].code, 0);
+  context = await launchExternalChromium(profile, launchOptions, event => exits.push(event));
+  await context.route('**/*', route => route.fulfill({ contentType: 'text/html', body: '<p>Fixture</p>' }));
+  page = context.pages()[0]; await page.goto(target);
+  assert.equal(await page.evaluate(() => localStorage.getItem('local-test')), 'persisted', 'localStorage survives an external-to-external restart');
+  await context.close();
   const standard = await chromium.launchPersistentContext(profile, { headless: false,
     ...(executablePath ? { executablePath } : {}) });
   try {
@@ -58,7 +63,7 @@ test('Chromium externo visible: webdriver, cookies, descarga, subida y cierre de
   assert.equal((await context.cookies()).find(c => c.name === 'cf_clearance').value, 'LOCAL_FIXTURE_ONLY');
   assert.equal(await page.evaluate(() => localStorage.getItem('local-test')), 'persisted');
   assert.equal(await page.evaluate(() => navigator.webdriver), false);
-  await context.close(); assert.equal(exits.length, 2);
+  await context.close(); assert.equal(exits.length, 3);
 });
 
 test('CDP conserva la espera de intervención y continúa en el mismo contexto', async t => {
