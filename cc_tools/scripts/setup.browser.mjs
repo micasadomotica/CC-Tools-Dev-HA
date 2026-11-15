@@ -51,6 +51,11 @@ test('el aviso de verificación abre la ventana existente sin iniciar login ni c
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page = await context.newPage();
   let active = true, views = 0, logins = 0, cancels = 0;
+  await context.route('**/api/tasks/**', route => route.fulfill({ json: { ok: false } }));
+  await context.route('**/api/progress/refresh', route => route.fulfill({ json: { ok: false } }));
+  await context.route('**/api/creality/profile/refresh', route => route.fulfill({ json: { ok: false } }));
+  await context.route('**/api/points/**', route => route.fulfill({ json: { ok: false } }));
+  await context.route('**/api/shop/**', route => route.fulfill({ json: { ok: false } }));
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await context.route('**/api/browser/status*', route => route.fulfill({ json: { ok: true,
@@ -86,6 +91,8 @@ test('Telegram conserva el paso del asistente y las descargas parten de 10', asy
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   // All account actions are simulated: no Telegram message or Creality login is sent.
+  await page.route('**/api/tasks/**', route => route.fulfill({ json: { ok: false } }));
+  await page.route('**/api/progress/refresh', route => route.fulfill({ json: { ok: false } }));
   await page.route('**/api/tasks/creality/login/close', route => route.fulfill({ json: { ok: true } }));
   await page.route('**/api/creality/profile/refresh', route => route.fulfill({ json: { ok: false } }));
   await page.route('**/api/points/**', route => route.fulfill({ json: { ok: false } }));
@@ -131,6 +138,25 @@ test('Telegram conserva el paso del asistente y las descargas parten de 10', asy
     await page.locator('#creality-user-avatar').click();
     await page.locator('#creality-menu-settings').click();
     assert.equal(await page.locator('#session-auto-login').isChecked(), false);
+    assert.equal(await page.locator('#browser-connection-mode').inputValue(), 'standard');
+    await page.locator('#browser-connection-mode').selectOption('external-cdp');
+    const modeSaved = page.waitForResponse(response => response.url().endsWith('/api/browser/settings'));
+    await page.locator('#save-browser-mode').click();
+    const modeResponse = await modeSaved;
+    assert.equal(modeResponse.ok(), true, await modeResponse.text());
+    await page.reload();
+    await page.waitForFunction(() => document.querySelector('#browser-connection-mode').value === 'external-cdp');
+    assert.equal(JSON.parse(await fs.readFile(path.join(dataDir, 'config.json'), 'utf8')).browserConnectionMode, 'external-cdp');
+    const invalidMode = await fetch(`${baseUrl}/api/browser/settings`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ connectionMode: 'invalid' }) });
+    assert.equal(invalidMode.status, 400);
+    await page.locator('#creality-user-avatar').click();
+    await page.locator('#creality-menu-settings').click();
+    if (process.env.CCTOOLS_QA_DIR) await page.locator('#tab-session').screenshot({ path: path.join(process.env.CCTOOLS_QA_DIR, 'browser-mode.png') });
+    await page.locator('#browser-connection-mode').selectOption('standard');
+    const standardSaved = page.waitForResponse(response => response.url().endsWith('/api/browser/settings'));
+    await page.locator('#save-browser-mode').click();
+    const standardResponse = await standardSaved;
+    assert.equal(standardResponse.ok(), true, await standardResponse.text());
     await page.locator('#session-auto-login').check();
     const savedSession = page.waitForResponse(response => response.url().endsWith('/api/config') && response.request().method() === 'PATCH');
     await page.locator('#save-session').click();

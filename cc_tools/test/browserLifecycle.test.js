@@ -130,3 +130,47 @@ test('el registro descarta texto libre, URLs, opciones desconocidas y errores', 
     error: 'PRIVATE_VALUE', url: 'PRIVATE_VALUE', changedOptions: ['PRIVATE_VALUE'] });
   assert.equal(JSON.stringify(event).includes('PRIVATE_VALUE'), false);
 });
+
+test('el cambio de modo conserva la configuración previa si está ocupado o falla el guardado', async t => {
+  const { sandbox } = harness(t);
+  await assert.rejects(sandbox.setBrowserConnectionMode('invalid'), { code: 'INVALID_BROWSER_MODE' });
+  await sandbox.openInteractiveBrowser('https://www.crealitycloud.com/');
+  await assert.rejects(sandbox.setBrowserConnectionMode('external-cdp'), { code: 'BROWSER_BUSY' });
+  await sandbox.closeInteractiveBrowser();
+  await assert.rejects(sandbox.setBrowserConnectionMode('external-cdp', async () => { throw Error('disk'); }), /disk/);
+  assert.equal(sandbox.browserManagerState().connectionMode, 'standard');
+  assert.equal(sandbox.browserManagerState().mode, 'idle');
+  let saved = false;
+  await sandbox.setBrowserConnectionMode('external-cdp', async () => { saved = true; });
+  assert.equal(saved, true);
+  assert.equal(sandbox.browserManagerState().connectionMode, 'external-cdp');
+  await sandbox.withAutomationBrowser({}, async () => {
+    await assert.rejects(sandbox.setBrowserConnectionMode('standard'), { code: 'BROWSER_BUSY' });
+  });
+  await sandbox.setBrowserConnectionMode('standard');
+  assert.equal(sandbox.browserManagerState().active, false);
+  assert.ok(browserDiagnosticJournal.snapshot().events.some(e => e.reason === 'connection_mode_changed'));
+});
+
+test('el diagnóstico de entorno y proceso solo acepta metadatos permitidos', () => {
+  const event = recordBrowserLifecycle({}, 'browser_environment', { reason: 'environment_probe',
+    connectionMode: 'external-cdp', browserVersion: '153.0.0.0', webdriver: false, webdriverBeforeConnect: false,
+    cookie: 'PRIVATE_VALUE', headers: 'PRIVATE_VALUE' });
+  assert.equal(event.webdriver, false); assert.equal(event.webdriverBeforeConnect, false);
+  assert.equal(event.browserVersion, '153.0.0.0'); assert.equal(event.connectionMode, 'external-cdp');
+  assert.equal(JSON.stringify(event).includes('PRIVATE_VALUE'), false);
+  const invalid = recordBrowserLifecycle({}, 'process_exited', { reason: 'process_exit',
+    browserVersion: 'PRIVATE_VALUE', signal: 'PRIVATE_VALUE', exitCode: 0, pid: 123 });
+  assert.equal(invalid.exitCode, 0); assert.equal(JSON.stringify(invalid).includes('PRIVATE_VALUE'), false);
+});
+
+test('serializa cambios de modo incluso cuando otra petición guarda el modo anterior', async t => {
+  const { sandbox } = harness(t);
+  let release;
+  const pending = sandbox.setBrowserConnectionMode('external-cdp', () => new Promise(resolve => { release = resolve; }));
+  while (!release) await new Promise(resolve => setTimeout(resolve, 1));
+  await assert.rejects(sandbox.setBrowserConnectionMode('standard'), { code: 'BROWSER_BUSY' });
+  await assert.rejects(sandbox.openInteractiveBrowser('https://www.crealitycloud.com/'), { code: 'BROWSER_BUSY' });
+  release(); await pending;
+  assert.equal(sandbox.browserManagerState().connectionMode, 'external-cdp');
+});

@@ -28,7 +28,7 @@ catálogos de diseños y la configuración no se comparten entre las dos aplicac
 
 ## Instalar y actualizar Dev
 
-Añade `https://github.com/micasadomotica/CC-Tools-Dev-HA` en los repositorios de la tienda de Apps e instala **CC Tools Dev**. La versión **1.0.62** conserva Chromium entre módulos y pide intervención al detectar una verificación, sin esperar 40 segundos. Mantiene la corrección del historial de comentarios de 1.0.58. El aviso de datos migrados enlaza a **Logs**, donde puedes pulsar **Reanudar automatizaciones** después de revisar el perfil, las programaciones y las entregas. Conserva las funciones de Dev y el dispositivo Creality Cloud Models. Desde 1.0.50 basta con actualizar la app; no hace falta volver a migrar. Actualizar no activa ninguna migración. La app se construye en tu equipo y utiliza el puerto externo **8088**.
+Añade `https://github.com/micasadomotica/CC-Tools-Dev-HA` en los repositorios de la tienda de Apps e instala **CC Tools Dev**. La versión **1.0.63** conserva Chromium entre módulos y pide intervención al detectar una verificación, sin esperar 40 segundos. Mantiene la corrección del historial de comentarios de 1.0.58. El aviso de datos migrados enlaza a **Logs**, donde puedes pulsar **Reanudar automatizaciones** después de revisar el perfil, las programaciones y las entregas. Conserva las funciones de Dev y el dispositivo Creality Cloud Models. Desde 1.0.50 basta con actualizar la app; no hace falta volver a migrar. Actualizar no activa ninguna migración. La app se construye en tu equipo y utiliza el puerto externo **8088**.
 
 Para las siguientes versiones, utiliza **Actualizar** desde Home Assistant. Crea antes una copia de seguridad y espera a que terminen las tareas en curso. No necesitas descargar ZIP.
 
@@ -108,6 +108,16 @@ Puedes indicar una categoría propia en info.txt: `CATEGORIA: Hogar / Mascotas`.
 
 Al guardar la programación de impresiones, el aviso distingue el objetivo pendiente de la capacidad del horario restante. Por ejemplo: «Quedan 9 impresiones para el objetivo; se programan 5 por el tiempo disponible». Los fallos anteriores no consumen el objetivo diario.
 
+
+## Modo experimental de Chromium (1.0.63)
+
+En **Ajustes → Sesión → Navegador** selecciona **Chromium externo (experimental)** y pulsa **Aplicar modo**. Termina las tareas y cierra la sesión interactiva antes de cambiar. El navegador inactivo se cerrará y la siguiente apertura usará el modo seleccionado. Para volver, elige **Estándar (actual)** y aplica el cambio.
+
+Ambos modos usan el mismo perfil persistente; no se trasladan cookies entre máquinas ni se borra el perfil al cambiar. El modo externo inicia Chromium visible y Playwright se conecta después mediante CDP. El puerto de depuración solo escucha en loopback dentro del contenedor y no se publica en Home Assistant. La espera de intervención y su límite de 15 minutos permanecen activos. El modo experimental no tiene recuperación automática en headless: si no puede abrir la pantalla o iniciar Chromium, muestra un error y permite volver al modo estándar.
+
+En **Logs → Actividad de Chromium** busca **browser_environment**: connectionMode distingue standard y external-cdp; browserVersion identifica la versión real; webdriver muestra el valor leído, sin alterarlo. En external-cdp, webdriverBeforeConnect recoge la medición anterior a la conexión de Playwright. null significa que no se pudo medir. Los cambios de lectura generan otro evento; no se repite uno idéntico en cada página. El modo externo registra además process_exited con PID, código de salida o señal si están disponibles. Estos datos no identifican por sí solos la causa de una terminación externa.
+
+Las pruebas usan páginas y cookies sintéticas. Un valor false de navigator.webdriver no garantiza superar la verificación de Cloudflare. Para comparar, abre el comprobador oficial en el Chromium de CC Tools cuando no haya módulos ejecutándose y conserva los logs de cada modo. No hace falta borrar cookies.
 
 ## Verificación de seguridad
 
