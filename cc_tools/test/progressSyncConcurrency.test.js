@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import { assertMigrationReviewed } from '../src/migrationReview.js';
 import { normalizeCaughtError } from '../src/crealityDiagnostics.js';
 import { reconcileMakeNowCorrection } from '../src/dailyProgress.js';
-import { withCookieDiagnostics } from '../src/cookieDiagnostics.js';
+import { withBrowserTrace } from '../src/browserTrace.js';
 
 const source = name => fs.readFileSync(new URL(`../src/${name}.js`, import.meta.url), 'utf8')
   .replace(/^import[\s\S]*?;\r?$/gm, '').replace(/^export /gm, '');
@@ -19,7 +19,7 @@ function harness() {
   const config = { timezone:'Europe/Madrid', dailyProgress:{}, tasks:{creality:{retainDays:7}} };
   const context = vm.createContext({ Date, Promise, AbortController, setTimeout, clearTimeout, process, normalizeCaughtError, console:{log(){},error(){},warn(){}},
     assertMigrationReviewed,
-    withCookieDiagnostics,
+    withBrowserTrace,
     challengeClock: () => 0, browserChallengeState: () => ({ active: false }),
     readConfig:async()=> { if(state.deferConfig) await configGate.promise; return config; },
     writeConfig:async()=> { state.writes++; if(state.failWrite) throw new Error('storage unavailable'); },

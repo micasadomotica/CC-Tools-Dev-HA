@@ -12,6 +12,7 @@ import { chromium } from 'playwright';
 let browser, server, dataDir, baseUrl;
 before(async () => {
   dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'cctools-setup-'));
+  await fs.writeFile(path.join(dataDir, 'config.json'), JSON.stringify({ browserConnectionMode: 'standard' }));
   const socket = net.createServer();
   socket.listen(0, '127.0.0.1');
   await once(socket, 'listening');
@@ -35,7 +36,7 @@ before(async () => {
   }
   assert.equal(ready, true, logs);
   const startupStatus = await (await fetch(`${baseUrl}/api/status`)).json();
-  assert.equal(startupStatus.config.browserConnectionMode, 'external-cdp');
+  assert.equal(startupStatus.config.browserConnectionMode, undefined);
   assert.equal(startupStatus.browser.connectionMode, 'external-cdp');
   browser = await chromium.launch({ headless: true, ...(process.platform === 'win32' ? { channel: 'chrome' } : {}) });
 });
@@ -141,25 +142,10 @@ test('Telegram conserva el paso del asistente y las descargas parten de 10', asy
     await page.locator('#creality-user-avatar').click();
     await page.locator('#creality-menu-settings').click();
     assert.equal(await page.locator('#session-auto-login').isChecked(), false);
-    assert.equal(await page.locator('#browser-connection-mode').inputValue(), 'external-cdp');
-    await page.locator('#browser-connection-mode').selectOption('external-cdp');
-    const modeSaved = page.waitForResponse(response => response.url().endsWith('/api/browser/settings'));
-    await page.locator('#save-browser-mode').click();
-    const modeResponse = await modeSaved;
-    assert.equal(modeResponse.ok(), true, await modeResponse.text());
-    await page.reload();
-    await page.waitForFunction(() => document.querySelector('#browser-connection-mode').value === 'external-cdp');
-    assert.equal(JSON.parse(await fs.readFile(path.join(dataDir, 'config.json'), 'utf8')).browserConnectionMode, 'external-cdp');
-    const invalidMode = await fetch(`${baseUrl}/api/browser/settings`, { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ connectionMode: 'invalid' }) });
-    assert.equal(invalidMode.status, 400);
-    await page.locator('#creality-user-avatar').click();
-    await page.locator('#creality-menu-settings').click();
-    if (process.env.CCTOOLS_QA_DIR) await page.locator('#tab-session').screenshot({ path: path.join(process.env.CCTOOLS_QA_DIR, 'browser-mode.png') });
-    await page.locator('#browser-connection-mode').selectOption('standard');
-    const standardSaved = page.waitForResponse(response => response.url().endsWith('/api/browser/settings'));
-    await page.locator('#save-browser-mode').click();
-    const standardResponse = await standardSaved;
-    assert.equal(standardResponse.ok(), true, await standardResponse.text());
+    assert.equal(await page.locator('#browser-connection-mode').count(), 0);
+    const removedSetting = await fetch(baseUrl + '/api/browser/settings', { method: 'PATCH', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ connectionMode: 'standard' }) });
+    assert.equal(removedSetting.status, 404);
+    assert.equal((await (await fetch(baseUrl + '/api/browser/status')).json()).browser.connectionMode, 'external-cdp');
     await page.locator('#session-auto-login').check();
     const savedSession = page.waitForResponse(response => response.url().endsWith('/api/config') && response.request().method() === 'PATCH');
     await page.locator('#save-session').click();

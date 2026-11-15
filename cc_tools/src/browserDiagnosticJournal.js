@@ -31,7 +31,8 @@ export function createBrowserDiagnosticJournal(limit = 500) {
         await fs.mkdir(path.dirname(file), { recursive: true });
         try {
           const stored = JSON.parse(await fs.readFile(file, 'utf8'));
-          const old = Array.isArray(stored.events) ? stored.events : [];
+          const old = Array.isArray(stored.events) ? stored.events.filter(event => event && typeof event === 'object'
+            && event.kind !== 'cookies' && !Object.hasOwn(event, 'cookies') && !Object.hasOwn(event, 'readStatus')) : [];
           discardedEvents = (Number(stored.discardedEvents) || 0) + Math.max(0, old.length - limit);
           events = old.slice(-limit);
         } catch (error) { if (error.code !== 'ENOENT') persistence = 'unavailable'; }

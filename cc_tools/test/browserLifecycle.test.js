@@ -5,7 +5,8 @@ import vm from 'node:vm';
 import { EventEmitter } from 'node:events';
 import { bindBrowserDiagnostics, recordBrowserLifecycle } from '../src/browserLifecycle.js';
 import { browserDiagnosticJournal } from '../src/browserDiagnosticJournal.js';
-import { recordCookieDiagnostics, withCookieDiagnostics, cookieDiagnosticsSnapshot } from '../src/cookieDiagnostics.js';
+import { withBrowserTrace, browserTraceScope } from '../src/browserTrace.js';
+const traceSnapshot = () => ({ ...browserTraceScope(), events: browserDiagnosticJournal.snapshot().events.filter(e => e.traceId === browserTraceScope().traceId) });
 
 function harness(t) {
   t.mock.method(console, 'log', () => {});
@@ -31,7 +32,7 @@ function harness(t) {
     };
     contexts.push(context); return context;
   };
-  const sandbox = vm.createContext({ process, URL, recordCookieDiagnostics,
+  const sandbox = vm.createContext({ process, URL,
     bindBrowserDiagnostics, recordBrowserLifecycle,
     installChallengeHandling: () => {}, browserChallengeState: () => ({ active: false }),
     inspectCrealityPage: async () => null, normalizeCaughtError: error => error,
@@ -46,14 +47,12 @@ function harness(t) {
   return { sandbox, contexts };
 }
 
-test('el cierre inesperado conserva module_end y la pérdida de reserva en el diagnóstico', async t => {
+test('el cierre inesperado conserva la pérdida de reserva en el diagnóstico', async t => {
   const { sandbox } = harness(t);
-  const trace = await withCookieDiagnostics('modelDownloads', async () => {
+  const trace = await withBrowserTrace('modelDownloads', async () => {
     await sandbox.withAutomationBrowser({}, async context => { await context.close(); });
-    return cookieDiagnosticsSnapshot();
+    return traceSnapshot();
   });
-  assert.equal(trace.events.at(-1).phase, 'module_end');
-  assert.equal(trace.events.at(-1).readStatus, 'unavailable');
   const events = browserDiagnosticJournal.snapshot().events.filter(e => e.traceId === trace.traceId);
   assert.ok(events.some(e => e.phase === 'context_closed' && e.reason === 'unrequested_close' && e.requested === false));
   assert.ok(events.some(e => e.phase === 'module_lease_lost'));
@@ -63,14 +62,14 @@ test('el cierre inesperado conserva module_end y la pérdida de reserva en el di
 
 test('los cierres entre tareas mantienen origen y contexto sin atribuirlos a la tarea siguiente', async t => {
   const { sandbox } = harness(t);
-  const first = await withCookieDiagnostics('comments', async () => {
+  const first = await withBrowserTrace('comments', async () => {
     await sandbox.withAutomationBrowser({}, async () => {});
-    return cookieDiagnosticsSnapshot();
+    return traceSnapshot();
   });
   await sandbox.closeInteractiveBrowser();
-  const second = await withCookieDiagnostics('makeNow', async () => {
+  const second = await withBrowserTrace('makeNow', async () => {
     await sandbox.withAutomationBrowser({}, async () => {});
-    return cookieDiagnosticsSnapshot();
+    return traceSnapshot();
   });
   const events = browserDiagnosticJournal.snapshot().events;
   const close = events.find(e => e.traceId === first.traceId && e.phase === 'context_closed');
@@ -98,24 +97,23 @@ test('identifica cambios de opciones y verificaciones de sesión sin registrar s
 for (const reason of ['task_timeout', 'maintenance_timeout', 'task_cancelled', 'verification_cancelled', 'stale_task_timeout']) {
   test(`identifica la cancelación ${reason}`, async t => {
     const { sandbox } = harness(t);
-    const trace = await withCookieDiagnostics('comments', async () => {
+    const trace = await withBrowserTrace('comments', async () => {
       await sandbox.withAutomationBrowser({}, async () => sandbox.abortAutomationBrowser(reason));
-      return cookieDiagnosticsSnapshot();
+      return traceSnapshot();
     });
     const events = browserDiagnosticJournal.snapshot().events.filter(e => e.traceId === trace.traceId);
     assert.equal(events.find(e => e.phase === 'context_closed').reason, reason);
-    assert.equal(trace.events.at(-1).phase, 'module_end');
   });
 }
 
 test('un reinicio por página cerrada enlaza los contextos y termina en el nuevo contexto', async t => {
   const { sandbox } = harness(t);
-  const trace = await withCookieDiagnostics('modelDownloads', async () => {
+  const trace = await withBrowserTrace('modelDownloads', async () => {
     await sandbox.withAutomationBrowser({}, async () => {
       const replacement = await sandbox.restartAutomationBrowser({}, 'download_page_closed');
       await replacement.close();
     });
-    return cookieDiagnosticsSnapshot();
+    return traceSnapshot();
   });
   const events = browserDiagnosticJournal.snapshot().events.filter(e => e.traceId === trace.traceId);
   const replacement = events.find(e => e.phase === 'context_replacement');
@@ -131,27 +129,6 @@ test('el registro descarta texto libre, URLs, opciones desconocidas y errores', 
   assert.equal(JSON.stringify(event).includes('PRIVATE_VALUE'), false);
 });
 
-test('el cambio de modo conserva la configuración previa si está ocupado o falla el guardado', async t => {
-  const { sandbox } = harness(t);
-  await assert.rejects(sandbox.setBrowserConnectionMode('invalid'), { code: 'INVALID_BROWSER_MODE' });
-  await sandbox.openInteractiveBrowser('https://www.crealitycloud.com/');
-  await assert.rejects(sandbox.setBrowserConnectionMode('external-cdp'), { code: 'BROWSER_BUSY' });
-  await sandbox.closeInteractiveBrowser();
-  await assert.rejects(sandbox.setBrowserConnectionMode('external-cdp', async () => { throw Error('disk'); }), /disk/);
-  assert.equal(sandbox.browserManagerState().connectionMode, 'standard');
-  assert.equal(sandbox.browserManagerState().mode, 'idle');
-  let saved = false;
-  await sandbox.setBrowserConnectionMode('external-cdp', async () => { saved = true; });
-  assert.equal(saved, true);
-  assert.equal(sandbox.browserManagerState().connectionMode, 'external-cdp');
-  await sandbox.withAutomationBrowser({}, async () => {
-    await assert.rejects(sandbox.setBrowserConnectionMode('standard'), { code: 'BROWSER_BUSY' });
-  });
-  await sandbox.setBrowserConnectionMode('standard');
-  assert.equal(sandbox.browserManagerState().active, false);
-  assert.ok(browserDiagnosticJournal.snapshot().events.some(e => e.reason === 'connection_mode_changed'));
-});
-
 test('el diagnóstico de entorno y proceso solo acepta metadatos permitidos', () => {
   const event = recordBrowserLifecycle({}, 'browser_environment', { reason: 'environment_probe',
     connectionMode: 'external-cdp', browserVersion: '153.0.0.0', webdriver: false, webdriverBeforeConnect: false,
@@ -162,15 +139,4 @@ test('el diagnóstico de entorno y proceso solo acepta metadatos permitidos', ()
   const invalid = recordBrowserLifecycle({}, 'process_exited', { reason: 'process_exit',
     browserVersion: 'PRIVATE_VALUE', signal: 'PRIVATE_VALUE', exitCode: 0, pid: 123 });
   assert.equal(invalid.exitCode, 0); assert.equal(JSON.stringify(invalid).includes('PRIVATE_VALUE'), false);
-});
-
-test('serializa cambios de modo incluso cuando otra petición guarda el modo anterior', async t => {
-  const { sandbox } = harness(t);
-  let release;
-  const pending = sandbox.setBrowserConnectionMode('external-cdp', () => new Promise(resolve => { release = resolve; }));
-  while (!release) await new Promise(resolve => setTimeout(resolve, 1));
-  await assert.rejects(sandbox.setBrowserConnectionMode('standard'), { code: 'BROWSER_BUSY' });
-  await assert.rejects(sandbox.openInteractiveBrowser('https://www.crealitycloud.com/'), { code: 'BROWSER_BUSY' });
-  release(); await pending;
-  assert.equal(sandbox.browserManagerState().connectionMode, 'external-cdp');
 });

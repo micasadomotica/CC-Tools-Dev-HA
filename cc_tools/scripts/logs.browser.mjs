@@ -9,12 +9,11 @@ import { once } from 'node:events';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { requireMigrationReview } from '../src/migrationReview.js';
-import { cloudflareCookieMetadata } from '../src/cookieDiagnostics.js';
 
 const cookieTrace = { traceId: 'test-trace', taskId: 'makeNow', events: [{
   phase: 'module_start', contextId: 'test-context', readStatus: 'ok', clearancePresent: true,
-  cookies: cloudflareCookieMetadata([{ name: 'cf_clearance', value: 'PRIVATE_EXPORT_SENTINEL',
-    domain: '.crealitycloud.com', expires: -1, secure: true, httpOnly: true, sameSite: 'None' }])
+  cookies: [{ name: 'cf_clearance', value: 'PRIVATE_EXPORT_SENTINEL',
+    domain: '.crealitycloud.com', expires: -1, secure: true, httpOnly: true, sameSite: 'None' }]
 }], omittedEvents: 0 };
 
 let browser, server, dataDir, baseUrl;
@@ -141,11 +140,7 @@ test('Logs pagina, conserva la página al refrescar y descarga solo los registro
     await page.locator('#logs-next').click();
     await page.waitForFunction(() => document.querySelector('#logs-page').textContent === 'Página 2 de 3');
     assert.match(await page.locator('#runs').innerText(), /Registro 20/);
-    const cookieDetails = page.locator('#runs .cookie-diagnostics');
-    await cookieDetails.locator('summary').click();
-    assert.match(await cookieDetails.innerText(), /cf_clearance/);
-    assert.match(await cookieDetails.innerText(), /module_start/);
-    assert.doesNotMatch(await cookieDetails.innerText(), /PRIVATE_EXPORT_SENTINEL/);
+    assert.equal(await page.locator('#runs .cookie-diagnostics').count(), 0);
     const chromiumActivity = page.locator('.browser-lifecycle-diagnostics');
     await chromiumActivity.locator('summary').click();
     assert.equal(await chromiumActivity.evaluate(panel => panel.open), true);
@@ -159,8 +154,8 @@ test('Logs pagina, conserva la página al refrescar y descarga solo los registro
     const content = await fs.readFile(await download.path(), 'utf8');
     assert.match(content, /Página: 2 de 3/); assert.match(content, /Registro 20/);
     assert.doesNotMatch(content, /Registro 0\n/);
-    assert.match(content, /cookieDiagnostics/);
-    assert.match(content, /cf_clearance/);
+    assert.doesNotMatch(content, /cookieDiagnostics/);
+    assert.doesNotMatch(content, /cf_clearance/);
     assert.doesNotMatch(content, /PRIVATE_EXPORT_SENTINEL/);
     assert.match(content, /Actividad de Chromium/);
     assert.match(content, /previous-context/);

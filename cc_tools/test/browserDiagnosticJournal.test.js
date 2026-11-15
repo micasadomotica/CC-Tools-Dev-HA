@@ -5,6 +5,23 @@ import path from 'node:path';
 import os from 'node:os';
 import { createBrowserDiagnosticJournal } from '../src/browserDiagnosticJournal.js';
 
+test('retira las muestras antiguas de cookies y conserva los eventos de cierre', async t => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'cc-browser-journal-cleanup-'));
+  t.after(async () => { assert.equal(path.dirname(dir), path.resolve(os.tmpdir())); await fs.rm(dir, { recursive: true, force: true }); });
+  const file = path.join(dir, 'browser-diagnostics.json');
+  await fs.writeFile(file, JSON.stringify({ events: [null,
+    { kind: 'cookies', phase: 'module_start', cookies: [{ name: 'cf_clearance' }] },
+    { phase: 'module_end', readStatus: 'ok' },
+    { kind: 'lifecycle', phase: 'context_closed', reason: 'manual_close' }
+  ] }));
+  const journal = createBrowserDiagnosticJournal();
+  await journal.configure(file);
+  assert.deepEqual(journal.snapshot().events.map(event => event.phase), ['context_closed', 'process_start']);
+  const saved = await fs.readFile(file, 'utf8');
+  assert.doesNotMatch(saved, /cf_clearance|readStatus|"cookies"/);
+  assert.match(saved, /manual_close/);
+});
+
 test('persiste los eventos entre tareas y reinicios, limita el historial y separa procesos', async t => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'cc-browser-journal-'));
   t.after(async () => { assert.equal(path.dirname(dir), path.resolve(os.tmpdir())); await fs.rm(dir, { recursive: true, force: true }); });

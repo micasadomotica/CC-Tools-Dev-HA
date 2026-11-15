@@ -180,7 +180,7 @@ label span {
   min-width: 0;
 }
 
-:is(#session-timezone, #browser-connection-mode) {
+#session-timezone {
   width: 100%;
   min-height: 42px;
   appearance: none;
@@ -196,12 +196,12 @@ label span {
   cursor: pointer;
 }
 
-:is(#session-timezone, #browser-connection-mode):focus {
+#session-timezone:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(36, 170, 75, 0.18);
 }
 
-:is(#session-timezone, #browser-connection-mode) option {
+#session-timezone option {
   color: var(--text);
   background: var(--panel-strong);
 }

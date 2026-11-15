@@ -16,12 +16,36 @@ after(async () => {
   await fs.rm(temporaryDataDir, { recursive: true, force: true });
 });
 
-test('el navegador externo es el predeterminado y respeta una elección estándar guardada', async () => {
+test('retira la selección antigua de navegador al leer y guardar la configuración', async () => {
+  await fs.writeFile(path.join(temporaryDataDir, 'config.json'), JSON.stringify({ browserConnectionMode: 'standard' }));
   const config = await storage.readConfig();
-  assert.equal(config.browserConnectionMode, 'external-cdp');
+  assert.equal(config.browserConnectionMode, undefined);
   config.browserConnectionMode = 'standard';
   await storage.writeConfig(config);
-  assert.equal((await storage.readConfig()).browserConnectionMode, 'standard');
+  assert.equal((await storage.readConfig()).browserConnectionMode, undefined);
+  assert.equal(JSON.parse(await fs.readFile(path.join(temporaryDataDir, 'config.json'), 'utf8')).browserConnectionMode, undefined);
+});
+
+test('los registros omiten diagnósticos antiguos de cookies y conservan el resultado del módulo', async () => {
+  const file = path.join(temporaryDataDir, 'runs.json');
+  const original = await fs.readFile(file, 'utf8').catch(() => null);
+  const run = { taskId: 'comments', status: 'success', details: {
+    published: true, cookieDiagnostics: { events: [{ cookies: [{ name: 'cf_clearance' }] }] }
+  } };
+  try {
+    await fs.writeFile(file, JSON.stringify([run]));
+    const [legacy] = await storage.readRuns();
+    assert.deepEqual(legacy.details, { published: true });
+    assert.equal(legacy.status, 'success');
+    await storage.appendRun(run);
+    const [saved] = JSON.parse(await fs.readFile(file, 'utf8'));
+    assert.deepEqual(saved.details, { published: true });
+    assert.doesNotMatch(JSON.stringify(await storage.readRuns()), /cookieDiagnostics|cf_clearance/);
+    assert.ok(run.details.cookieDiagnostics, 'no modifica el objeto de entrada');
+  } finally {
+    if (original === null) await fs.unlink(file);
+    else await fs.writeFile(file, original);
+  }
 });
 
 test('conserva cambios simultáneos realizados sobre distintas partes de la configuración', async () => {
