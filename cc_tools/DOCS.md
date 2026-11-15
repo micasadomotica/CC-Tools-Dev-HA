@@ -28,7 +28,7 @@ catálogos de diseños y la configuración no se comparten entre las dos aplicac
 
 ## Instalar y actualizar Dev
 
-Añade `https://github.com/micasadomotica/CC-Tools-Dev-HA` en los repositorios de la tienda de Apps e instala **CC Tools Dev**. La versión **1.0.65** conserva Chromium entre módulos y pide intervención al detectar una verificación, sin esperar 40 segundos. Mantiene la corrección del historial de comentarios de 1.0.58. El aviso de datos migrados enlaza a **Logs**, donde puedes pulsar **Reanudar automatizaciones** después de revisar el perfil, las programaciones y las entregas. Conserva las funciones de Dev y el dispositivo Creality Cloud Models. Desde 1.0.50 basta con actualizar la app; no hace falta volver a migrar. Actualizar no activa ninguna migración. La app se construye en tu equipo y utiliza el puerto externo **8088**.
+Añade `https://github.com/micasadomotica/CC-Tools-Dev-HA` en los repositorios de la tienda de Apps e instala **CC Tools Dev**. La versión **1.0.66** cierra Chromium entre tareas conservando su perfil y pide intervención al detectar una verificación, sin esperar 40 segundos. Mantiene la corrección del historial de comentarios de 1.0.58. El aviso de datos migrados enlaza a **Logs**, donde puedes pulsar **Reanudar automatizaciones** después de revisar el perfil, las programaciones y las entregas. Conserva las funciones de Dev y el dispositivo Creality Cloud Models. Desde 1.0.50 basta con actualizar la app; no hace falta volver a migrar. Actualizar no activa ninguna migración. La app se construye en tu equipo y utiliza el puerto externo **8088**.
 
 Para las siguientes versiones, utiliza **Actualizar** desde Home Assistant. Crea antes una copia de seguridad y espera a que terminen las tareas en curso. No necesitas descargar ZIP.
 
@@ -117,6 +117,12 @@ Chromium se inicia como proceso independiente y Playwright se conecta mediante C
 
 En **Logs → Actividad de Chromium**, los eventos **browser_environment** registran la versión y el valor observado de navigator.webdriver antes y después de conectar. Los eventos **process_exited** incluyen PID, código de salida o señal si están disponibles. Estos datos ayudan a investigar fallos y no garantizan superar una verificación de Cloudflare.
 
+## Aviso de cookies
+
+Cuando aparece el aviso inicial de cookies de Creality, CC Tools pulsa su botón **Reject all / Rechazar todas**. El sitio rechaza las categorías opcionales y conserva las necesarias para sesión y seguridad. CC Tools no modifica ni borra cookies directamente y no abre Cookie Settings para configurar una selección personalizada.
+
+La elección se guarda mediante el propio sitio en el perfil persistente y se conserva al cerrar Chromium. Si ya existía una elección y el aviso no aparece, no se cambia: puedes revisarla manualmente desde Cookie Settings. Solo se actúa sobre el aviso identificado en la página principal de crealitycloud.com; no se pulsan controles de Cloudflare, otras webs ni el editor de preferencias.
+
 ## Verificación de seguridad
 
 Si Cloudflare muestra una verificación durante una navegación, CC Tools Dev conserva el navegador y espera. Si no se resuelve sola, aparece un aviso: pulsa **Abrir navegador**, completa la verificación y deja que cargue la página de destino. La tarea continuará desde ese punto. No cambies de página ni cierres Chromium durante la espera.
@@ -129,9 +135,9 @@ Desde 1.0.62 se reconocen también las verificaciones en llamadas API, aunque la
 
 Si las automatizaciones quedan pausadas por una verificación, se comprueba la sesión cada cinco minutos cuando el navegador está libre. Solo se reanudan al confirmar el perfil autenticado; una respuesta inconclusa mantiene la pausa. Esta comprobación también puede requerir intervención manual. No repite automáticamente una acción ya enviada ni interrumpe una verificación o sesión interactiva en curso.
 
-## Reutilización del navegador y verificaciones
+## Perfil persistente y verificaciones
 
-Las tareas principales reutilizan el proceso y el contexto de Chromium. Al terminar cierran sus pestañas y dejan una pestaña vacía para conservar cookies y almacenamiento sin mantener las páginas de trabajo activas. Chromium permanece en memoria hasta cerrar el navegador, detener la app o necesitar recuperarse de un fallo. La sesión interactiva sigue reservada al usuario mientras esté abierta.
+Desde 1.0.66, cada tarea cierra Chromium al finalizar. La siguiente inicia un proceso externo con el mismo perfil en `/data/browser-session/chromium`. Chromium conserva en disco las cookies persistentes y el almacenamiento del sitio; no se exportan ni se copian cookies manualmente. La reserva de la tarea se mantiene hasta terminar el cierre. Durante una verificación pendiente se conserva la ventana para permitir la intervención; la sesión interactiva permanece abierta hasta cerrarla.
 
 Desde 1.0.65 se retira el diagnóstico temporal de cookies: no se toman muestras ni se añade el panel de cookies a cada ejecución. Los datos de este diagnóstico guardados por versiones anteriores se omiten al consultar y exportar los registros. Esto no borra las cookies ni la sesión de Chromium.
 
@@ -139,8 +145,8 @@ Desde 1.0.61, **Logs → Actividad de Chromium · registro global reciente** mue
 
 Para investigar un cambio, busca `context_close_requested`, `context_closed` y el siguiente `context_created`. `contextId` y `relatedContextId` enlazan los contextos; `taskId` y `traceId` identifican la tarea asociada, mientras `source` indica quién solicita el cierre o reutiliza el navegador. `progress_sync`, `profile_refresh` y `session_check` distinguen comprobaciones que pueden ejecutarse entre tareas. `changedOptions` contiene solo nombres de opciones, nunca sus valores.
 
-Los motivos incluyen `manual_close`, `task_failed`, `task_timeout`, `maintenance_timeout`, `stale_task_timeout`, `task_cancelled`, `verification_cancelled`, `options_changed`, `download_page_closed`, `keeper_failed` y `application_shutdown`. `unrequested_close` significa que Playwright notificó un cierre sin una solicitud registrada de CC Tools; por sí solo no distingue el botón de cerrar del navegador, un fallo del proceso o una terminación externa. `page_crashed`, `page_closed` y `browser_disconnected` aportan evidencia adicional. El cierre normal de las pestañas de trabajo termina en `module_released` y conserva el contexto.
+Los motivos incluyen `manual_close`, `task_failed`, `task_timeout`, `maintenance_timeout`, `stale_task_timeout`, `task_cancelled`, `verification_cancelled`, `options_changed`, `download_page_closed`, `keeper_failed` y `application_shutdown`. `unrequested_close` significa que Playwright notificó un cierre sin una solicitud registrada de CC Tools; por sí solo no distingue el botón de cerrar del navegador, un fallo del proceso o una terminación externa. `page_crashed`, `page_closed` y `browser_disconnected` aportan evidencia adicional. El cierre al terminar correctamente una tarea se registra con el motivo `task_completed`.
 
 Ante una verificación se comprueba la página aproximadamente cada segundo, sin recargarla ni pulsar controles. El botón del aviso para abrir el navegador y la notificación de Telegram aparecen al detectar la verificación. Se puede cancelar durante la espera. El límite total sigue siendo de 15 minutos. Son comprobaciones del estado, no cinco intentos de marcar la casilla.
 
-La reutilización no garantiza que Creality deje de pedir verificaciones. Crear un proyecto ya comparte el navegador dentro de una ejecución y puede recibir varios desafíos al navegar. No se simulan movimientos de ratón ni se resuelven captchas automáticamente.
+Conservar el perfil no garantiza que Creality deje de pedir verificaciones. Crear un proyecto ya comparte el navegador dentro de una ejecución y puede recibir varios desafíos al navegar. No se simulan movimientos de ratón ni se resuelven captchas automáticamente.
