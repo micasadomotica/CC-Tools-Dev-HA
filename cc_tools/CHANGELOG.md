@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.64 — Chromium externo predeterminado y claridad en los registros
+
+- Chromium externo pasa a ser el modo predeterminado cuando no hay una selección guardada. Se aplica antes de iniciar los procesos de trabajo; una elección explícita del modo estándar se conserva.
+- El panel Actividad de Chromium conserva su estado abierto o cerrado al actualizar los logs y cambiar de página.
+- Los mensajes de Comentarios distinguen la publicación confirmada de la recompensa no observada o no verificable. Se mantiene el registro del comentario publicado para evitar repetirlo y no se incrementan los puntos sin confirmación.
+
 ## 1.0.63 — Chromium externo experimental y diagnóstico del entorno
 
 - Añade Ajustes → Sesión → Navegador: Estándar (predeterminado) o Chromium externo (experimental). Aplicar modo guarda la selección y cierra el contexto inactivo para utilizar el modo elegido en la siguiente apertura. Rechaza el cambio durante una tarea, una verificación pendiente o una sesión interactiva.

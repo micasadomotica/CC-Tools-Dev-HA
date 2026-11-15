@@ -16,6 +16,14 @@ after(async () => {
   await fs.rm(temporaryDataDir, { recursive: true, force: true });
 });
 
+test('el navegador externo es el predeterminado y respeta una elección estándar guardada', async () => {
+  const config = await storage.readConfig();
+  assert.equal(config.browserConnectionMode, 'external-cdp');
+  config.browserConnectionMode = 'standard';
+  await storage.writeConfig(config);
+  assert.equal((await storage.readConfig()).browserConnectionMode, 'standard');
+});
+
 test('conserva cambios simultáneos realizados sobre distintas partes de la configuración', async () => {
   const pointsUpdate = await storage.readConfig();
   const schedulerUpdate = await storage.readConfig();

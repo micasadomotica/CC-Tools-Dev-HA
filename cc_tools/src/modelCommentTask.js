@@ -118,7 +118,9 @@ export async function runModelComment(taskConfig = {}, options = {}) {
         if (screenshot) screenshots.push(screenshot);
         return {
           success: false,
-          message: `${incentive.label}: recompensa no acreditada.`,
+          message: `${incentive.label} publicado. ${rewardVerification.status === 'not_credited'
+            ? 'La recompensa no se ha acreditado durante la comprobación.'
+            : 'No se ha podido confirmar la recompensa.'}`,
           details: {
             acted: [],
             commented: acted,
@@ -444,7 +446,9 @@ function rewardDiagnostic(verification, design, incentive) {
     code: verification.status === 'not_credited' ? 'ACTION_CONFIRMED_REWARD_NOT_CREDITED' : 'REWARD_UNVERIFIED',
     category: 'reward',
     systemic: false,
-    message: `El comentario se publicó, pero Creality Cloud no acreditó "${incentive.title}".`,
+    message: verification.status === 'not_credited'
+      ? `El comentario se publicó, pero no se observó la recompensa de "${incentive.title}" durante la comprobación.`
+      : `El comentario se publicó, pero no se pudo confirmar la recompensa de "${incentive.title}".`,
     url: design.url,
     before: verification.before,
     after: verification.after,

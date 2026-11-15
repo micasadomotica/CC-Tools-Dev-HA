@@ -25,7 +25,7 @@ let designsQueue = Promise.resolve();
 let configBackupReady = false;
 
 const DEFAULT_CONFIG = {
-  browserConnectionMode: 'standard',
+  browserConnectionMode: 'external-cdp',
   dailyProgress: { tasks: {}, status: 'unavailable', checkedAt: '', lastAttemptAt: '', error: '' },
   timezone: 'Europe/Madrid',
   setup: {

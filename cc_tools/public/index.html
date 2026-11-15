@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CC Tools Dev</title>
     <link rel="icon" type="image/png" href="/assets/app-icon.png">
-    <link rel="stylesheet" href="/assets/styles.css?v=1.0.63">
-    <link rel="stylesheet" href="/assets/upload-designs.css?v=1.0.63">
+    <link rel="stylesheet" href="/assets/styles.css?v=1.0.64">
+    <link rel="stylesheet" href="/assets/upload-designs.css?v=1.0.64">
   </head>
   <body>
     <aside id="security-challenge-banner" class="security-challenge-banner" role="status" hidden>
@@ -343,13 +343,13 @@
                 <label class="session-inline-field" for="browser-connection-mode">
                   <span>Navegador</span>
                   <select id="browser-connection-mode">
-                    <option value="standard">Estándar (actual)</option>
-                    <option value="external-cdp">Chromium externo (experimental)</option>
+                    <option value="external-cdp">Chromium externo (predeterminado)</option>
+                    <option value="standard">Estándar (alternativo)</option>
                   </select>
                 </label>
                 <button id="save-browser-mode" class="secondary" type="button">Aplicar modo</button>
               </div>
-              <p class="muted">Ambos modos conservan la sesión y las cookies. Para cambiar, termina la tarea y cierra la sesión interactiva. El modo experimental inicia Chromium por separado; puede seguir pidiendo verificación.</p>
+              <p class="muted">Chromium externo es el modo predeterminado. La selección guardada se aplica al iniciar CC Tools. Ambos modos conservan la sesión y las cookies. Para cambiar, termina la tarea y cierra la sesión interactiva. Puede seguir pidiendo verificación.</p>
               <label class="check-option session-auto-login-option">
                 <input id="session-auto-login" type="checkbox">
                 <span>
@@ -1226,7 +1226,7 @@ CATEGORIA: Impresoras 3D / Otro</pre>
       </div>
     </div>
 
-    <script src="/assets/upload-designs.js?v=1.0.63" type="module"></script>
-    <script src="/assets/app.js?v=1.0.63" type="module"></script>
+    <script src="/assets/upload-designs.js?v=1.0.64" type="module"></script>
+    <script src="/assets/app.js?v=1.0.64" type="module"></script>
   </body>
 </html>

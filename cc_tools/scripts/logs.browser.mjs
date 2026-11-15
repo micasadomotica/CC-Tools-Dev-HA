@@ -146,8 +146,13 @@ test('Logs pagina, conserva la página al refrescar y descarga solo los registro
     assert.match(await cookieDetails.innerText(), /cf_clearance/);
     assert.match(await cookieDetails.innerText(), /module_start/);
     assert.doesNotMatch(await cookieDetails.innerText(), /PRIVATE_EXPORT_SENTINEL/);
+    const chromiumActivity = page.locator('.browser-lifecycle-diagnostics');
+    await chromiumActivity.locator('summary').click();
+    assert.equal(await chromiumActivity.evaluate(panel => panel.open), true);
     await page.waitForResponse(response => response.url().includes('/api/runs?page=2'), { timeout: 15000 });
     assert.equal(await page.locator('#logs-page').innerText(), 'Página 2 de 3');
+    // The automatic refresh must keep the global diagnostic panel readable.
+    assert.equal(await chromiumActivity.evaluate(panel => panel.open), true);
     const downloaded = page.waitForEvent('download');
     await page.locator('#download-visible-logs').click();
     const download = await downloaded;
@@ -166,6 +171,11 @@ test('Logs pagina, conserva la página al refrescar y descarga solo los registro
     await page.waitForFunction(() => document.querySelector('#logs-page').textContent === 'Página 3 de 3');
     assert.equal(await page.locator('#runs .run').count(), 5);
     assert.equal(await page.locator('#logs-next').isDisabled(), true);
+    assert.equal(await chromiumActivity.evaluate(panel => panel.open), true);
+    await chromiumActivity.locator('summary').click();
+    await page.locator('#logs-prev').click();
+    await page.waitForFunction(() => document.querySelector('#logs-page').textContent === 'Página 2 de 3');
+    assert.equal(await chromiumActivity.evaluate(panel => panel.open), false);
     assert.deepEqual(errors, []);
   } finally {
     await page.unrouteAll({ behavior: 'wait' });
