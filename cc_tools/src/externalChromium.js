@@ -56,6 +56,16 @@ export async function launchExternalChromium(profile, options = {}, onExit = () 
   const stop = () => stopPromise ||= (async () => {
     if (!exited && browser?.isConnected()) {
       try {
+        // Leave only a blank tab in the session file. A normal Chromium launch
+        // may otherwise restore work pages before Playwright can attach.
+        const context = browser.contexts()[0];
+        if (context) {
+          const pages = context.pages();
+          await Promise.race([(async () => {
+            await context.newPage();
+            await Promise.allSettled(pages.map(page => page.close()));
+          })(), pause(2000)]);
+        }
         const session = await browser.newBrowserCDPSession();
         await Promise.race([session.send('Browser.close').catch(() => {}), pause(2000)]);
       } catch {}

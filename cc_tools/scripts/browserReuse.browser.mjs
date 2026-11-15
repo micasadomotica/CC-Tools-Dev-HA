@@ -30,6 +30,7 @@ test(`${mode}: conserva el proceso, contexto, cookies y almacenamiento entre mó
         headless: true, acceptDownloads: true,
         ...(process.platform === 'win32' ? { channel: 'chrome' } : {})
       });
+      assert.ok(context.pages().every(page => page.url() === 'about:blank'), 'no restaura páginas de trabajo antes de conectar');
       await context.route('**/*', route => {
         if (route.request().url().endsWith('/download')) {
           return route.fulfill({ contentType: 'application/octet-stream',

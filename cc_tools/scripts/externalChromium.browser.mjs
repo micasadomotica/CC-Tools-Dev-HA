@@ -49,6 +49,7 @@ test('Chromium externo visible: webdriver, cookies, descarga, subida y cierre de
   } finally { await standard.close(); }
   context = await launchExternalChromium(profile, launchOptions, event => exits.push(event));
   await context.route('**/*', route => route.fulfill({ contentType: 'text/html', body: '<p>Fixture</p>' }));
+  assert.ok(context.pages().every(page => page.url() === 'about:blank'));
   page = context.pages()[0]; await page.goto(target);
   assert.equal((await context.cookies()).find(c => c.name === 'cf_clearance').value, 'LOCAL_FIXTURE_ONLY');
   assert.equal(await page.evaluate(() => localStorage.getItem('local-test')), 'persisted');
