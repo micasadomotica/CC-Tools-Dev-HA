@@ -5,22 +5,28 @@ import os from 'node:os';
 import path from 'node:path';
 import vm from 'node:vm';
 import { chromium } from 'playwright';
+import { launchExternalChromium, externalConnectionDiagnostics } from '../src/externalChromium.js';
 import { installChallengeHandling, browserChallengeState } from '../src/browserChallenge.js';
 import { inspectCrealityPage, normalizeCaughtError } from '../src/crealityDiagnostics.js';
 import { bindBrowserDiagnostics, recordBrowserLifecycle } from '../src/browserLifecycle.js';
 import { browserDiagnosticJournal } from '../src/browserDiagnosticJournal.js';
 import { recordCookieDiagnostics, withCookieDiagnostics, cookieDiagnosticsSnapshot } from '../src/cookieDiagnostics.js';
 
-test('conserva el proceso, contexto, cookies y almacenamiento entre módulos y descargas', async t => {
+for (const mode of ['standard', 'external-cdp']) {
+test(`${mode}: conserva el proceso, contexto, cookies y almacenamiento entre módulos y descargas`, async t => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'cc-tools-reuse-'));
   let launches = 0;
-  const sandbox = vm.createContext({ process, URL, installChallengeHandling, browserChallengeState,
-    recordCookieDiagnostics, bindBrowserDiagnostics, recordBrowserLifecycle,
+  const sandbox = vm.createContext({ process, URL, fs, path, chromium, setTimeout, clearTimeout,
+    browserSessionDir: () => root, installChallengeHandling, browserChallengeState,
+    recordCookieDiagnostics, bindBrowserDiagnostics, recordBrowserLifecycle, externalConnectionDiagnostics,
     inspectCrealityPage, normalizeCaughtError,
     confirmAuthenticatedSession: async () => {},
-    launchFixture: async () => {
+    launchFixture: async (profile = path.join(root, 'profile'), _options = {}, onExit = () => {}) => {
       launches++;
-      const context = await chromium.launchPersistentContext(path.join(root, 'profile'), {
+      if (typeof profile !== 'string') profile = path.join(root, 'profile');
+      const context = mode === 'external-cdp' ? await launchExternalChromium(profile, {
+        executablePath: process.platform === 'win32' ? 'C:/Program Files/Google/Chrome/Application/chrome.exe' : undefined
+      }, onExit) : await chromium.launchPersistentContext(profile, {
         headless: true, acceptDownloads: true,
         ...(process.platform === 'win32' ? { channel: 'chrome' } : {})
       });
@@ -38,9 +44,10 @@ test('conserva el proceso, contexto, cookies y almacenamiento entre módulos y d
   const source = (await fs.readFile(new URL('../src/browserManager.js', import.meta.url), 'utf8'))
     .replace(/^import[\s\S]*?;\r?$/gm, '').replace(/^export /gm, '');
   vm.runInContext(source, sandbox);
-  vm.runInContext(`launchWithRecovery = launchFixture;
+  vm.runInContext(`${mode === 'external-cdp' ? 'launchExternalChromium' : 'launchWithRecovery'} = launchFixture;
     assertAuthenticatedSession = async () => ({ confirmAuthenticated: true });`, sandbox);
   t.after(async () => { await sandbox.shutdownBrowser(); await fs.rm(root, { recursive: true, force: true }); });
+  await sandbox.setBrowserConnectionMode(mode);
 
   const downloadScope = vm.createContext({ fs, path });
   const downloadSource = (await fs.readFile(new URL('../src/modelDownloadTask.js', import.meta.url), 'utf8'))
@@ -64,6 +71,7 @@ test('conserva el proceso, contexto, cookies y almacenamiento entre módulos y d
   assert.equal(firstTrace.events.find(e => e.phase === 'module_end').clearancePresent, true);
   assert.equal(sandbox.browserManagerState().mode, 'idle');
   assert.equal(sandbox.browserManagerState().active, true);
+  assert.equal(sandbox.browserManagerState().environment.webdriver, mode !== 'external-cdp');
   assert.equal(firstContext.pages().length, 1);
   assert.equal(firstContext.pages()[0].url(), 'about:blank');
 
@@ -113,7 +121,8 @@ test('conserva el proceso, contexto, cookies y almacenamiento entre módulos y d
   assert.equal(restarted.sameMetadata, true);
   assert.equal(JSON.stringify(reopened).includes('PRIVATE_TEST_CLEARANCE'), false);
   const journal = browserDiagnosticJournal.snapshot();
-  const manualClose = journal.events.find(e => e.phase === 'context_closed' && e.reason === 'manual_close');
+  const manualClose = journal.events.find(e => e.phase === 'context_closed' && e.reason === 'manual_close'
+    && e.contextId === firstTrace.events[0].contextId);
   assert.equal(manualClose.contextId, firstTrace.events[0].contextId);
   assert.equal(manualClose.requested, true);
   assert.equal(JSON.stringify(journal).includes('PRIVATE_TEST_CLEARANCE'), false);
@@ -126,3 +135,4 @@ test('conserva el proceso, contexto, cookies y almacenamiento entre módulos y d
   assert.ok(browserDiagnosticJournal.snapshot().events.some(e => e.traceId === externalClose.traceId
     && e.phase === 'context_closed' && e.reason === 'unrequested_close'));
 });
+}

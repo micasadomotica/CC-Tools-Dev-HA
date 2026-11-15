@@ -35,7 +35,7 @@ import { cancelRunningTask, startScheduler, stopScheduler, runTaskNow, scheduler
 import { acknowledgeMigrationReview } from './migrationReview.js';
 import { generateDownloadPlan, scheduleNextRun } from './timeWindow.js';
 import { sendTelegram } from './telegram.js';
-import { browserManagerState, shutdownBrowser, withAutomationBrowser } from './browserManager.js';
+import { browserManagerState, shutdownBrowser, withAutomationBrowser, setBrowserConnectionMode } from './browserManager.js';
 import { abortAutomationBrowser } from './browserManager.js';
 import { browserChallengeState, challengeEvents } from './browserChallenge.js';
 import { browserDiagnosticJournal } from './browserDiagnosticJournal.js';
@@ -1318,6 +1318,21 @@ app.get('/api/browser/status', (req, res) => {
   res.set('Cache-Control', 'no-store').json({ ok: true, browser: browserManagerState() });
 });
 
+app.patch('/api/browser/settings', async (req, res) => {
+  try {
+    const mode = req.body?.connectionMode;
+    await setBrowserConnectionMode(mode, async () => {
+      const config = await readConfig();
+      config.browserConnectionMode = mode;
+      await writeConfig(config);
+    });
+    res.json({ ok: true, browser: browserManagerState() });
+  } catch (error) {
+    res.status(error.code === 'INVALID_BROWSER_MODE' ? 400 : 409).json({ ok: false, error: error.code,
+      message: error.code === 'BROWSER_BUSY' ? error.message : 'No se pudo guardar el modo de navegador.' });
+  }
+});
+
 app.post('/api/browser/open', async (req, res) => {
   try {
     // Viewing an active task must never cancel it or navigate away from its challenge.
@@ -1421,6 +1436,8 @@ app.use('/novnc', createProxyMiddleware({
 }));
 app.use('/', express.static(publicDir, { index: 'index.html' }));
 
+const initialBrowserConfig = await readConfig();
+await setBrowserConnectionMode(initialBrowserConfig.browserConnectionMode === 'external-cdp' ? 'external-cdp' : 'standard');
 await reconcileDownloadRewardHistory();
 await reconcileDownloadedDesignHistory();
 await reconcileDesignActionHistory();

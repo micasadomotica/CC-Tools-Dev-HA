@@ -1121,6 +1121,17 @@ $('#save-session').addEventListener('click', async () => {
   if (await saveConfig({ includeSession: true })) toast('Ajustes de sesión guardados.');
 });
 
+$('#save-browser-mode').addEventListener('click', async () => {
+  const button = $('#save-browser-mode');
+  button.disabled = true;
+  try {
+    await api('/api/browser/settings', { method: 'PATCH', body: { connectionMode: $('#browser-connection-mode').value } });
+    await refresh();
+    toast('Modo guardado. Se utilizará al abrir el navegador o ejecutar la siguiente tarea.');
+  } catch (error) { toast(error.message); }
+  finally { button.disabled = false; }
+});
+
 async function programTool(toggle, save) {
   const previous = toggle.checked;
   toggle.checked = true;
@@ -2765,6 +2776,7 @@ function render() {
   fields.windowEnd.value = checkin.windowEnd;
   renderTimezoneOptions(state.config.timezone || checkin.timezone || 'Europe/Madrid');
   fields.sessionAutoLogin.checked = state.config.crealitySession?.autoLoginEnabled === true;
+  $('#browser-connection-mode').value = state.config.browserConnectionMode || 'standard';
   renderDailyCounters();
 
   renderLastExecution(fields.finishPrintLastRun, finishPrint);

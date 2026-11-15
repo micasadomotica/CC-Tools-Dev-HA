@@ -8,6 +8,7 @@ import { confirmAuthenticatedSession } from './sessionMonitor.js';
 import { installChallengeHandling, browserChallengeState, challengeResolvedAt } from './browserChallenge.js';
 import { recordCookieDiagnostics } from './cookieDiagnostics.js';
 import { bindBrowserDiagnostics, recordBrowserLifecycle } from './browserLifecycle.js';
+import { launchExternalChromium, externalConnectionDiagnostics } from './externalChromium.js';
 
 const PROFILE_LOCK_FILES = ['SingletonLock', 'SingletonCookie', 'SingletonSocket', 'lock'];
 const SESSION_CHECK_URL = 'https://www.crealitycloud.com/es/workbench-beta/?type=1';
@@ -17,6 +18,8 @@ let activeOwner = null;
 let activeMode = '';
 let activeBrowserVersion = '';
 let activeOptionsKey = '';
+let connectionMode = 'standard';
+let activeEnvironment = null;
 let shuttingDown = false;
 let shutdownPromise = null;
 const pendingLaunches = new Set();
@@ -24,6 +27,8 @@ const isolatedBrowsers = new Set();
 const headlessFallbackContexts = new WeakSet();
 const requestedClosures = new WeakMap();
 const operationContexts = new Map();
+const contextConnectionModes = new WeakMap();
+const contextEnvironments = new WeakMap();
 
 function assertBrowserAvailable() {
   if (shuttingDown) throw Object.assign(new Error('CC Tools se está deteniendo.'), { code: 'APP_STOPPING' });
@@ -155,6 +160,8 @@ export async function openInteractiveBrowser(url) {
     if (browserChallengeState().active) return activeContext.pages()[0];
     throw browserError('BROWSER_BUSY', 'Hay una automatización en curso. Inténtalo de nuevo cuando termine.', false);
   }
+
+  if (activeMode && activeMode !== 'interactive') throw browserError('BROWSER_BUSY', 'El navegador está ocupado.', false);
 
   activeMode = 'interactive';
   activeOwner = Symbol('interactive');
@@ -307,8 +314,24 @@ export function browserManagerState() {
     active: Boolean(activeContext),
     engine: 'chromium',
     version: activeBrowserVersion,
+    connectionMode,
+    environment: activeEnvironment,
     challenge: browserChallengeState()
   };
+}
+
+export async function setBrowserConnectionMode(mode, persist = async () => {}) {
+  assertBrowserAvailable();
+  if (!['standard', 'external-cdp'].includes(mode)) throw browserError('INVALID_BROWSER_MODE', 'Modo de navegador no válido.', false);
+  if (activeMode || browserChallengeState().active) throw browserError('BROWSER_BUSY',
+    'Termina la tarea o cierra la sesión interactiva antes de cambiar el modo de navegador.', false);
+  activeMode = 'settings';
+  try {
+    if (mode !== connectionMode) await closeActiveContext({ keepLease: true, reason: 'connection_mode_changed', source: 'server' });
+    assertBrowserAvailable();
+    await persist();
+    connectionMode = mode;
+  } finally { activeMode = ''; }
 }
 
 export function shutdownBrowser() {
@@ -406,6 +429,16 @@ async function launchWithRecovery(options, behavior = {}) {
     );
     error.recovery = preflightRecovery;
     throw error;
+  }
+
+  if (connectionMode === 'external-cdp') {
+    // No headless fallback: this mode is explicitly a visible, external browser.
+    let context;
+    context = await trackedLaunch(() => launchExternalChromium(chromiumSessionDir(), { ...options, headless: false }, info => {
+      recordBrowserLifecycle(context, 'process_exited', { reason: 'process_exit', source: 'playwright',
+        exitCode: info.code, signal: info.signal, pid: info.pid });
+    }));
+    return context;
   }
 
   try {
@@ -534,12 +567,27 @@ async function ensureActiveContext(options, allowHeadlessFallback = true, source
     await closeActiveContext({ keepLease: true, reason, source, changedOptions });
   }
   activeContext = await launchWithRecovery(options, { allowHeadlessFallback });
+  contextConnectionModes.set(activeContext, connectionMode);
   activeOptionsKey = key;
   activeBrowserVersion = activeContext.browser()?.version() || '';
   bindBrowserDiagnostics(activeContext, source);
   if (operationContexts.has(activeOwner)) operationContexts.set(activeOwner, activeContext);
   watchContext(activeContext);
   recordBrowserLifecycle(activeContext, 'context_created', { reason, source, relatedContext: previousContext });
+  await recordEnvironment(activeContext);
+}
+
+async function recordEnvironment(context, page = context.pages()[0]) {
+  if (!page?.evaluate) return;
+  let webdriver = null;
+  try { webdriver = await page.evaluate(() => navigator.webdriver); } catch {}
+  const environment = { connectionMode: contextConnectionModes.get(context) || 'standard', browserVersion: context.browser()?.version() || '',
+    webdriver: typeof webdriver === 'boolean' ? webdriver : null,
+    ...(typeof externalConnectionDiagnostics === 'function' ? externalConnectionDiagnostics(context) : {}) };
+  if (activeContext === context) activeEnvironment = environment;
+  if (JSON.stringify(contextEnvironments.get(context)) === JSON.stringify(environment)) return;
+  contextEnvironments.set(context, environment);
+  recordBrowserLifecycle(context, 'browser_environment', { reason: 'environment_probe', source: 'playwright', ...environment });
 }
 
 async function releaseAutomationContext(owner) {
@@ -569,6 +617,7 @@ async function closeActiveContext({ keepLease = false, reason = 'abort_requested
   }
   activeBrowserVersion = '';
   activeOptionsKey = '';
+  activeEnvironment = null;
   if (context) {
     requestedClosures.set(context, { reason, source });
     recordBrowserLifecycle(context, 'context_close_requested', { reason, source, changedOptions, requested: true });
@@ -751,6 +800,7 @@ function watchContext(context) {
     enabled: () => activeContext === context && activeMode === 'automation' && !shuttingDown
   });
   const watchPage = page => {
+    page.on?.('domcontentloaded', () => { void recordEnvironment(context, page); });
     page.once?.('crash', () => recordBrowserLifecycle(context, 'page_crashed', {
       reason: 'page_crash', source: 'playwright', page }));
     page.once?.('close', () => recordBrowserLifecycle(context, 'page_closed', {
@@ -771,6 +821,7 @@ function watchContext(context) {
     activeMode = '';
     activeBrowserVersion = '';
     activeOptionsKey = '';
+    activeEnvironment = null;
   });
 }
 

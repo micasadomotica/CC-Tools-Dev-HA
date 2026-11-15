@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.0.63 — Chromium externo experimental y diagnóstico del entorno
+
+- Añade Ajustes → Sesión → Navegador: Estándar (predeterminado) o Chromium externo (experimental). Aplicar modo guarda la selección y cierra el contexto inactivo para utilizar el modo elegido en la siguiente apertura. Rechaza el cambio durante una tarea, una verificación pendiente o una sesión interactiva.
+- El modo experimental inicia Chromium visible como proceso independiente y conecta Playwright por CDP exclusivamente en loopback. Comparte el mismo directorio de perfil con el modo estándar, con un único proceso activo, sin exportar ni copiar cookies.
+- Mantiene la reutilización entre módulos, la espera manual, la cancelación y el límite de 15 minutos. No pulsa la casilla ni modifica navigator.webdriver mediante scripts. No garantiza que Cloudflare acepte la sesión.
+- Añade eventos browser_environment al registro global con modo, versión y valor observado de navigator.webdriver. En el modo externo compara también la medición previa a conectar Playwright. Registra PID, código de salida y señal del proceso externo, sin valores de cookies ni URLs de depuración.
+- Gestiona el cierre del proceso externo, los fallos de arranque y la limpieza al detener la app. Añade pruebas de persistencia al cambiar de modo, descargas, selección de archivos, ventanas, intervención y reutilización, además de pruebas del selector y del bloqueo de cambios cuando el navegador está ocupado.
+- Actualización directa desde 1.0.62, sin migración. El modo externo no se activa automáticamente al actualizar.
+
 ## 1.0.62 — integración de TitoTB 1.0.45
 
 - Integra las mejoras de [TitoTB 1.0.45](https://github.com/TitoTB/CC-Tools-HA/commit/d2e9246850e4beacf6319b646d902602410bc318): observación de las respuestas API durante la comprobación de sesión, identificación del proveedor y revisión cada cinco minutos de las pausas por verificación de seguridad.
