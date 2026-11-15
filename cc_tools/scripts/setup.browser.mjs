@@ -51,6 +51,8 @@ test('el aviso de verificación abre la ventana existente sin iniciar login ni c
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const page = await context.newPage();
   let active = true, views = 0, logins = 0, cancels = 0;
+  await context.route('**/api/tasks/**', route => route.fulfill({ json: { ok: false } }));
+  await context.route('**/api/progress/refresh', route => route.fulfill({ json: { ok: false } }));
   await context.route('**/api/creality/profile/refresh', route => route.fulfill({ json: { ok: false } }));
   await context.route('**/api/points/**', route => route.fulfill({ json: { ok: false } }));
   await context.route('**/api/shop/**', route => route.fulfill({ json: { ok: false } }));
@@ -89,6 +91,8 @@ test('Telegram conserva el paso del asistente y las descargas parten de 10', asy
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   // All account actions are simulated: no Telegram message or Creality login is sent.
+  await page.route('**/api/tasks/**', route => route.fulfill({ json: { ok: false } }));
+  await page.route('**/api/progress/refresh', route => route.fulfill({ json: { ok: false } }));
   await page.route('**/api/tasks/creality/login/close', route => route.fulfill({ json: { ok: true } }));
   await page.route('**/api/creality/profile/refresh', route => route.fulfill({ json: { ok: false } }));
   await page.route('**/api/points/**', route => route.fulfill({ json: { ok: false } }));
