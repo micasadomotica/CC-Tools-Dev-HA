@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.67 — Imagen precompilada y backups más pequeños
+
+- La app se distribuye como imagen precompilada en GitHub Container Registry (`ghcr.io/micasadomotica/cc-tools-dev-ha`) para amd64 y aarch64. Home Assistant la descarga al instalar y actualizar en lugar de construirla en el equipo.
+- Los backups de la app ya no incluyen la imagen Docker. Supervisor solo guarda la imagen de las apps construidas localmente; con Playwright y Chromium suponía varios GB por backup.
+- Los backups omiten datos regenerables de `/data`: descargas temporales, capturas de diagnóstico y las cachés de Chromium (Cache, Code Cache, GPUCache, cachés de shaders y de Service Worker, Crashpad). Se conservan el perfil con la sesión y las cookies, la configuración, los registros y el historial de entregas.
+- Tras restaurar un backup, las capturas anteriores ya no estarán disponibles en los registros y Chromium reconstruirá sus cachés en la primera tarea.
+- Nuevo workflow **Publish container** basado en `home-assistant/builder`, como el proyecto original. Publica la imagen desde la rama `release/X.Y.Z` antes de integrar en `main`, y **Validate** impide integrar si la imagen de la versión no está publicada y es pública.
+- Chromium externo ya no muestra la barra «You are using an unsupported command-line flag: --no-sandbox». Se añade `--test-type`, que oculta ese aviso propio del navegador; `--no-sandbox` sigue siendo necesario porque la app se ejecuta como root dentro del contenedor.
+- No cambia el comportamiento de los módulos, las programaciones ni los datos existentes.
+
 ## 1.0.66 — Cierre entre tareas y rechazo del aviso de cookies
 
 - Chromium externo se cierra al terminar cada tarea y se vuelve a iniciar con el mismo perfil persistente en la siguiente, siguiendo el ciclo de tareas del proyecto original. Se mantiene bloqueado el acceso hasta terminar el cierre del proceso.

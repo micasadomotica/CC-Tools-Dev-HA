@@ -2,7 +2,9 @@
 
 Home Assistant lee la rama predeterminada **main** de `https://github.com/micasadomotica/CC-Tools-Dev-HA`. La versión disponible se obtiene de `cc_tools/config.yaml`.
 
-Esta app no declara `image`: Supervisor la construye desde `cc_tools/Dockerfile` tanto al instalar como al actualizar. No depende de paquetes de TitoTB ni de permisos de GHCR. Se ha retirado el workflow heredado que publicaba imágenes del proyecto original; el workflow **Validate** sigue comprobando pruebas y construcción para **amd64** y **aarch64**.
+Desde 1.0.67 la app declara `image: ghcr.io/micasadomotica/cc-tools-dev-ha`. Supervisor descarga la imagen `ghcr.io/micasadomotica/cc-tools-dev-ha:<versión>` al instalar y actualizar. Así los backups de la app no incluyen la imagen Docker, que Supervisor solo guarda cuando construye la app en el equipo. La imagen se publica con el workflow **Publish container**, basado en `home-assistant/builder` como el proyecto original de TitoTB, en el registro propio `ghcr.io/micasadomotica`. No depende de paquetes de TitoTB. El workflow **Validate** sigue comprobando pruebas y construcción para **amd64** y **aarch64**.
+
+**Orden obligatorio:** la imagen de una versión debe existir y ser pública **antes** de que esa versión llegue a `main`. En cuanto `main` cambia, Home Assistant ofrece la actualización e intenta descargar la imagen; si no existe, la actualización falla.
 
 ## Preparar el cambio
 
@@ -10,7 +12,10 @@ Esta app no declara `image`: Supervisor la construye desde `cc_tools/Dockerfile`
 2. Actualiza la versión en `cc_tools/config.yaml`, `cc_tools/package.json`, las dos versiones del paquete raíz de `cc_tools/package-lock.json`, el valor predeterminado de `BUILD_VERSION` en `cc_tools/Dockerfile` y los parámetros de caché de `cc_tools/public/index.html`.
 3. Añade las novedades a `cc_tools/CHANGELOG.md` y actualiza la documentación necesaria. Conserva el nombre **CC Tools Dev**, `slug: cc_tools`, el puerto externo **8088** y la URL del repositorio.
 4. Ejecuta las pruebas pertinentes y revisa el resultado de **Validate** en GitHub, incluidas las construcciones de ambas arquitecturas.
-5. Prueba la actualización desde la versión anterior en Home Assistant, incluyendo el mantenimiento de los datos y la conexión con Creality Cloud Dev.
+5. Haz push de la rama `release/X.Y.Z`. **Publish container** construye y publica `ghcr.io/micasadomotica/cc-tools-dev-ha:X.Y.Z` para amd64 y aarch64. También puede lanzarse a mano desde **Actions** sobre esa rama.
+6. Solo la primera vez: en **GitHub > Packages > cc-tools-dev-ha > Package settings**, cambia la visibilidad a **Public**. Sin ese paso, Supervisor no puede descargarla sin credenciales.
+7. Abre el PR hacia `main`. El job **published-image** de **Validate** comprueba sin credenciales que la imagen de la versión existe para ambas arquitecturas; no integres si falla.
+8. Prueba la actualización desde la versión anterior en Home Assistant, incluyendo el mantenimiento de los datos y la conexión con Creality Cloud Dev.
 
 ## Ofrecer la actualización
 
