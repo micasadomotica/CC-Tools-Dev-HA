@@ -2,7 +2,7 @@
 
 CC Tools Dev automatiza tareas de Creality Cloud desde Home Assistant. Es una edición independiente basada en [CC Tools de TitoTB](https://github.com/TitoTB/CC-Tools-HA) y en el trabajo de la comunidad de Aguacatec.
 
-**Versión 1.0.66**. Chromium externo se cierra al terminar cada tarea y conserva el perfil persistente para la siguiente. El aviso de cookies de Creality se rechaza automáticamente mediante «Reject all», manteniendo las necesarias. Se conserva la espera de intervención si aparece una verificación de seguridad.
+**Versión 1.0.67**. La app se instala desde una imagen precompilada en GitHub Container Registry, así que sus backups ya no incluyen la imagen Docker y ocupan mucho menos. Los backups omiten también las cachés de Chromium, las capturas y las descargas temporales; la sesión de Creality Cloud se conserva. Chromium ya no muestra el aviso de la opción `--no-sandbox`. Mantiene el cierre de Chromium entre tareas y el rechazo automático de las cookies opcionales.
 
 [![Añadir repositorio a Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2Fmicasadomotica%2FCC-Tools-Dev-HA)
 
@@ -21,7 +21,7 @@ Ambas opciones permiten actualizar después desde Home Assistant. Añadir el rep
 
 1. Entra en **Ajustes > Apps > Instalar app** (en algunas versiones, **Aplicaciones > Tienda de aplicaciones**).
 2. Abre **⋮ > Repositorios**, añade `https://github.com/micasadomotica/CC-Tools-Dev-HA` y pulsa **Añadir**. También puedes usar el botón anterior.
-3. Busca **CC Tools Dev** dentro del repositorio **CC Tools Dev** e instala la app. Home Assistant construye la imagen en tu equipo; la primera instalación necesita descargar sus dependencias.
+3. Busca **CC Tools Dev** dentro del repositorio **CC Tools Dev** e instala la app. Home Assistant descarga la imagen precompilada de la app para tu arquitectura.
 4. Revisa la zona horaria y el puerto externo **8088** en **Configuración > Red**.
 5. Inicia la app y abre `http://IP_DE_HOME_ASSISTANT:8088`, o pulsa **Abrir interfaz web**.
 6. Completa el asistente e inicia sesión en Creality Cloud. Si has migrado, comprueba los datos restaurados en lugar de configurar otra cuenta.
@@ -40,7 +40,7 @@ En la nueva app, sigue el asistente y configura de nuevo tus favoritos y los aju
 
 1. Cuando haya una nueva versión, abre **CC Tools Dev** y revisa el changelog. Si no aparece, pulsa **Buscar actualizaciones** en la tienda.
 2. Espera a que termine cualquier tarea en curso y crea una copia de seguridad de la app. Incluye también **media** si quieres respaldar los archivos de diseños.
-3. Pulsa **Actualizar**. Home Assistant obtiene los archivos del repositorio y construye la nueva versión.
+3. Pulsa **Actualizar**. Home Assistant descarga la imagen precompilada de la nueva versión.
 4. Comprueba que la app arranca y recarga la interfaz web.
 
 Las actualizaciones de esta misma instalación conservan los datos de `/data`. Ya no necesitas descargar ZIP ni sustituir `/addons/cc_tools`. La detección de una versión nueva no implica que se instale automáticamente: puedes pulsar **Actualizar** desde HA.

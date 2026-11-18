@@ -35,20 +35,28 @@ async function reservePort() {
   return port;
 }
 
-// Own the process as well as the CDP connection: browser.close() on a CDP
-// connection alone does not guarantee that an independently launched process exits.
-export async function launchExternalChromium(profile, options = {}, onExit = () => {}) {
-  await fs.mkdir(profile, { recursive: true });
-  const port = await reservePort();
-  const args = [
+export function externalChromiumArgs(profile, port, options = {}) {
+  return [
     `--user-data-dir=${profile}`, `--remote-debugging-port=${port}`, '--remote-debugging-address=127.0.0.1',
     // Match Playwright's storage feature defaults when sharing the same profile.
     // Chromium's field trials can otherwise select a different DOM storage backend.
     '--disable-field-trial-config',
     '--no-first-run', '--no-default-browser-check', '--no-sandbox', '--disable-dev-shm-usage',
+    // The container runs as root, so --no-sandbox is required. --test-type hides
+    // Chromium's own "unsupported command-line flag" bar, which is browser UI and
+    // cannot be closed from the page; it does not change the sandbox or the site.
+    '--test-type',
     `--lang=${options.locale || 'es-ES'}`, '--window-size=1366,768',
     ...(options.headless ? ['--headless=new'] : []), 'about:blank'
   ];
+}
+
+// Own the process as well as the CDP connection: browser.close() on a CDP
+// connection alone does not guarantee that an independently launched process exits.
+export async function launchExternalChromium(profile, options = {}, onExit = () => {}) {
+  await fs.mkdir(profile, { recursive: true });
+  const port = await reservePort();
+  const args = externalChromiumArgs(profile, port, options);
   const child = spawn(options.executablePath || chromium.executablePath(), args, {
     env: { ...process.env, ...options.env }, windowsHide: true, stdio: 'ignore'
   });

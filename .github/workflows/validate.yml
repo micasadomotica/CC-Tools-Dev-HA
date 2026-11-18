@@ -11,6 +11,35 @@ permissions:
   contents: read
 
 jobs:
+  published-image:
+    # Home Assistant descarga la imagen de config.yaml en cuanto la versión llega a main.
+    # Comprueba sin credenciales que existe y es pública para ambas arquitecturas.
+    if: github.event_name == 'pull_request' && github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Check published image for this version
+        shell: bash
+        run: |
+          version="$(sed -n 's/^version: *"\([^"]*\)"/\1/p' cc_tools/config.yaml | head -n 1)"
+          image="$(sed -n 's/^image: *\(.*\)$/\1/p' cc_tools/config.yaml | head -n 1)"
+          if [[ -z "${version}" || -z "${image}" ]]; then
+            echo "cc_tools/config.yaml must declare version and image" >&2
+            exit 1
+          fi
+          manifest="$(docker buildx imagetools inspect --raw "${image}:${version}")" || {
+            echo "Image ${image}:${version} is not published or not public. Run 'Publish container' on the release branch and make the GHCR package public." >&2
+            exit 1
+          }
+          for platform in amd64 arm64; do
+            if ! grep -q "\"architecture\": *\"${platform}\"" <<< "${manifest}"; then
+              echo "Image ${image}:${version} has no linux/${platform} variant" >&2
+              exit 1
+            fi
+          done
+          echo "Found ${image}:${version} for amd64 and arm64"
+
   tests:
     runs-on: ubuntu-latest
     defaults:

@@ -1,8 +1,11 @@
 name: CC Tools Dev
-version: "1.0.66"
+version: "1.0.67"
 slug: cc_tools
 description: Automatiza tareas de Creality Cloud desde Home Assistant.
 url: https://github.com/micasadomotica/CC-Tools-Dev-HA
+# Imagen precompilada publicada por .github/workflows/publish.yml. Al no construirse
+# en el equipo, Supervisor ya no guarda la imagen Docker dentro de cada backup.
+image: ghcr.io/micasadomotica/cc-tools-dev-ha
 arch:
   - amd64
   - aarch64
@@ -31,3 +34,23 @@ hassio_role: default
 map:
   - type: media
     read_only: false
+
+# Datos regenerables que no deben ocupar espacio en los backups. Rutas relativas a /data.
+# Se conservan la sesión (cookies, almacenamiento del sitio), la configuración y los registros.
+backup_exclude:
+  - temp-downloads
+  - screenshots
+  - browser-session/chromium/*/Cache
+  - browser-session/chromium/*/Code Cache
+  - browser-session/chromium/*/GPUCache
+  - browser-session/chromium/*/DawnGraphiteCache
+  - browser-session/chromium/*/DawnWebGPUCache
+  - browser-session/chromium/*/Service Worker/CacheStorage
+  - browser-session/chromium/*/Service Worker/ScriptCache
+  - browser-session/chromium/GrShaderCache
+  - browser-session/chromium/GraphiteDawnCache
+  - browser-session/chromium/ShaderCache
+  - browser-session/chromium/component_crx_cache
+  - browser-session/chromium/extensions_crx_cache
+  - browser-session/chromium/optimization_guide_model_store
+  - browser-session/chromium/Crashpad
