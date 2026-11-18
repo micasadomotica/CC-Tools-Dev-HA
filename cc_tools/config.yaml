@@ -1,5 +1,5 @@
 name: CC Tools Dev
-version: "1.0.67"
+version: "1.0.68"
 slug: cc_tools
 description: Automatiza tareas de Creality Cloud desde Home Assistant.
 url: https://github.com/micasadomotica/CC-Tools-Dev-HA
@@ -54,3 +54,8 @@ backup_exclude:
   - browser-session/chromium/extensions_crx_cache
   - browser-session/chromium/optimization_guide_model_store
   - browser-session/chromium/Crashpad
+  # Descargas que Playwright deja al conectarse a Chromium externo; se vacían al iniciarlo.
+  - browser-session/chromium/cdp-downloads
+  # Respaldos privados de cada migración (copia completa del origen y de los datos
+  # anteriores). Se conserva state.json; las copias se borran 7 días después de terminar.
+  - .cc-tools-migration/*-*-*-*-*

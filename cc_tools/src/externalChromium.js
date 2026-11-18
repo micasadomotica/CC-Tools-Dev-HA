@@ -45,7 +45,10 @@ export function externalChromiumArgs(profile, port, options = {}) {
     // The container runs as root, so --no-sandbox is required. --test-type hides
     // Chromium's own "unsupported command-line flag" bar, which is browser UI and
     // cannot be closed from the page; it does not change the sandbox or the site.
-    '--test-type',
+    // The "gpu" value also hides the "Chrome for Testing is only for automated
+    // testing" bar: Chromium skips that infobar only when --test-type=gpu
+    // (chrome/browser/ui/startup/infobar_utils.cc, IsGpuTest()).
+    '--test-type=gpu',
     `--lang=${options.locale || 'es-ES'}`, '--window-size=1366,768',
     ...(options.headless ? ['--headless=new'] : []), 'about:blank'
   ];
@@ -53,8 +56,17 @@ export function externalChromiumArgs(profile, port, options = {}) {
 
 // Own the process as well as the CDP connection: browser.close() on a CDP
 // connection alone does not guarantee that an independently launched process exits.
+export function externalChromiumDownloadsDir(profile, options = {}) {
+  return options.downloadsPath || path.join(profile, 'cdp-downloads');
+}
+
 export async function launchExternalChromium(profile, options = {}, onExit = () => {}) {
   await fs.mkdir(profile, { recursive: true });
+  // Playwright stores CDP downloads here and never removes them. Tasks copy what
+  // they need before Chromium closes, so a new launch starts with it empty.
+  if (!options.downloadsPath) {
+    await fs.rm(externalChromiumDownloadsDir(profile), { recursive: true, force: true }).catch(() => {});
+  }
   const port = await reservePort();
   const args = externalChromiumArgs(profile, port, options);
   const child = spawn(options.executablePath || chromium.executablePath(), args, {
@@ -100,7 +112,7 @@ export async function launchExternalChromium(profile, options = {}, onExit = () 
         if (webdriverBeforeConnect === null && Date.now() < probeDeadline) { await pause(100); continue; }
         browser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`, {
           timeout: 1000, isLocal: true,
-          artifactsDir: options.downloadsPath || path.join(profile, 'cdp-downloads')
+          artifactsDir: externalChromiumDownloadsDir(profile, options)
         });
         break;
       } catch { await pause(100); }

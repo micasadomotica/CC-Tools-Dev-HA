@@ -6,7 +6,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { migrateAtStartup, MIGRATION_DIR } from '../src/startupMigration.js';
+import { migrateAtStartup, pruneMigrationBackups, MIGRATION_DIR } from '../src/startupMigration.js';
 import { createSupervisorClient, extractMigrationArchive, assertSourceContainersStopped } from '../src/migrationTransport.js';
 import { assertMigrationReviewed, acknowledgeMigrationReview, requireMigrationReview } from '../src/migrationReview.js';
 import { buildHealthMetrics } from '../src/healthMetrics.js';
@@ -300,4 +300,75 @@ test('Linux tar verifies binary data, hidden files, permissions and session syml
   assert.equal((await fs.stat(path.join(destination, 'local_cc_tools/binary'))).mode & 0o777, 0o640);
   assert.equal(await fs.readlink(path.join(destination, 'local_cc_tools/browser-session/SingletonSocket')), '/tmp/chromium-test/SingletonSocket');
   await assert.rejects(fs.stat(path.join(destination, 'local_cc_tools/options.json')), { code: 'ENOENT' });
+});
+
+const DAY = 24 * 60 * 60 * 1000;
+
+test('removes backups of completed migrations after the retention period and keeps state.json', async t => {
+  const f = await fixture(t);
+  const first = await migrateAtStartup(f.dependencies);
+  const second = await migrateAtStartup(f.dependencies);
+  const control = path.join(f.dataDir, MIGRATION_DIR);
+  const logs = [];
+  // Recent: nothing is removed.
+  assert.deepEqual(await pruneMigrationBackups({ dataDir: f.dataDir, log: line => logs.push(line) }), []);
+  assert.ok(await fs.stat(first.backup));
+  const removed = await pruneMigrationBackups({ dataDir: f.dataDir, now: Date.now() + 8 * DAY, log: line => logs.push(line) });
+  assert.deepEqual(removed.sort(), [path.basename(first.backup), path.basename(second.backup)].sort());
+  await assert.rejects(fs.stat(first.backup), { code: 'ENOENT' });
+  await assert.rejects(fs.stat(second.backup), { code: 'ENOENT' });
+  assert.equal((await json(path.join(control, 'state.json'))).phase, 'completed');
+  assert.match(logs.join('\n'), /Eliminados 2 respaldos/);
+  // Migrated data is untouched.
+  assert.equal((await json(path.join(f.dataDir, 'config.json'))).crealityProfile.name, 'source');
+});
+
+test('keeps the current backup until its own completion is old enough', async t => {
+  const f = await fixture(t);
+  const result = await migrateAtStartup(f.dependencies);
+  const control = path.join(f.dataDir, MIGRATION_DIR);
+  const state = await json(path.join(control, 'state.json'));
+  // An old directory mtime must not shorten the retention of the current attempt.
+  const old = new Date(Date.now() - 30 * DAY);
+  await fs.utimes(result.backup, old, old);
+  assert.deepEqual(await pruneMigrationBackups({ dataDir: f.dataDir, now: Date.parse(state.completedAt) + 6 * DAY }), []);
+  assert.deepEqual(await pruneMigrationBackups({ dataDir: f.dataDir, now: Date.parse(state.completedAt) + 8 * DAY }), [state.id]);
+});
+
+test('never removes backups while a migration is failed or interrupted', async t => {
+  for (const phase of ['failed', 'installing', 'backing-up', 'preparing']) {
+    const f = await fixture(t);
+    const id = randomUUID();
+    const control = path.join(f.dataDir, MIGRATION_DIR);
+    await fs.mkdir(path.join(control, id, 'previous'), { recursive: true });
+    await write(path.join(control, 'state.json'), { id, source: 'local_cc_tools', phase, startedAt: '2020-01-01T00:00:00.000Z' });
+    assert.deepEqual(await pruneMigrationBackups({ dataDir: f.dataDir, now: Date.now() + 365 * DAY }), [], phase);
+    assert.ok(await fs.stat(path.join(control, id, 'previous')));
+  }
+});
+
+test('a cancelled failed migration keeps its backup for the retention period', async t => {
+  const f = await fixture(t);
+  const id = randomUUID();
+  const control = path.join(f.dataDir, MIGRATION_DIR);
+  await fs.mkdir(path.join(control, id, 'failed-import'), { recursive: true });
+  await write(path.join(control, 'state.json'), { id, source: 'local_cc_tools', phase: 'failed', startedAt: '2020-01-01T00:00:00.000Z' });
+  await migrateAtStartup({ ...f.dependencies, options: { ...f.options, migration_source: 'No migrar', migration_confirm: true } });
+  assert.deepEqual(await pruneMigrationBackups({ dataDir: f.dataDir }), []);
+  assert.deepEqual(await pruneMigrationBackups({ dataDir: f.dataDir, now: Date.now() + 8 * DAY }), [id]);
+});
+
+test('pruning ignores unknown entries, symlinks and installs without migrations', async t => {
+  const f = await fixture(t);
+  assert.deepEqual(await pruneMigrationBackups({ dataDir: f.dataDir }), []);
+  const control = path.join(f.dataDir, MIGRATION_DIR);
+  await fs.mkdir(path.join(control, 'not-a-backup'), { recursive: true });
+  const outside = path.join(f.root, 'outside');
+  await fs.mkdir(outside);
+  const linked = randomUUID();
+  try { await fs.symlink(outside, path.join(control, linked), 'junction'); } catch {}
+  assert.deepEqual(await pruneMigrationBackups({ dataDir: f.dataDir, now: Date.now() + 365 * DAY }), []);
+  assert.ok(await fs.stat(path.join(control, 'not-a-backup')));
+  assert.ok(await fs.stat(outside));
+  await fs.unlink(path.join(control, linked)).catch(() => {});
 });
