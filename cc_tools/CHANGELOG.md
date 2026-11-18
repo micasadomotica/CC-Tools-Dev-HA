@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.68 — Respaldos de migración, descargas de Chromium y aviso de Chrome for Testing
+
+- Los respaldos privados de cada migración (`/data/.cc-tools-migration/<id>`), que contienen una copia completa del origen y de los datos anteriores, se eliminan al arrancar cuando la migración terminó hace más de 7 días. Podían ocupar varios GB. Se conserva `state.json` y no se toca nada mientras haya una migración fallida o interrumpida. Una migración cancelada conserva su respaldo 7 días desde la cancelación.
+- Esos respaldos ya no entran en los backups de la app. Para deshacer una migración durante esos 7 días, utiliza el respaldo que queda en `/data`.
+- La carpeta `cdp-downloads` del perfil de Chromium, donde Playwright deja los archivos descargados y que no se vaciaba nunca, se vacía al iniciar Chromium y se excluye de los backups.
+- Chromium externo ya no muestra la barra «Chrome for Testing … is only for automated testing». Se usa `--test-type=gpu`, el único valor con el que Chromium omite ese aviso; sigue ocultando también el aviso de `--no-sandbox`.
+- No cambia el comportamiento de los módulos, las programaciones, la sesión ni los datos.
+
 ## 1.0.67 — Imagen precompilada y backups más pequeños
 
 - La app se distribuye como imagen precompilada en GitHub Container Registry (`ghcr.io/micasadomotica/cc-tools-dev-ha`) para amd64 y aarch64. Home Assistant la descarga al instalar y actualizar en lugar de construirla en el equipo.

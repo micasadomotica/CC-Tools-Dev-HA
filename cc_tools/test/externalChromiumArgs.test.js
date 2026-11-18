@@ -1,11 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { externalChromiumArgs } from '../src/externalChromium.js';
+import path from 'node:path';
+import { externalChromiumArgs, externalChromiumDownloadsDir } from '../src/externalChromium.js';
 
-test('oculta el aviso de opción no compatible sin activar el sandbox', () => {
+test('oculta los avisos de opción no compatible y de Chrome for Testing sin activar el sandbox', () => {
   const args = externalChromiumArgs('/data/browser-session/chromium', 9222);
   assert.ok(args.includes('--no-sandbox'));
-  assert.ok(args.includes('--test-type'));
+  // Chromium only skips the Chrome for Testing infobar with the "gpu" value.
+  assert.ok(args.includes('--test-type=gpu'));
+  assert.ok(!args.includes('--test-type'));
+});
+
+test('las descargas CDP van a una carpeta del perfil que se puede vaciar', () => {
+  assert.equal(externalChromiumDownloadsDir('/data/browser-session/chromium'),
+    path.join('/data/browser-session/chromium', 'cdp-downloads'));
+  assert.equal(externalChromiumDownloadsDir('/p', { downloadsPath: '/tmp/d' }), '/tmp/d');
 });
 
 test('conserva perfil, depuración local, idioma y página inicial', () => {

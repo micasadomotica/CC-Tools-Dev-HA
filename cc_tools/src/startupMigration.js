@@ -120,6 +120,8 @@ export async function migrateAtStartup({ dataDir = '/data', options, supervisor,
       await disarm();
       state.phase = 'completed';
       state.cancelled = true;
+      // Dates the retention period of the recovered backup from the cancellation.
+      state.completedAt = new Date().toISOString();
       await save(state);
       log('[migration] Cancelada. Se conservan los datos anteriores y los respaldos.');
     } else if (confirmed) {
@@ -198,4 +200,43 @@ export async function migrateAtStartup({ dataDir = '/data', options, supervisor,
     await rollback(dataDir, control, state, save);
     throw new Error(`Migración cancelada; se conservan los datos anteriores. Respaldo: ${attempt}. ${error.message}`, { cause: error });
   }
+}
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+export const MIGRATION_BACKUP_RETENTION_DAYS = 7;
+
+/**
+ * Remove private backups of finished migrations once they are old enough.
+ * Each attempt keeps a full copy of the source and of the previous data, which
+ * otherwise stays in /data forever. Never touches anything while a migration is
+ * unresolved (failed or interrupted), and keeps the current state.json.
+ */
+export async function pruneMigrationBackups({ dataDir = '/data', now = Date.now(),
+  retentionDays = MIGRATION_BACKUP_RETENTION_DAYS, log = console.log } = {}) {
+  const control = path.join(dataDir, MIGRATION_DIR);
+  let info;
+  try { info = await fs.lstat(control); } catch (error) { if (error.code === 'ENOENT') return []; throw error; }
+  if (!info.isDirectory() || info.isSymbolicLink()) return [];
+  const state = await readState(path.join(control, 'state.json'));
+  validateState(state);
+  if (state && state.phase !== 'completed') return [];
+  const limit = now - retentionDays * 24 * 60 * 60 * 1000;
+  const removed = [];
+  for (const name of await fs.readdir(control)) {
+    if (!UUID.test(name)) continue;
+    const dir = path.join(control, name);
+    const stat = await fs.lstat(dir);
+    if (!stat.isDirectory() || stat.isSymbolicLink()) continue;
+    // The current attempt is dated by its completion; earlier ones were already
+    // finished before the current one started, so their last change dates them.
+    const finished = name === state?.id
+      ? Date.parse(state.completedAt || state.startedAt) : stat.mtimeMs;
+    if (!Number.isFinite(finished) || finished > limit) continue;
+    await fs.rm(dir, { recursive: true, force: true });
+    removed.push(name);
+  }
+  if (removed.length) {
+    log(`[migration] Eliminados ${removed.length} respaldos de migraciones terminadas hace más de ${retentionDays} días: ${removed.join(', ')}`);
+  }
+  return removed;
 }
