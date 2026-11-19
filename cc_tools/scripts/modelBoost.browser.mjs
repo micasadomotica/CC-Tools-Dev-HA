@@ -5,6 +5,7 @@ import vm from 'node:vm';
 import { chromium } from 'playwright';
 import { isOwnModel } from '../src/modelOwnership.js';
 import { forwardAuthenticationHeaders } from '../src/finishPrintDiscovery.js';
+import { isUnavailableModel } from '../src/unavailableModel.js';
 
 test('recognizes normal and repeated boost controls without consuming a ticket during discovery', async () => {
   const browser = await chromium.launch({ headless: true, ...(process.platform === 'win32' ? { channel: 'chrome' } : {}) });
@@ -24,7 +25,8 @@ test('recognizes normal and repeated boost controls without consuming a ticket d
       });</script>` });
   });
   const page = await context.newPage();
-  const h = vm.createContext({ Date, console, isOwnModel, forwardAuthenticationHeaders,
+  const h = vm.createContext({ Date, console, isOwnModel, forwardAuthenticationHeaders, isUnavailableModel,
+    excludeUnavailableModel: async () => { throw new Error('No debe excluir el modelo de prueba.'); },
     inspectCrealityPage: async () => null, readModelOwnership: async () => ({ ownerUserId: 'external' }),
     updateDesignOwnership: async () => {}, markDesignBoosted: async (id, options) => observations.push({ id, ...options })
   });
