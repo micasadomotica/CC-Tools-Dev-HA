@@ -202,3 +202,90 @@ test('cada tarea inicia Chromium con sus opciones', async () => {
   assert.equal(h.calls.launched, 2);
   assert.equal(h.calls.closed, 2);
 });
+
+// Since November 2026 the workbench loads without a session instead of redirecting
+// to id.creality.com. Recovery must open the login entry itself.
+function workbenchWithoutRedirect({ loginButton = true, userId = 'configured' } = {}) {
+  const calls = { visited: [], clicked: 0, confirmed: 0, closed: 0 };
+  const appUrl = 'https://www.crealitycloud.com/es/workbench-beta/?type=1';
+  const homeUrl = 'https://www.crealitycloud.com/es';
+  const buttonUrl = 'https://id.creality.com/?lang=es-ES&client_id=cloud&redirect_uri=https%3A%2F%2Fwww.crealitycloud.com%2Fes';
+  let currentUrl = 'about:blank', loggedIn = false;
+  let stored = JSON.stringify([{ userId, time: 10 }]);
+  const page = {
+    url: () => currentUrl,
+    async goto(url) {
+      calls.visited.push(url);
+      const target = new URL(url);
+      if (target.hostname === 'id.creality.com' && target.searchParams.get('auto_login') === '1') {
+        calls.oauthUrl = url;
+        loggedIn = true;
+        currentUrl = homeUrl;
+      } else currentUrl = url;
+    },
+    getByText(pattern) {
+      return { first: () => ({ click: async () => {
+        if (!loginButton) throw new Error('not found');
+        assert.ok(pattern.test('Iniciar sesión'));
+        calls.clicked++;
+        currentUrl = buttonUrl;
+      } }) };
+    },
+    async evaluate(_callback, value) {
+      if (value === undefined) return stored;
+      stored = value;
+    },
+    async waitForURL() {}
+  };
+  const fixtureContext = { pages: () => [page], browser: () => null, once() {}, newPage: async () => page,
+    close: async () => { calls.closed++; } };
+  const context = vm.createContext({ process, URL, calls, fixtureContext,
+    bindBrowserDiagnostics: () => {}, recordBrowserLifecycle: () => {},
+    installChallengeHandling: () => {}, browserChallengeState: () => ({ active: false }),
+    inspectCrealityPage: async () => null, normalizeCaughtError: error => error,
+    launchFixture: async () => fixtureContext,
+    checkFixture: async () => {
+      if (!loggedIn) throw Object.assign(new Error('La sesión de Creality Cloud ha caducado o no está iniciada.'), { code: 'LOGIN_REQUIRED' });
+      return { ...sessionCheckOutcome('authenticated'), userId };
+    },
+    confirmAuthenticatedSession: async () => { calls.confirmed++; return { authenticated: true }; }
+  });
+  const source = fs.readFileSync(new URL('../src/browserManager.js', import.meta.url), 'utf8')
+    .replace(/^import[\s\S]*?;\r?$/gm, '').replace(/^export /gm, '');
+  vm.runInContext(source, context);
+  vm.runInContext('launchWithRecovery = launchFixture; assertAuthenticatedSession = checkFixture;', context);
+  return { context, calls, appUrl, homeUrl };
+}
+
+test('sin redirección del banco de trabajo abre el acceso con el botón Iniciar sesión', async () => {
+  const h = workbenchWithoutRedirect();
+  const result = await h.context.attemptRememberedSessionLogin({ expectedUserId: 'configured' });
+  assert.equal(result.authenticated, true);
+  assert.equal(h.calls.clicked, 1);
+  assert.deepEqual(h.calls.visited.slice(0, 2), [h.appUrl, h.homeUrl]);
+  const url = new URL(h.calls.oauthUrl);
+  assert.equal(url.hostname, 'id.creality.com');
+  assert.equal(url.searchParams.get('auto_login'), '1');
+  assert.equal(h.calls.confirmed, 1);
+});
+
+test('sin botón de acceso utiliza la dirección del centro de cuentas', async () => {
+  const h = workbenchWithoutRedirect({ loginButton: false });
+  const result = await h.context.attemptRememberedSessionLogin({ expectedUserId: 'configured' });
+  assert.equal(result.authenticated, true);
+  assert.equal(h.calls.clicked, 0);
+  const fallbackUrl = vm.runInContext('CREALITY_LOGIN_FALLBACK_URL', h.context);
+  assert.ok(h.calls.visited.includes(fallbackUrl));
+  const fallback = new URL(fallbackUrl);
+  assert.equal(fallback.searchParams.get('redirect_uri'), h.appUrl);
+  assert.equal(h.calls.confirmed, 1);
+});
+
+test('con la sesión ya iniciada no abre el acceso', async () => {
+  const h = workbenchWithoutRedirect();
+  h.context.assertAuthenticatedSession = async () => ({ ...sessionCheckOutcome('authenticated'), userId: 'configured' });
+  const result = await h.context.attemptRememberedSessionLogin({ expectedUserId: 'configured' });
+  assert.equal(result.authenticated, true);
+  assert.equal(h.calls.clicked, 0);
+  assert.deepEqual(h.calls.visited, [h.appUrl]);
+});

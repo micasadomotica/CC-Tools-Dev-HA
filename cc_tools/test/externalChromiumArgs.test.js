@@ -9,6 +9,8 @@ test('oculta los avisos de opción no compatible y de Chrome for Testing sin act
   // Chromium only skips the Chrome for Testing infobar with the "gpu" value.
   assert.ok(args.includes('--test-type=gpu'));
   assert.ok(!args.includes('--test-type'));
+  // An app restart may stop Chromium abruptly; no "Restore pages?" bubble.
+  assert.ok(args.includes('--hide-crash-restore-bubble'));
 });
 
 test('las descargas CDP van a una carpeta del perfil que se puede vaciar', () => {

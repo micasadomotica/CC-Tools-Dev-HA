@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.69 — Inicio de sesión automático con el nuevo banco de trabajo
+
+- Corrige el **Inicio de sesión automático**, que dejó de funcionar. Creality Cloud ya no redirige al centro de cuentas cuando el **Banco de trabajo** se abre sin sesión: muestra la página vacía. La recuperación quedaba en «no se pudo confirmar la sesión» cada 30 minutos y no llegaba a seleccionar la cuenta recordada. Ahora, si la sesión no está iniciada, abre el acceso con el botón **Iniciar sesión** de Creality Cloud (o, si no lo encuentra, con la dirección del centro de cuentas), selecciona la cuenta recordada y confirma el perfil como antes. Con la sesión ya iniciada no abre el acceso.
+- Chromium ya no muestra «Restore pages? Chromium didn't shut down correctly» después de un reinicio de la app, por ejemplo el del **Reinicio automático** de Creality Cloud Dev.
+- No cambia el comportamiento de los módulos, las programaciones ni los datos.
+
 ## 1.0.68 — Respaldos de migración, descargas de Chromium y aviso de Chrome for Testing
 
 - Los respaldos privados de cada migración (`/data/.cc-tools-migration/<id>`), que contienen una copia completa del origen y de los datos anteriores, se eliminan al arrancar cuando la migración terminó hace más de 7 días. Podían ocupar varios GB. Se conserva `state.json` y no se toca nada mientras haya una migración fallida o interrumpida. Una migración cancelada conserva su respaldo 7 días desde la cancelación.

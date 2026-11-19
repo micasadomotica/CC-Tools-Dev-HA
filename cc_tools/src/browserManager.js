@@ -226,6 +226,11 @@ export async function attemptRememberedSessionLogin(options = {}) {
     const page = activeContext.pages()[0] || await activeContext.newPage();
 
     await page.goto(SESSION_CHECK_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    if (!isCrealityIdentityPage(page.url()) && !(await sessionAlreadyAuthenticated(page))) {
+      // Since November 2026 the workbench loads without a session instead of
+      // redirecting to the account center, so open the login entry explicitly.
+      await openCrealityLoginEntry(page);
+    }
     if (isCrealityIdentityPage(page.url())) {
       const rememberedAccounts = await page.evaluate(() => window.localStorage.getItem('id-application-user'));
       const selection = prioritizeRememberedAccount(rememberedAccounts, expectedUserId);
@@ -625,6 +630,35 @@ export function isCrealityIdentityPage(url) {
     return new URL(String(url || '')).hostname === 'id.creality.com';
   } catch {
     return false;
+  }
+}
+
+const CREALITY_HOME_URL = 'https://www.crealitycloud.com/es';
+// The account center URL the site's own "Iniciar sesión" button opens. Used only
+// when the button cannot be found, returning to the session check page.
+export const CREALITY_LOGIN_FALLBACK_URL = 'https://id.creality.com/connect?lang=es-ES'
+  + '&client_id=f9c302ecc29c59a0a6e921ff39a073ca&app_id=cxy-gen2'
+  + `&redirect_uri=${encodeURIComponent(SESSION_CHECK_URL)}&platform=-100`
+  + `&back_url=${encodeURIComponent('https://www.crealitycloud.com/oauth')}`;
+const LOGIN_BUTTON_TEXT = /^\s*(Iniciar sesión|Log in|Sign in)\s*$/i;
+
+async function sessionAlreadyAuthenticated(page) {
+  try {
+    return (await assertAuthenticatedSession(activeContext, page)).confirmAuthenticated === true;
+  } catch (error) {
+    if (normalizeBrowserError(error)?.code === 'LOGIN_REQUIRED') return false;
+    throw error;
+  }
+}
+
+async function openCrealityLoginEntry(page) {
+  try {
+    await page.goto(CREALITY_HOME_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+    await page.getByText(LOGIN_BUTTON_TEXT).first().click({ timeout: 10000 });
+    await page.waitForURL(url => isCrealityIdentityPage(url.toString()), { timeout: 20000 });
+  } catch {}
+  if (!isCrealityIdentityPage(page.url())) {
+    await page.goto(CREALITY_LOGIN_FALLBACK_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
   }
 }
 
