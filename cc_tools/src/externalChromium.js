@@ -49,6 +49,8 @@ export function externalChromiumArgs(profile, port, options = {}) {
     // testing" bar: Chromium skips that infobar only when --test-type=gpu
     // (chrome/browser/ui/startup/infobar_utils.cc, IsGpuTest()).
     '--test-type=gpu',
+    // An app restart can stop Chromium abruptly; do not show "Restore pages?".
+    '--hide-crash-restore-bubble',
     `--lang=${options.locale || 'es-ES'}`, '--window-size=1366,768',
     ...(options.headless ? ['--headless=new'] : []), 'about:blank'
   ];
