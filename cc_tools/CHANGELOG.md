@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.70 — Modelos que ya no existen y botón para eliminar
+
+- **Me gusta**, **Añadir a la colección**, **Boost** y **Comentarios** quitan de **Modelos descargados** un modelo cuya ficha ya no existe en Creality Cloud (error 404) o que no superó la revisión de Creality, y pasan al siguiente candidato en lugar de fallar. El modelo se añade a la lista de excluidos, como ya hacía **Descubrir diseños**, para que no vuelva a añadirse. Los errores de red, de sesión o de verificación de seguridad no quitan ningún modelo.
+- Nuevo botón **Eliminar** en cada fila de **Modelos descargados**. Pide confirmación, quita el modelo de la lista y lo excluye para que ningún módulo lo vuelva a usar ni Descubrir diseños lo añada otra vez.
+- No cambia el comportamiento de las programaciones ni de la limpieza de descargas: **Limpiar en** sigue borrando solo los archivos descargados, no la lista de modelos.
+
 ## 1.0.69 — Inicio de sesión automático con el nuevo banco de trabajo
 
 - Corrige el **Inicio de sesión automático**, que dejó de funcionar. Creality Cloud ya no redirige al centro de cuentas cuando el **Banco de trabajo** se abre sin sesión: muestra la página vacía. La recuperación quedaba en «no se pudo confirmar la sesión» cada 30 minutos y no llegaba a seleccionar la cuenta recordada. Ahora, si la sesión no está iniciada, abre el acceso con el botón **Iniciar sesión** de Creality Cloud (o, si no lo encuentra, con la dirección del centro de cuentas), selecciona la cuenta recordada y confirma el perfil como antes. Con la sesión ya iniciada no abre el acceso.

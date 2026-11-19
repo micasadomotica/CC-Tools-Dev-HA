@@ -12,6 +12,7 @@ import { readPointsSummary } from './pointsCounter.js';
 import { markDesignBoosted, readDesigns, readRuns, updateDesignOwnership } from './storage.js';
 import { isOwnModel, readModelOwnership } from './modelOwnership.js';
 import { readIncentiveProgressBatch } from './incentiveTasks.js';
+import { excludeUnavailableModel, isUnavailableModel } from './unavailableModel.js';
 
 const BOOST_PAGE_URL = 'https://www.crealitycloud.com/es/user/boost';
 const BOOST_COUNT_URL = 'https://www.crealitycloud.com/api/cxy/v2/boost/count';
@@ -82,6 +83,10 @@ export async function runModelBoost(taskConfig = {}) {
           url: candidate.url || ''
         });
         const target = await resolveBoostTarget(page, candidate, observer, taskConfig.ownUserId);
+        if (target?.unavailable) {
+          attemptedModels.at(-1).state = 'unavailable_removed';
+          continue;
+        }
         attemptedModels.at(-1).state = target?.alreadyBoosted ? 'already_boosted'
           : target?.ownModel ? 'own_model' : target ? 'permission_checked' : 'button_or_permission_not_found';
         if (target?.alreadyBoosted) {
@@ -128,6 +133,7 @@ export async function runModelBoost(taskConfig = {}) {
         for (const candidate of repeatedCandidates) {
           design = candidate;
           const target = await resolveBoostTarget(page, candidate, observer, taskConfig.ownUserId, { allowRepeat: true });
+          if (target?.unavailable) continue;
           if (target?.ownModel) { ownModelsSkipped += 1; continue; }
           attemptedModels.push({ designId: candidate.id || '', title: candidate.title || '', url: candidate.url || '', repeat: true });
           if (!target) { unresolvedModels += 1; continue; }
@@ -306,7 +312,7 @@ export async function checkModelBoostAvailability(taskConfig = {}) {
       let resolved = null;
       for (const design of designs) {
         const target = await resolveBoostTarget(page, design, observer, taskConfig.ownUserId, { allowRepeat: true });
-        if (target?.ownModel) continue;
+        if (target?.unavailable || target?.ownModel) continue;
         resolved = target;
         if (resolved) break;
       }
@@ -386,6 +392,9 @@ export async function resolveBoostTarget(page, design, observer, ownUserId = '',
   await page.goto(design.url, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(3000);
   const pageDiagnostic = await inspectCrealityPage(page, observer, { requireBody: true });
+  if (isUnavailableModel(pageDiagnostic)) {
+    return { unavailable: await excludeUnavailableModel(design, pageDiagnostic.code) };
+  }
   if (pageDiagnostic) throw diagnosticError(pageDiagnostic);
 
   const ownership = await readModelOwnership(page);
