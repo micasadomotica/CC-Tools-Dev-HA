@@ -18,6 +18,7 @@ import {
 import { isOwnModel, readModelOwnership } from './modelOwnership.js';
 import { collectCatalogCandidates } from './modelDownloadTask.js';
 import { selectFavoriteCandidates } from './favoriteModelIndex.js';
+import { excludeUnavailableModel, isUnavailableModel } from './unavailableModel.js';
 import { addModelToDefaultCollection, captureCollectionTarget } from './modelCollectionApi.js';
 
 const ACTIONS = {
@@ -60,6 +61,7 @@ export async function runModelAction(actionKey, taskConfig = {}, options = {}) {
   const failures = [];
   const acted = [];
   const alreadyApplied = [];
+  const unavailableModels = [];
   const screenshots = [];
 
   return withAutomationBrowser({}, async (context) => {
@@ -104,7 +106,13 @@ export async function runModelAction(actionKey, taskConfig = {}, options = {}) {
           const pending = candidates[candidateIndex];
           candidateIndex += 1;
           candidate = pending;
-          collectionTarget = await prepareActionPage(page, pending, observer, actionKey);
+          try {
+            collectionTarget = await prepareActionPage(page, pending, observer, actionKey);
+          } catch (error) {
+            if (!isUnavailableModel(error)) throw error;
+            unavailableModels.push(await excludeUnavailableModel(pending, error.code));
+            continue;
+          }
           const ownership = await readModelOwnership(page);
           const sessionUserId = collectionTarget?.authenticationHeaders.__cxy_uid_ || options.ownUserId;
           const updatedOwnership = await updateDesignOwnership(pending.id, ownership, sessionUserId);
@@ -167,12 +175,15 @@ export async function runModelAction(actionKey, taskConfig = {}, options = {}) {
             failures: [],
             skipped: true,
             alreadyApplied,
+            unavailableModels,
             ownModelsSkipped,
             reason: ownModelsSkipped
               ? 'Los diseños pendientes pertenecen al usuario conectado y se han omitido.'
               : alreadyApplied.length
                 ? `${alreadyApplied.length} diseño(s) ya tenían la acción aplicada fuera de CC Tools Dev.`
-                : `No hay diseños pendientes para ${action.label.toLowerCase()}.`
+                : unavailableModels.length
+                  ? `${unavailableModels.length} diseño(s) ya no existen en Creality Cloud y se han quitado de la lista.`
+                  : `No hay diseños pendientes para ${action.label.toLowerCase()}.`
           },
           screenshots
         };
@@ -231,6 +242,7 @@ export async function runModelAction(actionKey, taskConfig = {}, options = {}) {
           details: {
             acted: [],
             alreadyApplied,
+            unavailableModels,
             actionAttempt,
             failures,
             diagnostics: [diagnostic],
@@ -251,6 +263,7 @@ export async function runModelAction(actionKey, taskConfig = {}, options = {}) {
         details: {
           acted,
           alreadyApplied,
+          unavailableModels,
           failures: [],
           diagnostics: [],
           rewardVerification
@@ -295,6 +308,7 @@ export async function runModelAction(actionKey, taskConfig = {}, options = {}) {
         details: {
           acted,
           alreadyApplied,
+          unavailableModels,
           failures,
           diagnostics: [diagnostic],
           incident: diagnostic.systemic ? diagnostic : null

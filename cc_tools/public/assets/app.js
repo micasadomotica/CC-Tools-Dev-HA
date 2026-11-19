@@ -1021,6 +1021,24 @@ $('#clear-design-filters').addEventListener('click', async () => {
 });
 
 fields.designsTableBody.addEventListener('click', async (event) => {
+  const deleteButton = event.target.closest('[data-delete-design]');
+  if (deleteButton) {
+    const design = state.designs.items.find((item) => item.id === deleteButton.dataset.deleteDesign);
+    if (!design) return;
+    const title = design.title || 'este diseño';
+    if (!confirm(`¿Quieres eliminar «${title}» de Modelos descargados? CC Tools Dev no volverá a añadirlo ni lo usará en Me gusta, Colección, Comentarios o Boost. No se puede deshacer desde la interfaz.`)) return;
+    deleteButton.disabled = true;
+    const result = await api(`/api/designs/${encodeURIComponent(design.id)}`, { method: 'DELETE' });
+    if (!result.ok) {
+      deleteButton.disabled = false;
+      toast(errorMessage(result.error, result));
+      return;
+    }
+    await loadDesigns(state.designs.page);
+    toast('Diseño eliminado de la lista.');
+    return;
+  }
+
   const actionButton = event.target.closest('[data-design-action]');
   if (actionButton) {
     const design = state.designs.items.find((item) => item.id === actionButton.dataset.designId);
@@ -3711,6 +3729,7 @@ function renderDesigns() {
       <td>${statusIcon('bookmark', design.collectionCompleted, design.collectionActionState, design.id, 'collection')}</td>
       <td>${commentStatusIcon(design.commentCompleted)}</td>
       <td>${boostStatusIcon(design.boostCount)}</td>
+      <td class="design-delete-column"><button class="favorite-profile-remove design-delete-button" type="button" data-delete-design="${escapeHtml(design.id)}" title="Eliminar de la lista" aria-label="Eliminar ${escapeHtml(design.title || 'diseño')} de la lista"><svg viewBox="0 0 448 512" aria-hidden="true"><path d="M135.2 17.7L128 32H32C14.3 32 0 46.3 0 64S14.3 96 32 96H416c17.7 0 32-14.3 32-32s-14.3-32-32-32H320l-7.2-14.3C307.4 6.8 296.3 0 284.2 0H163.8c-12.1 0-23.2 6.8-28.6 17.7zM416 128H32L53.2 467c1.6 25.3 22.6 45 48 45H346.8c25.4 0 46.5-19.7 48-45L416 128z"/></svg></button></td>
     `;
     fields.designsTableBody.append(row);
   }
@@ -3719,7 +3738,7 @@ function renderDesigns() {
     const message = state.designs.query || designFiltersAreActive()
       ? 'No se encontraron diseños que coincidan con la búsqueda o los filtros.'
       : 'Todavía no hay diseños descargados.';
-    fields.designsTableBody.innerHTML = `<tr><td colspan="8">${message}</td></tr>`;
+    fields.designsTableBody.innerHTML = `<tr><td colspan="9">${message}</td></tr>`;
   }
 
   fields.designsPage.textContent = `Página ${state.designs.page} de ${state.designs.totalPages}`;

@@ -3115,6 +3115,18 @@ textarea {
   color: var(--bad);
 }
 
+.design-delete-column {
+  width: 44px;
+  text-align: center;
+}
+
+.design-delete-button {
+  margin: 0 auto;
+  width: 30px;
+  height: 30px;
+  min-height: 30px;
+}
+
 .favorite-profile-remove svg {
   width: 13px;
   height: 13px;

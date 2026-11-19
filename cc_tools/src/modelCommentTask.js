@@ -3,10 +3,11 @@ import path from 'path';
 import { withAutomationBrowser } from './browserManager.js';
 import { captureDiagnosticScreenshot, diagnoseTaskError, failureFromDiagnostic, inspectCrealityPage, observeCrealityPage } from './crealityDiagnostics.js';
 import { compareIncentiveProgress, readIncentiveProgress, waitForIncentiveProgress } from './incentiveTasks.js';
-import { commentImagesDir, markDesignCommentUnavailable, markDesignCommented, readDesigns, readRuns, updateDesignOwnership } from './storage.js';
+import { commentImagesDir, markDesignCommented, readDesigns, readRuns, updateDesignOwnership } from './storage.js';
 import { isOwnModel, readModelOwnership } from './modelOwnership.js';
 import { selectFavoriteCandidates } from './favoriteModelIndex.js';
 import { captureCommentFeed } from './commentFeed.js';
+import { excludeUnavailableModel, isUnavailableModel } from './unavailableModel.js';
 
 const INCENTIVES = {
   image: { title: 'Image comments', points: 2, label: 'Comentario con imagen' },
@@ -59,8 +60,8 @@ export async function runModelComment(taskConfig = {}, options = {}) {
           await page.goto(candidate.url, { waitUntil: 'domcontentloaded' });
           await page.waitForTimeout(3500);
           const pageDiagnostic = await inspectCrealityPage(page, observer, { requireBody: true });
-          if (pageDiagnostic?.code === 'MODEL_NOT_FOUND') {
-            await markDesignCommentUnavailable(candidate.id);
+          if (isUnavailableModel(pageDiagnostic)) {
+            await excludeUnavailableModel(candidate, pageDiagnostic.code);
             continue;
           }
           if (pageDiagnostic) throw diagnosticError(pageDiagnostic);
