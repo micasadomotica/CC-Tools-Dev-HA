@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.71 — Datos técnicos abiertos en Logs
+
+- En **Logs**, los paneles **Datos técnicos** ya no se cierran solos. La vista se actualiza cada 10 segundos y volvía a dibujar el historial cerrando todos los paneles expandidos; ahora conserva abiertos los que hayas expandido, igual que ya hacía con la actividad de Chromium.
+- No cambia el comportamiento de los módulos, las programaciones ni los datos.
+
 ## 1.0.70 — Modelos que ya no existen y botón para eliminar
 
 - **Me gusta**, **Añadir a la colección**, **Boost** y **Comentarios** quitan de **Modelos descargados** un modelo cuya ficha ya no existe en Creality Cloud (error 404) o que no superó la revisión de Creality, y pasan al siguiente candidato en lugar de fallar. El modelo se añade a la lista de excluidos, como ya hacía **Descubrir diseños**, para que no vuelva a añadirse. Los errores de red, de sesión o de verificación de seguridad no quitan ningún modelo.

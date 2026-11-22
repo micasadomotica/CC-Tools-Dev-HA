@@ -3511,12 +3511,25 @@ function renderHealthSummary() {
   `;
 }
 
+function openRunDetailKeys() {
+  // The logs view refreshes every 10 s; remember which panels the user expanded.
+  const keys = new Set();
+  for (const article of fields.runs.querySelectorAll('article.run[data-run-id]')) {
+    article.querySelectorAll('details').forEach((panel, index) => {
+      if (panel.open) keys.add(`${article.dataset.runId}:${index}`);
+    });
+  }
+  return keys;
+}
+
 function renderRuns() {
   const browserDiagnosticsOpen = fields.runs.querySelector('.browser-lifecycle-diagnostics')?.open === true;
+  const openDetails = openRunDetailKeys();
   fields.runs.innerHTML = '';
   for (const run of state.logs.items) {
     const item = document.createElement('article');
     item.className = `run run-${run.status}`;
+    if (run.id) item.dataset.runId = run.id;
     item.innerHTML = `
       <div>
         <strong>${taskLabel(run.taskId)} · ${labelStatus(run.status)}</strong>
@@ -3526,6 +3539,11 @@ function renderRuns() {
       ${renderRunDetails(run)}
       ${renderScreenshots(run.screenshots || [])}
     `;
+    if (run.id) {
+      item.querySelectorAll('details').forEach((panel, index) => {
+        if (openDetails.has(`${run.id}:${index}`)) panel.open = true;
+      });
+    }
     fields.runs.append(item);
   }
 
