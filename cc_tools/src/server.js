@@ -102,6 +102,9 @@ import {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+// Shown next to the app name in the web UI header.
+const appVersion = await fs.readFile(path.resolve(__dirname, '..', 'package.json'), 'utf8')
+  .then((text) => String(JSON.parse(text).version || '')).catch(() => '');
 const publicDir = path.resolve(__dirname, '..', 'public');
 await browserDiagnosticJournal.configure(path.resolve(process.env.CCTOOLS_DATA_DIR || 'data', 'browser-diagnostics.json'));
 const app = express();
@@ -144,6 +147,7 @@ app.get('/api/status', async (req, res) => {
   const runs = await readRuns();
   res.json({
     ok: true,
+    appVersion,
     scheduler: schedulerState(),
     browser: browserManagerState(),
     runtimePaths: { downloads: tempDownloadsDir() },
@@ -776,6 +780,19 @@ app.post('/api/tasks/model-boosts/run', async (req, res) => {
   }
 });
 
+app.post('/api/tasks/makenow/refresh-capacity', async (_req, res) => {
+  try {
+    const result = await runTaskNow('makeNow', 'manual', { refreshCapacityOnly: true });
+    res.json({ ok: true, ...result });
+  } catch (error) {
+    res.status(409).json({
+      ok: false,
+      error: error.code || 'MAKENOW_CAPACITY_REFRESH_FAILED',
+      message: error.message || 'No se pudieron actualizar los cupos de MakeNow. Revisa el diagnóstico en Logs.'
+    });
+  }
+});
+
 app.post('/api/tasks/makenow/run', async (req, res) => {
   try {
     const result = await runTaskNow('makeNow', 'manual');
@@ -845,6 +862,7 @@ app.patch('/api/config', async (req, res) => {
     config.telegram.notifyOnCommentScheduleDisabled = input.telegram.notifyOnCommentScheduleDisabled !== false;
     config.telegram.notifyOnMakeNow = input.telegram.notifyOnMakeNow !== false;
     config.telegram.notifyOnMakeNowError = input.telegram.notifyOnMakeNowError !== false;
+    config.telegram.notifyOnMakeNowToolFull = input.telegram.notifyOnMakeNowToolFull !== false;
     config.telegram.notifyOnModelBoost = input.telegram.notifyOnModelBoost !== false;
     config.telegram.notifyOnModelBoostError = input.telegram.notifyOnModelBoostError !== false;
     config.telegram.notifyOnShopRedemption = input.telegram.notifyOnShopRedemption !== false;

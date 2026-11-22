@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { MAKENOW_TOOLS, availableMakeNowTools, parseProjectCapacity, projectIdentity,
-  selectAndCreateMakeNowProject, createMakeNowJournal, lastProfileAttempt } from '../src/makeNowProjects.js';
+  selectAndCreateMakeNowProject, createMakeNowJournal, lastProfileAttempt, needsFullMakeNowScan,
+  newlyFullMakeNowTools } from '../src/makeNowProjects.js';
 
 test('lee el cupo sin confundir un texto incompleto con cero', () => {
   assert.deepEqual(parseProjectCapacity('My Projects\n(29/30)'), { used: 29, limit: 30 });
@@ -108,4 +109,74 @@ test('el registro rechaza reintentos sin lectura válida o con un intento poster
   assert.equal(saved.tasks.makeNow.projectAccounts, undefined);
   saved.crealityProfile.userId = '84';
   await assert.rejects(journal.reserveAttempt(state(MAKENOW_TOOLS[0]), valid), { code: 'MAKENOW_PROFILE_CHANGED' });
+});
+
+const storedState = () => MAKENOW_TOOLS.map((tool, index) => ({ ...tool, used: index === 5 ? 6 : 7, limit: 30, status: 'available' }));
+
+test('con cupos guardados recientes solo comprueba la herramienta elegida y suma el proyecto creado', async () => {
+  const inspected = [];
+  const saved = [];
+  const result = await selectAndCreateMakeNowProject({}, {
+    record: () => {}, saveInventory: async (value, flags) => saved.push({ value: structuredClone(value), flags }),
+    storedInventory: storedState(), fullScanAt: new Date().toISOString()
+  }, {
+    inspectTool: async (_page, tool) => { inspected.push(tool.name); return { ...tool, used: tool.used, limit: 30, status: 'available' }; },
+    createProject: async () => ({ projectId: 'new' })
+  });
+  assert.deepEqual(inspected, ['SnapForm']);
+  assert.equal(result.tool, 'SnapForm');
+  assert.equal(result.fullScan, false);
+  const finalInventory = saved.at(-1).value;
+  assert.equal(finalInventory.find(tool => tool.name === 'SnapForm').used, 7);
+  assert.ok(saved.every(entry => !entry.flags?.fullScan));
+});
+
+test('consulta todas las herramientas sin datos, con datos de más de 7 días o al forzarlo', async () => {
+  const old = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
+  for (const options of [{}, { storedInventory: storedState(), fullScanAt: old }, { storedInventory: storedState(), fullScanAt: new Date().toISOString(), forceFullScan: true }]) {
+    const inspected = [];
+    const saved = [];
+    await selectAndCreateMakeNowProject({}, { record: () => {}, saveInventory: async (_value, flags) => saved.push(flags), ...options }, {
+      inspectTool: async (_page, tool) => { inspected.push(tool.name); return { ...tool, used: 3, limit: 30, status: 'available' }; },
+      createProject: async () => ({ projectId: 'new' })
+    });
+    assert.equal(inspected.length, 9);
+    assert.equal(saved[0]?.fullScan, true);
+  }
+});
+
+test('una herramienta que llega al límite se avisa una vez y no se vuelve a usar', async () => {
+  const stored = MAKENOW_TOOLS.map(tool => ({ ...tool, used: tool.id === '10' ? 29 : 30, limit: 30, status: tool.id === '10' ? 'available' : 'full' }));
+  const result = await selectAndCreateMakeNowProject({}, {
+    record: () => {}, saveInventory: async () => {}, storedInventory: stored, fullScanAt: new Date().toISOString()
+  }, {
+    inspectTool: async (_page, tool) => ({ ...tool, used: 29, limit: 30, status: 'available' }),
+    createProject: async () => ({ projectId: 'last' })
+  });
+  assert.equal(result.tool, 'SnapForm');
+  assert.deepEqual(result.newlyFullTools.map(tool => [tool.name, tool.used]), [['SnapForm', 30]]);
+  assert.equal(result.inventory.find(tool => tool.id === '10').status, 'full');
+  assert.deepEqual(newlyFullMakeNowTools(result.inventory, result.inventory), []);
+});
+
+test('si según lo guardado no hay espacio, consulta todas antes de rendirse', async () => {
+  const stored = MAKENOW_TOOLS.map(tool => ({ ...tool, used: 30, limit: 30, status: 'full' }));
+  let scans = 0;
+  const result = await selectAndCreateMakeNowProject({}, {
+    record: () => {}, saveInventory: async (_value, flags) => { if (flags?.fullScan) scans++; },
+    storedInventory: stored, fullScanAt: new Date().toISOString()
+  }, {
+    inspectTool: async (_page, tool) => ({ ...tool, used: tool.id === '8' ? 12 : 30, limit: 30, status: tool.id === '8' ? 'available' : 'full' }),
+    createProject: async () => ({ projectId: 'freed' })
+  });
+  assert.equal(scans, 1);
+  assert.equal(result.tool, 'SignForge');
+  assert.deepEqual(result.newlyFullTools, []);
+});
+
+test('needsFullMakeNowScan exige todas las herramientas y fecha válida', () => {
+  const now = new Date();
+  assert.equal(needsFullMakeNowScan(storedState(), now.toISOString(), now), false);
+  assert.equal(needsFullMakeNowScan(storedState().slice(1), now.toISOString(), now), true);
+  assert.equal(needsFullMakeNowScan(storedState(), '', now), true);
 });

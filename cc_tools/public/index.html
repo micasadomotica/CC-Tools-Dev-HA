@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CC Tools Dev</title>
     <link rel="icon" type="image/png" href="/assets/app-icon.png">
-    <link rel="stylesheet" href="/assets/styles.css?v=1.0.71">
-    <link rel="stylesheet" href="/assets/upload-designs.css?v=1.0.71">
+    <link rel="stylesheet" href="/assets/styles.css?v=1.0.72">
+    <link rel="stylesheet" href="/assets/upload-designs.css?v=1.0.72">
   </head>
   <body>
     <aside id="security-challenge-banner" class="security-challenge-banner" role="status" hidden>
@@ -20,6 +20,7 @@
         <a id="brand-home" class="brand" href="/" aria-label="Ir al inicio">
           <img src="/assets/app-icon.png" alt="">
           <span>CC Tools Dev</span>
+          <small id="app-version" class="brand-version"></small>
         </a>
 
         <nav class="topbar-actions" aria-label="Navegación principal">
@@ -497,7 +498,12 @@
                 <span class="notification-option-placeholder" aria-hidden="true"></span>
                 <label class="check-option">
                   <input id="notify-comment-schedule-disabled" type="checkbox">
-                  <span>Cuando se desactive la programación de comentarios</span>
+                  <span>Cuando se desactive o pause la programación de comentarios</span>
+                </label>
+                <span class="notification-option-placeholder" aria-hidden="true"></span>
+                <label class="check-option">
+                  <input id="notify-makenow-tool-full" type="checkbox">
+                  <span>Cuando una herramienta de MakeNow se llene</span>
                 </label>
               </div>
             </section>
@@ -1010,7 +1016,7 @@
           </div>
           <button id="close-makenow-config" class="icon-button" type="button" aria-label="Cerrar">×</button>
         </div>
-        <p class="muted">Consulta el cupo real de las herramientas y elige la que tenga menos proyectos, con espacio disponible. Excluye AI Create Lab, Fanforge-Football y FlexiToys. No genera, finaliza ni elimina proyectos. Si la recompensa ya está completada, no abre otro proyecto.</p>
+        <p class="muted">Elige la herramienta con menos proyectos y espacio disponible usando los cupos guardados, y solo comprueba esa herramienta antes de crear el proyecto. Los cupos de todas se consultan si no hay datos, si tienen más de 7 días, si ninguna tiene espacio o al pulsar <strong>Actualizar cupos</strong>. Una herramienta llena se avisa por Telegram y no se usa hasta que tenga espacio. Excluye AI Create Lab, Fanforge-Football y FlexiToys. No genera, finaliza ni elimina proyectos. Si la recompensa ya está completada, no abre otro proyecto.</p>
         <details><summary>Cupos y proyectos registrados para este perfil CC</summary><div id="makenow-project-inventory" class="muted">Se consultarán al ejecutar.</div></details>
         <div class="form-grid tool-config-grid">
           <label>
@@ -1030,6 +1036,7 @@
         </div>
         <div class="button-row modal-actions">
           <button id="save-makenow-config" type="button">Guardar</button>
+          <button id="refresh-makenow-capacity" class="secondary" type="button">Actualizar cupos</button>
           <button id="run-makenow-now" class="secondary" type="button">Ejecutar ahora</button>
         </div>
       </div>
@@ -1233,7 +1240,7 @@ CATEGORIA: Impresoras 3D / Otro</pre>
       </div>
     </div>
 
-    <script src="/assets/upload-designs.js?v=1.0.71" type="module"></script>
-    <script src="/assets/app.js?v=1.0.71" type="module"></script>
+    <script src="/assets/upload-designs.js?v=1.0.72" type="module"></script>
+    <script src="/assets/app.js?v=1.0.72" type="module"></script>
   </body>
 </html>

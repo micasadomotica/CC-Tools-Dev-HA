@@ -6,6 +6,7 @@ import { normalizeCaughtError } from '../src/crealityDiagnostics.js';
 import { countTodayComments, buildCommentKindPlan } from '../src/modelCommentTask.js';
 import { isFinishPrintStartRun } from '../src/finishPrintSelection.js';
 import { markShopOrdersRefreshError } from '../src/shopOrdersState.js';
+import * as commentUsage from '../src/commentUsage.js';
 
 function harness() {
   const state = { reservations: 0, launches: 0, aborts: 0, writes: 0, runs: [], waiting: false };
@@ -17,7 +18,7 @@ function harness() {
   const context = vm.createContext({ Date, Error, Promise, AbortController, setTimeout, clearTimeout, process,
     challengeClock: () => 0, browserChallengeState: () => ({ active: false }),
     console: { log() {}, warn() {}, error() {} }, normalizeCaughtError, countTodayComments, buildCommentKindPlan,
-    isFinishPrintStartRun, markShopOrdersRefreshError,
+    isFinishPrintStartRun, markShopOrdersRefreshError, ...commentUsage,
     pauseProgressSync: () => { state.reservations++; return () => { state.reservations--; }; },
     waitForProgressSync: async () => { if (state.waiting) await pending(); },
     abortAutomationBrowser: async () => { state.aborts++; },

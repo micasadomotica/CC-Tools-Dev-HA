@@ -92,3 +92,46 @@ function shorten(text = '', length = 80) {
   const value = String(text).replace(/\s+/g, ' ').trim();
   return value.length > length ? `${value.slice(0, length - 1)}…` : value;
 }
+
+export const UNCREDITED_FAILURES_TO_PAUSE = 2;
+
+function localDay(value, timezone = 'Europe/Madrid') {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit' })
+    .format(new Date(value));
+}
+
+export function uncreditedCommentsToday(runs = [], timezone = 'Europe/Madrid', now = new Date()) {
+  const today = localDay(now, timezone);
+  return runs.filter((run) => run?.taskId === 'comments'
+    && run.details?.rewardVerification?.status === 'not_credited'
+    && localDay(run.finishedAt || run.createdAt || now, timezone) === today).length;
+}
+
+/**
+ * After two comments published today without the reward being credited, stop
+ * the comment schedule until the next day: Creality is most likely hiding them,
+ * and more attempts only repeat the comment. Returns true when it pauses now.
+ */
+export function pauseCommentsAfterUncreditedFailures(task = {}, runs = [], now = new Date()) {
+  const timezone = task.timezone || 'Europe/Madrid';
+  const today = localDay(now, timezone);
+  if (task.pausedForDate === today) return false;
+  const failures = uncreditedCommentsToday(runs, timezone, now);
+  if (failures < UNCREDITED_FAILURES_TO_PAUSE) return false;
+  task.pausedForDate = today;
+  task.pausedReason = 'uncredited_comments';
+  task.nextRunAt = '';
+  if (Array.isArray(task.commentPlan)) task.commentPlanCursor = task.commentPlan.length;
+  return true;
+}
+
+export function commentsPausedToday(task = {}, now = new Date()) {
+  return Boolean(task.pausedForDate) && task.pausedForDate === localDay(now, task.timezone || 'Europe/Madrid');
+}
+
+export function commentPauseNotification(failures = UNCREDITED_FAILURES_TO_PAUSE) {
+  return '⏸️ CC Tools Dev: Comentarios pausados hasta mañana\n'
+    + `Hoy se han publicado ${failures} comentarios sin que Creality Cloud acreditara la recompensa. `
+    + 'Se cancela la programación de hoy para no repetirlos; mañana se reanuda sola. '
+    + 'Si vuelve a pasar, prueba con comentarios e imágenes diferentes.';
+}

@@ -77,3 +77,20 @@ test('reactivar a mano un comentario agotado reinicia su contador; el resto lo c
   assert.equal(next[2].disabledReason, 'usage_limit');
   assert.equal(next[3].usageCount, 0);
 });
+
+test('dos comentarios sin recompensa hoy pausan la programación hasta mañana', async () => {
+  const { pauseCommentsAfterUncreditedFailures, commentsPausedToday, uncreditedCommentsToday } = await import('../src/commentUsage.js');
+  const now = new Date('2026-11-22T17:00:00.000Z');
+  const failed = (at, status = 'not_credited') => ({ taskId: 'comments', finishedAt: at, details: { rewardVerification: { status } } });
+  const task = { timezone: 'Europe/Madrid', nextRunAt: 'x', commentPlan: ['a', 'b', 'c'], commentPlanCursor: 1 };
+  assert.equal(pauseCommentsAfterUncreditedFailures(task, [failed('2026-11-22T10:00:00Z')], now), false);
+  assert.equal(pauseCommentsAfterUncreditedFailures(task, [failed('2026-11-21T22:00:00Z'), failed('2026-11-22T10:00:00Z'), failed('2026-11-22T11:00:00Z', 'credited')], now), false);
+  const runs = [failed('2026-11-22T10:00:00Z'), failed('2026-11-22T15:00:00Z')];
+  assert.equal(uncreditedCommentsToday(runs, 'Europe/Madrid', now), 2);
+  assert.equal(pauseCommentsAfterUncreditedFailures(task, runs, now), true);
+  assert.equal(task.nextRunAt, '');
+  assert.equal(task.commentPlanCursor, 3);
+  assert.equal(commentsPausedToday(task, now), true);
+  assert.equal(pauseCommentsAfterUncreditedFailures(task, runs, now), false);
+  assert.equal(commentsPausedToday(task, new Date('2026-11-23T08:00:00.000Z')), false);
+});

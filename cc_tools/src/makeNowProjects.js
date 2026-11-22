@@ -145,9 +145,28 @@ export async function createMakeNowProject(page, tool, { reserveAttempt, updateA
   return project;
 }
 
-export async function selectAndCreateMakeNowProject(page, options, dependencies = {}) {
+// Stored capacities are used between full scans: a run only re-checks the tool
+// it is about to use. All tools are scanned again when there is no stored data,
+// it is older than this, no stored tool has room, or the user asks for it.
+export const MAKENOW_FULL_SCAN_MAX_AGE_DAYS = 7;
+
+export function needsFullMakeNowScan(stored = [], fullScanAt = '', now = new Date(), force = false) {
+  if (force) return true;
+  if (!Array.isArray(stored) || !MAKENOW_TOOLS.every(tool => stored.some(entry => entry?.id === tool.id))) return true;
+  const at = Date.parse(fullScanAt);
+  if (!Number.isFinite(at)) return true;
+  return now.getTime() - at > MAKENOW_FULL_SCAN_MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
+}
+
+/** Tools that are full now and were not full (or not known) before. */
+export function newlyFullMakeNowTools(previous = [], next = []) {
+  return next.filter(tool => tool?.status === 'full'
+    && (Array.isArray(previous) ? previous : []).find(entry => entry?.id === tool.id)?.status !== 'full')
+    .map(tool => ({ id: tool.id, name: tool.name, used: tool.used, limit: tool.limit }));
+}
+
+export async function scanMakeNowInventory(page, options, dependencies = {}) {
   const inspect = dependencies.inspectTool || inspectMakeNowTool;
-  const create = dependencies.createProject || createMakeNowProject;
   const inventory = [];
   for (const tool of MAKENOW_TOOLS) {
     options.signal?.throwIfAborted();
@@ -162,29 +181,68 @@ export async function selectAndCreateMakeNowProject(page, options, dependencies 
       options.record(`${tool.name}: no se pudo comprobar el cupo; se omite.`);
     }
   }
-  await options.saveInventory?.(inventory);
-  for (const candidate of availableMakeNowTools(inventory)) {
-    // Another session may have filled a tool since it was scanned.
-    let current;
-    try { current = await inspect(page, candidate, options); }
-    catch (error) {
-      options.signal?.throwIfAborted();
-      if (error.systemic || error.silentRetry || error.code === 'MAKENOW_AI_NOTICE_BLOCKED') throw error;
-      current = { ...candidate, status: 'unknown' };
-    }
-    inventory[inventory.findIndex(tool => tool.id === candidate.id)] = current;
-    await options.saveInventory?.(inventory);
-    if (!availableMakeNowTools([current]).length) continue;
-    options.record(`Seleccionada ${current.name}: ${current.used}/${current.limit} proyectos.`);
-    const project = await create(page, current, options);
-    return { tool: current.name, toolId: current.id, capacityBefore: { used: current.used, limit: current.limit }, inventory, project };
+  await options.saveInventory?.(inventory, { fullScan: true });
+  return inventory;
+}
+
+export async function selectAndCreateMakeNowProject(page, options, dependencies = {}) {
+  const inspect = dependencies.inspectTool || inspectMakeNowTool;
+  const create = dependencies.createProject || createMakeNowProject;
+  const previous = Array.isArray(options.storedInventory) ? options.storedInventory : [];
+  let inventory;
+  let fullScan = false;
+  if (needsFullMakeNowScan(previous, options.fullScanAt, dependencies.now || new Date(), options.forceFullScan)) {
+    inventory = await scanMakeNowInventory(page, options, { inspectTool: inspect });
+    fullScan = true;
+  } else {
+    inventory = previous.map(tool => ({ ...tool }));
+    options.record('Se usan los cupos guardados; solo se comprueba la herramienta elegida antes de crear el proyecto.');
   }
+
+  const tryCreate = async () => {
+    for (const candidate of availableMakeNowTools(inventory)) {
+      // The stored count may be outdated: always re-check the tool that will be used.
+      let current;
+      try { current = await inspect(page, candidate, options); }
+      catch (error) {
+        options.signal?.throwIfAborted();
+        if (error.systemic || error.silentRetry || error.code === 'MAKENOW_AI_NOTICE_BLOCKED') throw error;
+        current = { ...candidate, status: 'unknown', checkedAt: new Date().toISOString() };
+      }
+      const index = inventory.findIndex(tool => tool.id === candidate.id);
+      inventory[index] = current;
+      await options.saveInventory?.(inventory);
+      if (!availableMakeNowTools([current]).length) {
+        options.record(`${current.name}: ${current.used === undefined ? 'no disponible' : `${current.used}/${current.limit} proyectos`}; se prueba otra.`);
+        continue;
+      }
+      options.record(`Seleccionada ${current.name}: ${current.used}/${current.limit} proyectos.`);
+      const project = await create(page, current, options);
+      const used = current.used + 1;
+      inventory[index] = { ...current, used, status: used >= current.limit ? 'full' : 'available', checkedAt: new Date().toISOString() };
+      await options.saveInventory?.(inventory);
+      return { tool: current.name, toolId: current.id, capacityBefore: { used: current.used, limit: current.limit }, project };
+    }
+    return null;
+  };
+
+  let created = await tryCreate();
+  if (!created && !fullScan) {
+    options.record('Ninguna herramienta tiene espacio según los cupos guardados; se consultan todas.');
+    inventory = await scanMakeNowInventory(page, options, { inspectTool: inspect });
+    fullScan = true;
+    created = await tryCreate();
+  }
+  const newlyFull = newlyFullMakeNowTools(previous, inventory);
+  if (created) return { ...created, inventory, fullScan, newlyFullTools: newlyFull };
+
   const full = inventory.every(tool => tool.status === 'full');
   const counts = inventory.filter(tool => tool.used !== undefined).map(tool => `${tool.name}: ${tool.used}/${tool.limit}`).join('; ');
   const message = full
     ? `MakeNow: todas las herramientas permitidas están llenas. Libera espacio en una de ellas. ${counts}`
     : `MakeNow: no hay una herramienta con espacio y acceso confirmados. Revisa los cupos y el acceso en la web. ${counts}`;
-  throw Object.assign(projectError(full ? 'MAKENOW_ALL_TOOLS_FULL' : 'MAKENOW_NO_AVAILABLE_TOOL', message), { inventory });
+  throw Object.assign(projectError(full ? 'MAKENOW_ALL_TOOLS_FULL' : 'MAKENOW_NO_AVAILABLE_TOOL', message),
+    { inventory, newlyFullTools: newlyFull });
 }
 
 export function lastProfileAttempt(task, profileId) {
@@ -213,10 +271,11 @@ export function createMakeNowJournal(profile, storage = { readConfig, writeConfi
     return { config, task, account };
   };
   return {
-    async saveInventory(inventory) {
+    async saveInventory(inventory, { fullScan = false } = {}) {
       const { config, account } = await access();
       account.inventory = inventory;
       account.checkedAt = new Date().toISOString();
+      if (fullScan) account.fullScanAt = account.checkedAt;
       await storage.writeConfig(config);
     },
     async reserveAttempt(tool, options = {}) {

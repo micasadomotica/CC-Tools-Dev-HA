@@ -186,6 +186,7 @@ const fields = {
   notifyCommentError: $('#notify-comment-error'),
   notifyCommentLimit: $('#notify-comment-limit'),
   notifyCommentScheduleDisabled: $('#notify-comment-schedule-disabled'),
+  notifyMakeNowToolFull: $('#notify-makenow-tool-full'),
   notifyModelBoost: $('#notify-model-boost'),
   notifyModelBoostError: $('#notify-model-boost-error'),
   notifyShopRedemption: $('#notify-shop-redemption'),
@@ -793,13 +794,22 @@ fields.makeNowConfigModal.addEventListener('click', (event) => {
 $('#save-makenow-config').addEventListener('click', async () => {
   if (await saveConfig({ includeMakeNow: true })) toast('Configuración guardada.');
 });
+$('#refresh-makenow-capacity').addEventListener('click', async () => {
+  fields.makeNowConfigModal.hidden = true;
+  await runWithProgress({
+    title: 'Actualizar cupos de MakeNow',
+    steps: ['Abriendo MakeNow', 'Consultando las herramientas', 'Guardando los cupos'],
+    activeMessage: 'Consultando el cupo de cada herramienta de MakeNow. No se crea ningún proyecto...',
+    endpoint: '/api/tasks/makenow/refresh-capacity'
+  });
+});
 $('#run-makenow-now').addEventListener('click', async () => {
   if (!(await saveConfig({ includeMakeNow: true }))) return;
   fields.makeNowConfigModal.hidden = true;
   await runWithProgress({
     title: 'Crear un proyecto',
     steps: ['Consultando recompensa...', 'Abriendo New Project', 'Verificando recompensa'],
-    activeMessage: 'Comprobando los cupos de MakeNow y seleccionando una herramienta con espacio...',
+    activeMessage: 'Seleccionando una herramienta con espacio según los cupos guardados...',
     endpoint: '/api/tasks/makenow/run'
   });
 });
@@ -1297,6 +1307,7 @@ async function saveConfig(options = {}) {
       notifyOnCommentError: fields.notifyCommentError.checked,
       notifyOnCommentLimit: fields.notifyCommentLimit.checked,
       notifyOnCommentScheduleDisabled: fields.notifyCommentScheduleDisabled.checked,
+      notifyOnMakeNowToolFull: fields.notifyMakeNowToolFull.checked,
       notifyOnMakeNow: fields.notifyMakeNow.checked,
       notifyOnMakeNowError: fields.notifyMakeNowError.checked,
       notifyOnModelBoost: fields.notifyModelBoost.checked,
@@ -1332,6 +1343,7 @@ async function refresh() {
   state.dailyCounters = result.dailyCounters || {};
   state.dailyLimits = result.dailyLimits || {};
   state.healthMetrics = result.healthMetrics || {};
+  if (result.appVersion) $('#app-version').textContent = result.appVersion;
   state.latestRuns = result.latestRuns || [];
   if (state.logs.page === 1) state.logs.items = state.latestRuns;
   render();
@@ -1385,6 +1397,7 @@ async function refreshLiveCounters() {
   state.scheduler = result.scheduler || { running: false, runningTask: '' };
   state.nextExecutions = result.nextExecutions || {};
   state.healthMetrics = result.healthMetrics || {};
+  if (result.appVersion) $('#app-version').textContent = result.appVersion;
   state.latestRuns = result.latestRuns || [];
   if (state.logs.page === 1) state.logs.items = state.latestRuns;
   state.config.crealityFavorites = result.config?.crealityFavorites || state.config.crealityFavorites || [];
@@ -2902,9 +2915,12 @@ function render() {
   const makeNowInventory = makeNowAccount?.inventory || [];
   const makeNowProjects = (makeNowAccount?.attempts || []).filter(item => item.projectId);
   $('#makenow-project-inventory').innerHTML = makeNowInventory.length
-    ? '<p>Última consulta: ' + escapeHtml(formatDate(makeNowAccount.checkedAt)) + '. Proyectos identificados de Dev: ' + makeNowProjects.length + '.</p><ul>'
+    ? '<p>Última actualización: ' + escapeHtml(formatDate(makeNowAccount.checkedAt))
+      + '. Consulta completa: ' + escapeHtml(makeNowAccount.fullScanAt ? formatDate(makeNowAccount.fullScanAt) : 'pendiente')
+      + '. Proyectos identificados de Dev: ' + makeNowProjects.length + '.</p><ul>'
       + makeNowInventory.map(tool => '<li>' + escapeHtml(tool.name) + ': ' + escapeHtml(tool.used === undefined
-        ? (tool.status === 'restricted' ? 'acceso restringido' : 'sin verificar') : `${tool.used}/${tool.limit}`) + '</li>').join('') + '</ul>'
+        ? (tool.status === 'restricted' ? 'acceso restringido' : 'sin verificar')
+        : `${tool.used}/${tool.limit}${tool.status === 'full' ? ' · lleno, no se usa hasta que tenga espacio' : ''}`) + '</li>').join('') + '</ul>'
     : 'Se consultarán los cupos al ejecutar. Los proyectos anteriores no se atribuyen automáticamente a Dev.';
   fields.makeNowEnabled.checked = makeNow.enabled;
   fields.makeNowWindowStart.value = makeNow.windowStart;
@@ -2935,6 +2951,7 @@ function render() {
   fields.notifyCommentError.checked = state.config.telegram.notifyOnCommentError !== false;
   fields.notifyCommentLimit.checked = state.config.telegram.notifyOnCommentLimit !== false;
   fields.notifyCommentScheduleDisabled.checked = state.config.telegram.notifyOnCommentScheduleDisabled !== false;
+  fields.notifyMakeNowToolFull.checked = state.config.telegram.notifyOnMakeNowToolFull !== false;
   fields.notifyMakeNow.checked = state.config.telegram.notifyOnMakeNow !== false;
   fields.notifyMakeNowError.checked = state.config.telegram.notifyOnMakeNowError !== false;
   fields.notifyModelBoost.checked = state.config.telegram.notifyOnModelBoost !== false;
@@ -3026,7 +3043,8 @@ function notificationErrorFields() {
     fields.notifyModelBoostError,
     fields.notifyShopRedemptionError,
     fields.notifyCommentLimit,
-    fields.notifyCommentScheduleDisabled
+    fields.notifyCommentScheduleDisabled,
+    fields.notifyMakeNowToolFull
   ];
 }
 

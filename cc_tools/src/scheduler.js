@@ -4,6 +4,7 @@ import { uploadLibrary } from './uploadDesignLibrary.js';
 import { synchronizeDailyProgress, pauseProgressSync, waitForProgressSync } from './progressSync.js';
 import { runUploadDesigns } from './uploadDesignTask.js';
 import { runMakeNow } from './makeNowTask.js';
+import { MAKENOW_HOME } from './makeNowProjects.js';
 import { appendRun, cleanupOldScreenshots, readConfig, readRuns, writeConfig } from './storage.js';
 import { runCrealityCheckin } from './crealityTask.js';
 import { runModelDownloads } from './modelDownloadTask.js';
@@ -23,7 +24,10 @@ import {
   syncActiveFinishPrintProfile
 } from './finishPrintProfiles.js';
 import { buildCommentKindPlan, countTodayComments, runModelComment } from './modelCommentTask.js';
-import { commentUsageNotifications, enforceCommentUsageLimit } from './commentUsage.js';
+import {
+  commentPauseNotification, commentsPausedToday, commentUsageNotifications, enforceCommentUsageLimit,
+  pauseCommentsAfterUncreditedFailures, uncreditedCommentsToday
+} from './commentUsage.js';
 import { checkModelBoostAvailability, runModelBoost } from './modelBoostTask.js';
 import { redeemShopGoal } from './shopGoal.js';
 import { readShopOrders } from './shopOrders.js';
@@ -184,7 +188,10 @@ async function runTracedTask(taskId, source, options) {
     updateDependentModelActions(freshConfig, taskId, result);
     updatePointsCounter(freshConfig, result);
     applyRewardResult(freshConfig, taskId, result);
-    reconcileDailyPlans(freshConfig, await readRuns());
+    const runsAfter = await readRuns();
+    reconcileDailyPlans(freshConfig, runsAfter);
+    const commentsPausedNow = taskId === 'comments'
+      && pauseCommentsAfterUncreditedFailures(freshConfig.tasks.comments, runsAfter);
     const healthEvent = updateAutomationHealth(freshConfig, taskId, status, result);
     await writeConfig(freshConfig);
     if (taskId === 'creality') {
@@ -198,6 +205,14 @@ async function runTracedTask(taskId, source, options) {
           ? freshConfig.telegram.notifyOnCommentLimit !== false
           : freshConfig.telegram.notifyOnCommentScheduleDisabled !== false;
         if (enabled) await sendTelegram(freshConfig, text).catch((error) => console.error('[telegram]', error.message));
+      }
+    }
+    if (commentsPausedNow) {
+      console.log('[scheduler] Comentarios pausados hasta mañana por comentarios sin recompensa.');
+      if (freshConfig.telegram.notifyOnCommentScheduleDisabled !== false) {
+        const failures = uncreditedCommentsToday(runsAfter, freshConfig.tasks.comments.timezone);
+        await sendTelegram(freshConfig, commentPauseNotification(failures))
+          .catch((error) => console.error('[telegram]', error.message));
       }
     }
 
@@ -747,6 +762,8 @@ async function redeemScheduledShopGoal(config, now = new Date()) {
 }
 
 export function updateNextRunAfterExecution(taskConfig, taskId, source, result, now = new Date()) {
+  // "Actualizar cupos" only reads MakeNow capacities: keep the scheduled creation.
+  if (result?.details?.capacityRefresh) return;
   if (taskId === 'uploadDesigns') {
     if (source === 'schedule') taskConfig.nextRunAt = scheduleNextRun(taskConfig, now, { forceNextWindow: true });
     return;
@@ -1146,6 +1163,13 @@ function ensureCommentPlan(taskConfig, runs = [], now = new Date()) {
     && run.source === 'schedule'
     && dayKey(taskConfig.timezone || 'Europe/Madrid', new Date(run.finishedAt || run.createdAt)) === today).length;
   const doneCount = Math.max(creditedToday, attemptsToday);
+  if (taskConfig.commentPlanDate === today && commentsPausedToday(taskConfig, now)) {
+    const plan = Array.isArray(taskConfig.commentPlan) ? taskConfig.commentPlan : [];
+    const changed = Boolean(taskConfig.nextRunAt) || taskConfig.commentPlanCursor !== plan.length;
+    taskConfig.nextRunAt = '';
+    taskConfig.commentPlanCursor = plan.length;
+    return changed;
+  }
   if (taskConfig.commentPlanDate === today) {
     const plan = Array.isArray(taskConfig.commentPlan) ? taskConfig.commentPlan : [];
     const cursor = Math.min(plan.length, Math.max(doneCount, Number(taskConfig.commentPlanCursor) || 0));
@@ -1270,7 +1294,7 @@ async function executePendingTask(taskId, taskConfig, options, config) {
       details: { reason: 'BOOST_DAILY_LIMIT', synchronized: true, dailyCount: progress.counters.modelBoosts } };
   }
   if (!(taskId === 'makeNow' && options.source === 'manual')
-    && !options.cleanupOnly && progress.counters[taskId] > 0 && progress.remaining[taskId] === 0) {
+    && !options.cleanupOnly && !options.refreshCapacityOnly && progress.counters[taskId] > 0 && progress.remaining[taskId] === 0) {
     return { success: true, skipped: true, message: 'El objetivo diario ya está completado según el progreso sincronizado.',
       details: { synchronized: true, dailyCount: progress.counters[taskId] } };
   }
@@ -1381,6 +1405,12 @@ export async function notifyTaskResult(config, taskId, status, result, healthEve
   }
 
   if (taskId === 'makeNow') {
+    if (config.telegram.notifyOnMakeNowToolFull !== false) {
+      for (const tool of result.details?.newlyFullTools || []) {
+        await sendTelegram(config, makeNowToolFullNotification(tool)).catch((error) => console.error('[telegram]', error.message));
+      }
+    }
+    if (result.details?.capacityRefresh) return;
     const notify = status === 'success' ? config.telegram.notifyOnMakeNow : config.telegram.notifyOnMakeNowError;
     if (notify !== false) {
       await sendTelegram(config, (status === 'success' ? '🎨 CC Tools Dev: ' : '❌ CC Tools Dev: ') + (result.message || 'MakeNow fallido. Revisa el Log.'))
@@ -1914,4 +1944,11 @@ function escapeTelegramHtml(value) {
 
 function escapeTelegramHtmlAttribute(value) {
   return escapeTelegramHtml(value).replace(/"/g, '&quot;');
+}
+
+export function makeNowToolFullNotification(tool = {}) {
+  return `🗂️ CC Tools Dev: MakeNow · ${tool.name} está lleno (${tool.used}/${tool.limit} proyectos)
+`
+    + 'No se usará para crear proyectos hasta que tenga espacio. Borra proyectos de esa herramienta en '
+    + `${MAKENOW_HOME} y pulsa «Actualizar cupos» en la configuración de Crea un proyecto.`;
 }

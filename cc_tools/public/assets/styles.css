@@ -130,6 +130,17 @@ label span {
   text-decoration: none;
 }
 
+.brand-version {
+  margin-left: -4px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.brand-version:empty {
+  display: none;
+}
+
 .brand img,
 .brand-title img {
   width: 40px;
