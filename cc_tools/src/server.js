@@ -77,6 +77,9 @@ import {
 } from './finishPrintSelection.js';
 import { filterDesigns, normalizeDesignSort, sortDesigns } from './designSearch.js';
 import { buildCommentKindPlan, countTodayComments, normalizeComments } from './modelCommentTask.js';
+import {
+  commentMaxUses, enforceCommentUsageLimit, MAX_COMMENT_MAX_USES, MIN_COMMENT_MAX_USES, resetReenabledComments
+} from './commentUsage.js';
 import { CATALOG_CATEGORIES, normalizeCatalogCategories } from './modelDownloadTask.js';
 import { normalizeShopGoal, readShopCatalog } from './shopGoal.js';
 import { readShopOrders } from './shopOrders.js';
@@ -838,6 +841,8 @@ app.patch('/api/config', async (req, res) => {
     config.telegram.notifyOnFinishPrintError = input.telegram.notifyOnFinishPrintError !== false;
     config.telegram.notifyOnComment = input.telegram.notifyOnComment !== false;
     config.telegram.notifyOnCommentError = input.telegram.notifyOnCommentError !== false;
+    config.telegram.notifyOnCommentLimit = input.telegram.notifyOnCommentLimit !== false;
+    config.telegram.notifyOnCommentScheduleDisabled = input.telegram.notifyOnCommentScheduleDisabled !== false;
     config.telegram.notifyOnMakeNow = input.telegram.notifyOnMakeNow !== false;
     config.telegram.notifyOnMakeNowError = input.telegram.notifyOnMakeNowError !== false;
     config.telegram.notifyOnModelBoost = input.telegram.notifyOnModelBoost !== false;
@@ -959,8 +964,20 @@ app.patch('/api/config', async (req, res) => {
     task.textDailyLimit = clamp(Number(input.comments.textDailyLimit), 0, 1, task.textDailyLimit ?? 1);
     task.dailyLimit = task.imageDailyLimit + task.textDailyLimit;
     task.minIntervalMinutes = clamp(Number(input.comments.minIntervalMinutes), 10, 1440, task.minIntervalMinutes || 10);
+    if (Object.hasOwn(input.comments, 'maxUsesPerComment')) {
+      task.maxUsesPerComment = clamp(Number(input.comments.maxUsesPerComment),
+        MIN_COMMENT_MAX_USES, MAX_COMMENT_MAX_USES, commentMaxUses(task));
+    }
     if (Object.hasOwn(input.comments, 'comments')) {
-      task.comments = normalizeComments(input.comments.comments).slice(0, 250);
+      const previousComments = normalizeComments(task.comments);
+      task.comments = resetReenabledComments(previousComments,
+        normalizeComments(input.comments.comments).slice(0, 250), commentMaxUses(task));
+    }
+    if (task.enabled) delete task.disabledReason;
+    const usage = enforceCommentUsageLimit(task);
+    if (usage.scheduleDisabled && input.comments.enabled) {
+      return res.status(400).json({ ok: false, error: 'COMMENTS_UNAVAILABLE',
+        message: `No hay comentarios disponibles: todos están desactivados o han llegado al límite de ${usage.maxUses} usos. Añade o importa comentarios nuevos.` });
     }
     const requiredMinutes = task.dailyLimit * (task.minIntervalMinutes + 2);
     if (windowDurationMinutes(task) < requiredMinutes) {

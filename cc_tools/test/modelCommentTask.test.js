@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import { isOwnModel } from '../src/modelOwnership.js';
+import { commentAvailable, commentMaxUses } from '../src/commentUsage.js';
 import {
   buildCommentKindPlan,
   countTodayComments,
@@ -17,7 +18,7 @@ import {
 test('sin descargas verificadas omite la tarea antes de abrir el navegador', async () => {
   const source = fs.readFileSync(new URL('../src/modelCommentTask.js', import.meta.url), 'utf8')
     .replace(/^import[\s\S]*?;\r?$/gm, '').replace(/^export /gm, '');
-  const context = vm.createContext({ Date, isOwnModel,
+  const context = vm.createContext({ Date, isOwnModel, commentAvailable, commentMaxUses,
     readDesigns: async () => [{ url: 'https://example.test/indexed', indexedOnly: true, favoriteActive: true }],
     readRuns: async () => [],
     withAutomationBrowser: async () => assert.fail('No debe abrir el navegador') });

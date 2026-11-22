@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.0.71 — Límite de usos e importación de comentarios
+
+- **Haz un comentario**: nuevo ajuste **Usos máx. por comentario** (50 por defecto, de 1 a 1000). Al llegar al límite, el comentario se desactiva y se avisa por Telegram. Repetir el mismo texto e imagen muchas veces hace que Creality Cloud oculte el comentario a los demás y no acredite la recompensa. Si vuelves a activar a mano un comentario que llegó al límite, su contador empieza de 0. El contador de la biblioteca muestra los usos sobre el límite (por ejemplo `x12/50`) y se marca en rojo al alcanzarlo.
+- Si no queda ningún comentario disponible, se desactiva la programación de **Haz un comentario** y se avisa por Telegram para que añadas comentarios nuevos. No se puede volver a programar sin al menos un comentario disponible.
+- Nuevo botón **Importar comentarios** en la **Biblioteca de comentarios**: selecciona a la vez un `.txt` por comentario (UTF-8, máximo 1000 caracteres) y, si quieres, una imagen JPG, PNG, GIF o WebP con el mismo nombre, por ejemplo `comentario-01.txt` + `comentario-01.png`. Un `.txt` sin imagen crea un comentario solo de texto. Se omiten, indicando el motivo, los textos vacíos o repetidos y las imágenes sin `.txt`. Pulsa **Programar** para guardarlos.
+- **Notificaciones**: nuevas opciones **Cuando un comentario llegue al límite de usos** y **Cuando se desactive la programación de comentarios**, activadas por defecto.
+- En **Logs**, los paneles **Datos técnicos** ya no se cierran solos. La vista se actualiza cada 10 segundos y volvía a dibujar el historial cerrando todos los paneles expandidos; ahora conserva abiertos los que hayas expandido, igual que ya hacía con la actividad de Chromium.
+
 ## 1.0.70 — Modelos que ya no existen y botón para eliminar
 
 - **Me gusta**, **Añadir a la colección**, **Boost** y **Comentarios** quitan de **Modelos descargados** un modelo cuya ficha ya no existe en Creality Cloud (error 404) o que no superó la revisión de Creality, y pasan al siguiente candidato en lugar de fallar. El modelo se añade a la lista de excluidos, como ya hacía **Descubrir diseños**, para que no vuelva a añadirse. Los errores de red, de sesión o de verificación de seguridad no quitan ningún modelo.

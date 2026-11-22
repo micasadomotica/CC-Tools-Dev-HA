@@ -23,6 +23,7 @@ import {
   syncActiveFinishPrintProfile
 } from './finishPrintProfiles.js';
 import { buildCommentKindPlan, countTodayComments, runModelComment } from './modelCommentTask.js';
+import { commentUsageNotifications, enforceCommentUsageLimit } from './commentUsage.js';
 import { checkModelBoostAvailability, runModelBoost } from './modelBoostTask.js';
 import { redeemShopGoal } from './shopGoal.js';
 import { readShopOrders } from './shopOrders.js';
@@ -169,10 +170,12 @@ async function runTracedTask(taskId, source, options) {
     if (taskId === 'finishPrint' && status === 'success') {
       applyStartedVirtualPrint(freshConfig.tasks.finishPrint, result, source, new Date());
     }
+    let commentUsageEvents = null;
     if (taskId === 'comments' && result.details?.commentUsage?.id) {
       const comment = freshConfig.tasks.comments.comments.find((entry) => entry.id === result.details.commentUsage.id);
       if (comment) comment.usageCount = Math.max(0, Number(comment.usageCount) || 0) + 1;
     }
+    if (taskId === 'comments') commentUsageEvents = enforceCommentUsageLimit(freshConfig.tasks.comments);
     updateModelBoostState(freshConfig, taskId, result);
     freshConfig.tasks[taskId].lastRunAt = new Date().toISOString();
     freshConfig.tasks[taskId].lastStatus = status;
@@ -189,6 +192,14 @@ async function runTracedTask(taskId, source, options) {
     }
 
     await notifyTaskResult(freshConfig, taskId, status, result, healthEvent);
+    if (commentUsageEvents) {
+      for (const { type, text } of commentUsageNotifications(commentUsageEvents)) {
+        const enabled = type === 'limit'
+          ? freshConfig.telegram.notifyOnCommentLimit !== false
+          : freshConfig.telegram.notifyOnCommentScheduleDisabled !== false;
+        if (enabled) await sendTelegram(freshConfig, text).catch((error) => console.error('[telegram]', error.message));
+      }
+    }
 
     return { status, message };
   } catch (error) {

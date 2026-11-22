@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>CC Tools Dev</title>
     <link rel="icon" type="image/png" href="/assets/app-icon.png">
-    <link rel="stylesheet" href="/assets/styles.css?v=1.0.70">
-    <link rel="stylesheet" href="/assets/upload-designs.css?v=1.0.70">
+    <link rel="stylesheet" href="/assets/styles.css?v=1.0.71">
+    <link rel="stylesheet" href="/assets/upload-designs.css?v=1.0.71">
   </head>
   <body>
     <aside id="security-challenge-banner" class="security-challenge-banner" role="status" hidden>
@@ -490,7 +490,15 @@
                   <input id="notify-shop-order-shipped" type="checkbox">
                   <span>Cuando un cupón pase a "Disponible"</span>
                 </label>
+                <label class="check-option">
+                  <input id="notify-comment-limit" type="checkbox">
+                  <span>Cuando un comentario llegue al límite de usos</span>
+                </label>
                 <span class="notification-option-placeholder" aria-hidden="true"></span>
+                <label class="check-option">
+                  <input id="notify-comment-schedule-disabled" type="checkbox">
+                  <span>Cuando se desactive la programación de comentarios</span>
+                </label>
               </div>
             </section>
 
@@ -760,13 +768,22 @@
             <span>Intervalo mínimo (min)</span>
             <input id="comments-min-interval" type="number" min="10" value="10">
           </label>
+          <label class="inline-setting-field time-control-field" title="Al llegar a este número de usos, el comentario se desactiva y se avisa por Telegram.">
+            <span>Usos máx. por comentario</span>
+            <input id="comments-max-uses" type="number" min="1" max="1000" value="50">
+          </label>
         </div>
         <div class="comments-library-heading">
           <div>
             <h3>Biblioteca de comentarios</h3>
             <p class="muted">El texto se puede utilizar con o sin la imagen asociada.</p>
+            <p class="muted comment-import-help">Para importar varios a la vez, selecciona juntos un archivo <code>.txt</code> por comentario (texto en UTF-8, máx. 1000 caracteres) y, si quieres, una imagen JPG, PNG, GIF o WebP con el <strong>mismo nombre</strong>. Ejemplo: <code>comentario-01.txt</code> + <code>comentario-01.png</code>. Un <code>.txt</code> sin imagen crea un comentario solo de texto. Al terminar, pulsa <strong>Programar</strong> para guardarlos.</p>
           </div>
+          <div class="comment-library-actions">
+          <button id="import-comments" class="secondary comment-library-add-button" type="button"><svg viewBox="0 0 512 512" aria-hidden="true"><path d="M288 109.3V352c0 17.7-14.3 32-32 32s-32-14.3-32-32V109.3l-73.4 73.4c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3l128-128c12.5-12.5 32.8-12.5 45.3 0l128 128c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L288 109.3zM64 352H192c0 35.3 28.7 64 64 64s64-28.7 64-64H448c35.3 0 64 28.7 64 64v32c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V416c0-35.3 28.7-64 64-64zM432 456a24 24 0 1 0 0-48 24 24 0 1 0 0 48z"/></svg><span>Importar comentarios</span></button>
+          <input id="import-comments-files" type="file" accept=".txt,text/plain,image/jpeg,image/png,image/gif,image/webp" multiple hidden>
           <button id="toggle-comment-composer" class="secondary comment-library-add-button" type="button" aria-expanded="false"><svg viewBox="0 0 512 512" aria-hidden="true"><path d="M512 240c0 114.9-114.6 208-256 208c-37.1 0-72.3-6.4-104.1-17.9L34.8 510.7c-5.8 4-13.6 4.5-19.8 1.2S5.5 501.5 7.3 494.7l32.7-121.4C14.8 337.8 0 296.1 0 251.3V240C0 125.1 114.6 32 256 32s256 93.1 256 208z"/></svg><span>Añadir comentario</span></button>
+          </div>
         </div>
         <div id="comments-list" class="comments-list">
           <p class="muted">Añade al menos un comentario.</p>
@@ -1216,7 +1233,7 @@ CATEGORIA: Impresoras 3D / Otro</pre>
       </div>
     </div>
 
-    <script src="/assets/upload-designs.js?v=1.0.70" type="module"></script>
-    <script src="/assets/app.js?v=1.0.70" type="module"></script>
+    <script src="/assets/upload-designs.js?v=1.0.71" type="module"></script>
+    <script src="/assets/app.js?v=1.0.71" type="module"></script>
   </body>
 </html>

@@ -7,6 +7,7 @@ import { commentImagesDir, markDesignCommented, readDesigns, readRuns, updateDes
 import { isOwnModel, readModelOwnership } from './modelOwnership.js';
 import { selectFavoriteCandidates } from './favoriteModelIndex.js';
 import { captureCommentFeed } from './commentFeed.js';
+import { commentAvailable, commentMaxUses } from './commentUsage.js';
 import { excludeUnavailableModel, isUnavailableModel } from './unavailableModel.js';
 
 const INCENTIVES = {
@@ -15,7 +16,10 @@ const INCENTIVES = {
 };
 
 export async function runModelComment(taskConfig = {}, options = {}) {
-  const entries = normalizeComments(taskConfig.comments).filter((entry) => entry.enabled);
+  const maxUses = commentMaxUses(taskConfig);
+  // A comment that reached the usage limit is never posted again, even before
+  // the scheduler disables it.
+  const entries = normalizeComments(taskConfig.comments).filter((entry) => commentAvailable(entry, maxUses));
   const allDesigns = await readDesigns();
   const designs = eligibleCommentDesigns(allDesigns, options.ownUserId);
   if (!entries.length) return skipped('No hay comentarios activos en la biblioteca.');
@@ -242,6 +246,10 @@ export function normalizeComments(values = []) {
     text: String(value?.text || '').trim(),
     enabled: value?.enabled !== false,
     usageCount: Math.max(0, Math.floor(Number(value?.usageCount) || 0)),
+    ...(value?.disabledReason ? {
+      disabledReason: String(value.disabledReason).slice(0, 40),
+      disabledAt: String(value.disabledAt || '').slice(0, 40)
+    } : {}),
     image: value?.image?.filename ? {
       id: String(value.image.id || '').trim(),
       filename: path.basename(String(value.image.filename)),

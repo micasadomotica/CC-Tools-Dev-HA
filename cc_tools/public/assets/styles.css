@@ -2589,7 +2589,7 @@ textarea {
 }
 
 .form-grid.comments-limits-grid {
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 0.95fr) minmax(0, 1.1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: 14px;
 }
 
@@ -2787,6 +2787,29 @@ textarea {
 
 .comment-library-copy small {
   color: var(--muted);
+}
+
+.comment-library-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  align-items: flex-start;
+}
+
+.comment-library-actions .comment-library-add-button {
+  white-space: nowrap;
+}
+
+.comment-import-help {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.comment-usage-badge.is-limit {
+  color: #ffe9e9;
+  background: #a33a3a;
 }
 
 .comment-usage-badge {
