@@ -11,6 +11,7 @@ import vm from 'node:vm';
 import { captureCommentFeed } from '../src/commentFeed.js';
 import { isOwnModel } from '../src/modelOwnership.js';
 import { isUnavailableModel } from '../src/unavailableModel.js';
+import { commentAvailable, commentMaxUses } from '../src/commentUsage.js';
 
 const target = 'https://www.crealitycloud.com/es/model-detail/local-test';
 const readyHtml = '<title>Modelo de prueba | Creality Cloud</title><h1>Modelo de prueba</h1><p>Ficha disponible con archivos y descripción del modelo de prueba.</p>';
@@ -184,7 +185,7 @@ test('comentarios conserva el historial tras más de 15 segundos de verificació
       </script>` : challengeHtml });
   });
   const marked = [];
-  const sandbox = vm.createContext({ Date, captureCommentFeed, isOwnModel, isUnavailableModel,
+  const sandbox = vm.createContext({ Date, captureCommentFeed, isOwnModel, isUnavailableModel, commentAvailable, commentMaxUses,
     excludeUnavailableModel: async () => { throw new Error('No debe excluir el modelo de prueba.'); },
     readDesigns: async () => [{ id: 'fixture-model', url: target, downloadVerified: true }],
     readRuns: async () => [],

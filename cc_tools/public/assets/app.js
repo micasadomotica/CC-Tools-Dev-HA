@@ -1,3 +1,5 @@
+import { commentImageType, pairCommentFiles } from './comment-import.js';
+
 const state = {
   config: null,
   scheduler: { running: false, runningTask: '' },
@@ -126,6 +128,8 @@ const fields = {
   commentsImageLimit: $('#comments-image-limit'),
   commentsTextLimit: $('#comments-text-limit'),
   commentsMinInterval: $('#comments-min-interval'),
+  commentsMaxUses: $('#comments-max-uses'),
+  importCommentsFiles: $('#import-comments-files'),
   commentText: $('#comment-text'),
   commentImage: $('#comment-image'),
   commentImageName: $('#comment-image-name'),
@@ -180,6 +184,8 @@ const fields = {
   notifyFinishPrintError: $('#notify-finish-print-error'),
   notifyComment: $('#notify-comment'),
   notifyCommentError: $('#notify-comment-error'),
+  notifyCommentLimit: $('#notify-comment-limit'),
+  notifyCommentScheduleDisabled: $('#notify-comment-schedule-disabled'),
   notifyModelBoost: $('#notify-model-boost'),
   notifyModelBoostError: $('#notify-model-boost-error'),
   notifyShopRedemption: $('#notify-shop-redemption'),
@@ -939,6 +945,9 @@ function openCommentComposer(comment = null) {
 }
 
 $('#add-comment').addEventListener('click', addCommentDraft);
+$('#import-comments').addEventListener('click', () => fields.importCommentsFiles.click());
+fields.importCommentsFiles.addEventListener('change', importCommentFiles);
+fields.commentsMaxUses.addEventListener('input', renderCommentDrafts);
 fields.commentImage.addEventListener('change', () => {
   const existing = state.commentDrafts.find((comment) => comment.id === state.commentEditingId);
   updateCommentImageName(existing?.image?.name || '');
@@ -1216,6 +1225,7 @@ async function saveConfig(options = {}) {
       imageDailyLimit,
       textDailyLimit,
       minIntervalMinutes,
+      maxUsesPerComment: Math.min(1000, Math.max(1, Math.floor(Number(fields.commentsMaxUses.value) || 50))),
       comments: state.commentDrafts
     };
   }
@@ -1285,6 +1295,8 @@ async function saveConfig(options = {}) {
       notifyOnFinishPrintError: fields.notifyFinishPrintError.checked,
       notifyOnComment: fields.notifyComment.checked,
       notifyOnCommentError: fields.notifyCommentError.checked,
+      notifyOnCommentLimit: fields.notifyCommentLimit.checked,
+      notifyOnCommentScheduleDisabled: fields.notifyCommentScheduleDisabled.checked,
       notifyOnMakeNow: fields.notifyMakeNow.checked,
       notifyOnMakeNowError: fields.notifyMakeNowError.checked,
       notifyOnModelBoost: fields.notifyModelBoost.checked,
@@ -1479,6 +1491,68 @@ function createClientId(prefix = 'item') {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 }
 
+function commentMaxUsesValue(task = state.config?.tasks?.comments) {
+  const value = Math.floor(Number(task?.maxUsesPerComment));
+  return Number.isFinite(value) && value >= 1 ? Math.min(1000, value) : 50;
+}
+
+function commentUsageBadge(comment) {
+  const count = Math.max(0, Number(comment.usageCount) || 0);
+  const max = Math.min(1000, Math.max(1, Math.floor(Number(fields.commentsMaxUses.value) || commentMaxUsesValue())));
+  const reached = count >= max;
+  const title = reached
+    ? `Usado ${count} veces: ha llegado al límite de ${max}. Si lo vuelves a activar, el contador empieza de 0.`
+    : `Usado ${count} de ${max} veces antes de desactivarse.`;
+  return `<span class="comment-usage-badge${reached ? ' is-limit' : ''}" title="${escapeHtml(title)}">x${count}/${max}</span>`;
+}
+
+async function importCommentFiles() {
+  const files = [...(fields.importCommentsFiles.files || [])];
+  fields.importCommentsFiles.value = '';
+  if (!files.length) return;
+  const button = $('#import-comments');
+  button.disabled = true;
+  try {
+    const { items, skipped } = await pairCommentFiles(files, (file) => file.text(), state.commentDrafts);
+    const room = Math.max(0, 250 - state.commentDrafts.length);
+    if (items.length > room) {
+      for (const item of items.splice(room)) skipped.push({ name: item.name, reason: 'La biblioteca admite 250 comentarios.' });
+    }
+    let imported = 0;
+    for (const item of items) {
+      let image = null;
+      if (item.image) {
+        const type = commentImageType(item.image);
+        const response = await fetch('/api/tasks/comments/images', {
+          method: 'POST',
+          headers: { 'Content-Type': type, 'X-File-Name': encodeURIComponent(item.image.name) },
+          body: item.image
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload.ok) {
+          skipped.push({ name: item.image.name, reason: `${errorMessage(payload.error, payload)} Se importa solo el texto.` });
+        } else {
+          image = payload.image;
+        }
+      }
+      state.commentDrafts.push({ id: createClientId('comment'), text: item.text, enabled: true, usageCount: 0, image });
+      imported += 1;
+    }
+    renderCommentDrafts();
+    const withImage = state.commentDrafts.slice(-imported).filter((comment) => comment.image).length;
+    const parts = [`${imported} comentario(s) importado(s), ${withImage} con imagen.`];
+    if (imported) parts.push('Pulsa Programar para guardarlos.');
+    if (skipped.length) {
+      parts.push(`Omitidos ${skipped.length}: ${skipped.slice(0, 4).map((entry) => `${entry.name} (${entry.reason})`).join('; ')}${skipped.length > 4 ? '…' : ''}`);
+    }
+    toast(parts.join(' '));
+  } catch (error) {
+    toast(error.message || 'No se pudieron importar los comentarios.');
+  } finally {
+    button.disabled = false;
+  }
+}
+
 function renderCommentDrafts() {
   fields.commentsList.innerHTML = '';
   if (!state.commentDrafts.length) {
@@ -1496,7 +1570,7 @@ function renderCommentDrafts() {
         <strong title="${escapeHtml(comment.text)}">${escapeHtml(comment.text)}</strong>
         ${comment.image ? `<small title="${escapeHtml(comment.image.name || 'Imagen')}">Imagen: ${escapeHtml(comment.image.name || 'adjunta')}</small>` : '<small>Sin imagen asociada</small>'}
       </div>
-      <span class="comment-usage-badge">x${Math.max(0, Number(comment.usageCount) || 0)}</span>
+      ${commentUsageBadge(comment)}
       <button class="comment-edit-button" type="button" data-comment-edit="${escapeHtml(comment.id)}" title="Editar comentario" aria-label="Editar comentario"><svg viewBox="0 0 512 512" aria-hidden="true"><path d="M410.3 231l11.3-11.3-33.9-33.9-62.1-62.1-33.9-33.9-11.3 11.3-22.6 22.6L58.6 322.9c-10.4 10.4-18 23.3-22.2 37.4L1 480.7c-2.5 8.4-.2 17.5 6.1 23.7s15.3 8.5 23.7 6.1l120.3-35.4c14.1-4.2 27-11.8 37.4-22.2L387.7 253.7 410.3 231zM160 399.4l-9.1 22.7c-4 3.1-8.5 5.4-13.3 6.9L59.4 452l23-78.1c1.4-4.9 3.8-9.4 6.9-13.3l22.7-9.1V384c0 8.8 7.2 16 16 16h32zM485.4 46.1L465.9 26.6C430.5-8.8 373.2-8.8 337.8 26.6l-9.7 9.7-11.3 11.3 33.9 33.9 62.1 62.1 33.9 33.9 11.3-11.3 9.7-9.7c35.4-35.4 35.4-92.7 0-128.1z"></path></svg></button>
       <button class="comment-delete-button" type="button" data-comment-delete="${escapeHtml(comment.id)}" title="Eliminar comentario" aria-label="Eliminar comentario">×</button>
     `;
@@ -2810,6 +2884,7 @@ function render() {
   fields.commentsImageLimit.value = Math.min(5, Math.max(0, Number(comments.imageDailyLimit) || 0));
   fields.commentsTextLimit.value = Math.min(1, Math.max(0, Number(comments.textDailyLimit) || 0));
   fields.commentsMinInterval.value = Math.max(10, Number(comments.minIntervalMinutes) || 10);
+  fields.commentsMaxUses.value = commentMaxUsesValue(comments);
   renderLastExecution(fields.boostsLastRun, boosts);
   fields.boostsEnabled.checked = boosts.enabled;
   fields.boostsWindowStart.value = boosts.windowStart || '08:00';
@@ -2858,6 +2933,8 @@ function render() {
   fields.notifyFinishPrintError.checked = state.config.telegram.notifyOnFinishPrintError !== false;
   fields.notifyComment.checked = state.config.telegram.notifyOnComment !== false;
   fields.notifyCommentError.checked = state.config.telegram.notifyOnCommentError !== false;
+  fields.notifyCommentLimit.checked = state.config.telegram.notifyOnCommentLimit !== false;
+  fields.notifyCommentScheduleDisabled.checked = state.config.telegram.notifyOnCommentScheduleDisabled !== false;
   fields.notifyMakeNow.checked = state.config.telegram.notifyOnMakeNow !== false;
   fields.notifyMakeNowError.checked = state.config.telegram.notifyOnMakeNowError !== false;
   fields.notifyModelBoost.checked = state.config.telegram.notifyOnModelBoost !== false;
@@ -2947,7 +3024,9 @@ function notificationErrorFields() {
     fields.notifyModelCollectionError,
     fields.notifyUploadDesignError,
     fields.notifyModelBoostError,
-    fields.notifyShopRedemptionError
+    fields.notifyShopRedemptionError,
+    fields.notifyCommentLimit,
+    fields.notifyCommentScheduleDisabled
   ];
 }
 
