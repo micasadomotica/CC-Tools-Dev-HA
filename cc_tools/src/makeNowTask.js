@@ -1,6 +1,7 @@
 import { withAutomationBrowser } from './browserManager.js';
 import { readConfig } from './storage.js';
-import { MAKENOW_HOME, selectAndCreateMakeNowProject, createMakeNowJournal, lastProfileAttempt, canRetryMakeNowManually } from './makeNowProjects.js';
+import { MAKENOW_HOME, selectAndCreateMakeNowProject, createMakeNowJournal, lastProfileAttempt, canRetryMakeNowManually,
+  newlyFullMakeNowTools, scanMakeNowInventory } from './makeNowProjects.js';
 import { observeCrealityPage, diagnoseTaskError, captureDiagnosticScreenshot } from './crealityDiagnostics.js';
 import { readIncentiveProgress, waitForIncentiveProgress, compareIncentiveProgress } from './incentiveTasks.js';
 
@@ -16,10 +17,15 @@ export async function runMakeNow(taskConfig = {}, options = {}) {
       const config = await readConfig();
       const profile = config.crealityProfile;
       const journal = createMakeNowJournal(profile);
+      const account = config.tasks.makeNow.projectAccounts?.[profile?.userId] || {};
+      if (options.refreshCapacityOnly) {
+        return await refreshMakeNowCapacity(page, account, { ...journal, events, signal: options.signal });
+      }
       return await executeMakeNow(page, observer, {
         ...taskConfig, lastAttemptAt: lastProfileAttempt(config.tasks.makeNow, profile?.userId)
       }, {
-        ...journal, events, signal: options.signal, source: options.source
+        ...journal, events, signal: options.signal, source: options.source,
+        storedInventory: account.inventory || [], fullScanAt: account.fullScanAt || ''
       });
     } catch (error) {
       if (error.silentRetry) throw error;
@@ -30,7 +36,8 @@ export async function runMakeNow(taskConfig = {}, options = {}) {
       const screenshot = await captureDiagnosticScreenshot(page, 'makeNow', diagnostic.code);
       return {
         success: false, message: diagnostic.message,
-        details: { events, inventory: error.inventory, diagnostics: [diagnostic], incident: diagnostic.systemic ? diagnostic : null },
+        details: { events, inventory: error.inventory, newlyFullTools: error.newlyFullTools || [],
+          diagnostics: [diagnostic], incident: diagnostic.systemic ? diagnostic : null },
         screenshots: screenshot ? [screenshot] : []
       };
     } finally {
@@ -68,7 +75,8 @@ export async function executeMakeNow(page, observer, taskConfig = {}, dependenci
     reserveAttempt: tool => dependencies.reserveAttempt(tool, {
       source: dependencies.source, progress: before, previousAttemptAt: taskConfig.lastAttemptAt
     }),
-    updateAttempt: dependencies.updateAttempt, saveInventory: dependencies.saveInventory, signal: dependencies.signal });
+    updateAttempt: dependencies.updateAttempt, saveInventory: dependencies.saveInventory, signal: dependencies.signal,
+    storedInventory: dependencies.storedInventory, fullScanAt: dependencies.fullScanAt });
   dependencies.signal?.throwIfAborted();
   const after = await waitProgress(page, observer, MAKENOW_TITLE, before, [0, 10000, 15000, 20000], {
     timezone: taskConfig.timezone, requireTaskList: true
@@ -84,6 +92,22 @@ export async function executeMakeNow(page, observer, taskConfig = {}, dependenci
     success,
     message: success ? 'MakeNow: recompensa diaria confirmada.' : pendingMessage,
     details: { events, ...selection, newProjectClicked: true, rewardVerification: verification }
+  };
+}
+
+/** Scans every tool without creating a project ("Actualizar cupos"). */
+export async function refreshMakeNowCapacity(page, account = {}, dependencies = {}) {
+  const events = dependencies.events || [];
+  const record = (message) => events.push({ at: new Date().toISOString(), message });
+  const scan = dependencies.scanInventory || scanMakeNowInventory;
+  const inventory = await scan(page, { record, signal: dependencies.signal, saveInventory: dependencies.saveInventory });
+  const newlyFullTools = newlyFullMakeNowTools(account.inventory || [], inventory);
+  const summary = inventory.map(tool => `${tool.name}: ${tool.used === undefined
+    ? (tool.status === 'restricted' ? 'acceso restringido' : 'sin verificar') : `${tool.used}/${tool.limit}`}`).join('; ');
+  return {
+    success: true,
+    message: `MakeNow: cupos actualizados sin crear proyectos. ${summary}`,
+    details: { events, inventory, newlyFullTools, capacityRefresh: true }
   };
 }
 

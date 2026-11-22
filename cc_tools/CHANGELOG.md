@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.72 — Cupos guardados de MakeNow, pausa de comentarios y versión visible
+
+- **Crea un proyecto** usa los cupos guardados de cada herramienta y solo comprueba la herramienta elegida antes de crear el proyecto, en lugar de revisar las ocho en cada ejecución (antes tardaba casi dos minutos). Después de crearlo suma uno a su contador. Las ocho se consultan de nuevo si no hay cupos guardados, si la última consulta completa tiene más de 7 días, si según lo guardado ninguna tiene espacio, o al pulsar el nuevo botón **Actualizar cupos**, que no crea ningún proyecto ni cambia la próxima ejecución programada.
+- Cuando una herramienta de MakeNow llega a su límite (30, o 50 en FrameStudio), se avisa por Telegram una sola vez y no se usa hasta que una consulta vea que vuelve a tener espacio. La lista de cupos la marca como llena. Nueva opción en **Notificaciones**: **Cuando una herramienta de MakeNow se llene**.
+- **Haz un comentario**: si en un mismo día se publican dos comentarios sin que Creality Cloud acredite la recompensa, se cancela la programación de ese día y se reanuda sola al día siguiente. Se avisa por Telegram con la opción **Cuando se desactive o pause la programación de comentarios**.
+- La cabecera muestra la versión instalada junto a **CC Tools Dev**.
+
 ## 1.0.71 — Límite de usos e importación de comentarios
 
 - **Haz un comentario**: nuevo ajuste **Usos máx. por comentario** (50 por defecto, de 1 a 1000). Al llegar al límite, el comentario se desactiva y se avisa por Telegram. Repetir el mismo texto e imagen muchas veces hace que Creality Cloud oculte el comentario a los demás y no acredite la recompensa. Si vuelves a activar a mano un comentario que llegó al límite, su contador empieza de 0. El contador de la biblioteca muestra los usos sobre el límite (por ejemplo `x12/50`) y se marca en rojo al alcanzarlo.

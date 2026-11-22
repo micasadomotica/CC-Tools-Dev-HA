@@ -95,6 +95,7 @@ const DEFAULT_CONFIG = {
     notifyOnCommentScheduleDisabled: true,
     notifyOnMakeNow: true,
     notifyOnMakeNowError: true,
+    notifyOnMakeNowToolFull: true,
     notifyOnUploadDesign: true,
     notifyOnUploadDesignError: true,
     notifyOnModelBoost: true,
