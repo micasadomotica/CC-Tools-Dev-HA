@@ -4737,3 +4737,18 @@ textarea {
 }
 .security-challenge-banner[hidden] { display: none; }
 .security-challenge-banner p { margin: 8px 0 14px; }
+
+.soon-pill {
+  display: inline-block;
+  margin: 0 0 6px;
+  padding: 2px 8px;
+  border: 1px solid rgba(240, 180, 41, 0.5);
+  border-radius: 999px;
+  background: rgba(240, 180, 41, 0.12);
+  color: #f0b429;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
