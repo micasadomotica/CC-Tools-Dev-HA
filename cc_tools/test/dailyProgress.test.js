@@ -252,3 +252,17 @@ test('un contador antiguo de 30 no permite superar diez descargas ni conserva hu
     if (done >= 10) assert.equal(c.tasks.modelDownloads.nextRunAt, '');
   }
 });
+
+test('Add Make cuenta para Valorar una impresión con 2 al día por defecto', async () => {
+  const { dailyProgress, REWARD_TITLES } = await import('../src/dailyProgress.js');
+  assert.equal(REWARD_TITLES.rateMake, 'Add Make');
+  const now = new Date('2026-11-27T12:00:00.000Z');
+  const empty = dailyProgress({ timezone: 'Europe/Madrid', tasks: { rateMake: { dailyLimit: 2 } } }, [], now);
+  assert.equal(empty.counters.rateMake, 0);
+  assert.equal(empty.limits.rateMake, 2);
+  const synced = dailyProgress({ timezone: 'Europe/Madrid', tasks: { rateMake: { dailyLimit: 2 } }, dailyProgress: { tasks: {
+    rateMake: { found: true, title: 'Add Make', done: 1, valid: 2, checkedAt: now.toISOString() }
+  } } }, [], now);
+  assert.equal(synced.counters.rateMake, 1);
+  assert.equal(synced.limits.rateMake, 2);
+});

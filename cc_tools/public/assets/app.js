@@ -157,6 +157,12 @@ const fields = {
   makeNowWindowStart: $('#makenow-window-start'),
   makeNowWindowEnd: $('#makenow-window-end'),
   makeNowConfigModal: $('#makenow-config-modal'),
+  rateMakeLastRun: $('#ratemake-last-run'),
+  rateMakeNextRun: $('#ratemake-next-run'),
+  rateMakeDailyBadge: $('#ratemake-daily-badge'),
+  rateMakeWindowStart: $('#ratemake-window-start'),
+  rateMakeWindowEnd: $('#ratemake-window-end'),
+  rateMakeConfigModal: $('#ratemake-config-modal'),
   notifyMakeNow: $('#notify-makenow'),
   notifyMakeNowError: $('#notify-makenow-error'),
   collectionsLastRun: $('#collections-last-run'),
@@ -786,6 +792,14 @@ fields.likesConfigModal.addEventListener('click', (event) => {
 fields.makeNowEnabled.addEventListener('change', async () => {
   if (await saveConfig({ includeMakeNow: true })) toast(fields.makeNowEnabled.checked ? 'Crear un proyecto activado.' : 'Crear un proyecto desactivado.');
 });
+$('#open-ratemake-config').addEventListener('click', () => { fields.rateMakeConfigModal.hidden = false; });
+$('#close-ratemake-config').addEventListener('click', () => { fields.rateMakeConfigModal.hidden = true; });
+fields.rateMakeConfigModal.addEventListener('click', (event) => {
+  if (event.target === fields.rateMakeConfigModal) fields.rateMakeConfigModal.hidden = true;
+});
+$('#save-ratemake-config').addEventListener('click', async () => {
+  if (await saveConfig({ includeRateMake: true })) toast('Horario de Valorar una impresión guardado.');
+});
 $('#open-makenow-config').addEventListener('click', () => { fields.makeNowConfigModal.hidden = false; });
 $('#close-makenow-config').addEventListener('click', () => { fields.makeNowConfigModal.hidden = true; });
 fields.makeNowConfigModal.addEventListener('click', (event) => {
@@ -1245,6 +1259,13 @@ async function saveConfig(options = {}) {
       enabled: fields.makeNowEnabled.checked,
       windowStart: fields.makeNowWindowStart.value,
       windowEnd: fields.makeNowWindowEnd.value
+    };
+  }
+
+  if (options.includeRateMake) {
+    body.rateMake = {
+      windowStart: fields.rateMakeWindowStart.value,
+      windowEnd: fields.rateMakeWindowEnd.value
     };
   }
 
@@ -2626,6 +2647,7 @@ function scheduleTaskTypeText(taskId, fallback = 'Tarea') {
     rewardSync: 'Sincronización de recompensas',
     uploadDesigns: 'Subir diseños',
     makeNow: 'Crear un proyecto',
+    rateMake: 'Valorar una impresión',
     modelCollections: 'Añadir a la colección'
   })[taskId] || fallback || 'Tarea';
 }
@@ -2911,6 +2933,10 @@ function render() {
   fields.likesPrioritizeFavorites.checked = likes.prioritizeFavorites !== false;
   $('#run-likes-now').disabled = state.scheduler?.running === true;
   renderLastExecution(fields.makeNowLastRun, makeNow);
+  const rateMake = state.config.tasks.rateMake || {};
+  renderLastExecution(fields.rateMakeLastRun, rateMake);
+  fields.rateMakeWindowStart.value = rateMake.windowStart || '08:00';
+  fields.rateMakeWindowEnd.value = rateMake.windowEnd || '22:00';
   const makeNowAccount = makeNow.projectAccounts?.[state.config.crealityProfile?.userId];
   const makeNowInventory = makeNowAccount?.inventory || [];
   const makeNowProjects = (makeNowAccount?.attempts || []).filter(item => item.projectId);
@@ -3709,6 +3735,7 @@ function renderDailyCounters() {
   fields.boostsDailyBadge.title = `Boost diario: máximo 1. Boletos disponibles: ${tasks.modelBoosts.availableBoosts || 0}.`;
   renderDailyBadge(fields.likesDailyBadge, state.dailyCounters.modelLikes, tasks.modelLikes.dailyLimit || 1);
   renderDailyBadge(fields.makeNowDailyBadge, state.dailyCounters.makeNow, 1);
+  renderDailyBadge(fields.rateMakeDailyBadge, state.dailyCounters.rateMake, state.dailyLimits.rateMake || 2);
   renderDailyBadge(fields.collectionsDailyBadge, state.dailyCounters.modelCollections, tasks.modelCollections.dailyLimit || 1);
   fields.modelsDailyBadge.title = `Descargas recompensadas hoy. Objetivo programado: ${tasks.modelDownloads.dailyLimit}.`;
   fields.commentsDailyBadge.title = `Comentarios recompensados hoy. Objetivo programado: ${tasks.comments.dailyLimit}.`;

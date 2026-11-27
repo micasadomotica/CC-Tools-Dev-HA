@@ -1030,6 +1030,17 @@ app.patch('/api/config', async (req, res) => {
     task.nextRunAt = task.enabled ? scheduleNextRun(task) : '';
   }
 
+  if (input.rateMake) {
+    const task = config.tasks.rateMake;
+    // The rating action is not available yet: keep the schedule off.
+    task.enabled = false;
+    task.windowStart = validClock(input.rateMake.windowStart, task.windowStart);
+    task.windowEnd = validClock(input.rateMake.windowEnd, task.windowEnd);
+    task.timezone = config.timezone || 'Europe/Madrid';
+    task.dailyLimit = 2;
+    task.nextRunAt = '';
+  }
+
   if (input.modelBoosts) {
     const task = config.tasks.modelBoosts;
     task.enabled = Boolean(input.modelBoosts.enabled);

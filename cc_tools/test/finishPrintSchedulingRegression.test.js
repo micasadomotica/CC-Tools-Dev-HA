@@ -248,7 +248,7 @@ test('an enabled profile without a G-code cannot replace the saved selection', a
 
 
 test('the print card shows the configured target immediately, including zero, rather than the Cloud quota', () => {
-  const fields = Object.fromEntries(['creality','finishPrint','models','comments','boosts','likes','makeNow','collections']
+  const fields = Object.fromEntries(['creality','finishPrint','models','comments','boosts','likes','makeNow','collections','rateMake']
     .map(key => [key + 'DailyBadge', { textContent: '', classList: { toggle() {} } }]));
   const tasks = Object.fromEntries(['finishPrint','modelDownloads','comments','modelBoosts','modelLikes','modelCollections'].map(key => [key, {}]));
   tasks.finishPrint = { totalDailyLimit: 3, dailyLimit: 3 };

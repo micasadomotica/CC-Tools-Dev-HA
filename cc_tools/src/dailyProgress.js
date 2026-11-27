@@ -7,7 +7,8 @@ export const REWARD_TITLES = {
   uploadDesigns: 'Upload Models',
   modelDownloads: 'Download Models', modelLikes: 'Like 3D Model',
   modelCollections: 'Collection Models', finishPrint: 'Finish a Print',
-  commentImage: 'Image comments', commentText: 'Comment on models', makeNow: 'Use MakeNow'
+  commentImage: 'Image comments', commentText: 'Comment on models', makeNow: 'Use MakeNow',
+  rateMake: 'Add Make'
 };
 export const progressDay = (timezone = 'Europe/Madrid', now = new Date()) => new Intl.DateTimeFormat('en-CA', {
   timeZone: timezone, year: 'numeric', month: '2-digit', day: '2-digit'
@@ -55,7 +56,7 @@ export function dailyProgress(config, runs = [], now = new Date()) {
   };
   // The account snapshot is separate from the execution log: remote work is never fabricated as a local execution.
   for (const [key, value] of Object.entries(config.dailyProgress?.tasks || {})) add(key, value);
-  const local = { uploadDesigns: 0, creality: 0, modelDownloads: 0, modelLikes: 0, modelCollections: 0, finishPrint: 0, makeNow: 0, modelBoosts: 0, commentImage: 0, commentText: 0 };
+  const local = { uploadDesigns: 0, creality: 0, modelDownloads: 0, modelLikes: 0, modelCollections: 0, finishPrint: 0, makeNow: 0, modelBoosts: 0, commentImage: 0, commentText: 0, rateMake: 0 };
   for (const run of runs) {
     if (!sameDay(run.finishedAt || run.createdAt)) continue;
     const details = run.details || {};
@@ -93,7 +94,7 @@ export function dailyProgress(config, runs = [], now = new Date()) {
     counters[key] = Math.max(local[key], observations[key]?.done || 0, history[key] || 0);
     if (key === 'makeNow' && observations[key]) counters[key] = observations[key].done;
     if (singles.includes(key)) counters[key] = Math.min(1, counters[key]);
-    limits[key] = observations[key]?.valid || ({ uploadDesigns: 5, commentImage: 5, commentText: 1, modelDownloads: 10, finishPrint: 10 }[key] || 1);
+    limits[key] = observations[key]?.valid || ({ uploadDesigns: 5, commentImage: 5, commentText: 1, modelDownloads: 10, finishPrint: 10, rateMake: 2 }[key] || 1);
   }
   // Old account snapshots can still advertise the former 30-download reward.
   limits.modelDownloads = Math.min(10, limits.modelDownloads);

@@ -105,6 +105,9 @@ const DEFAULT_CONFIG = {
     notifyOnShopOrderShipped: true
   },
   tasks: {
+    // "Valorar una impresión" (Creality's daily task "Add Make"). The action is not
+    // implemented yet: the schedule stays off and only the window is stored.
+    rateMake: { enabled: false, dailyLimit: 2, windowStart: '08:00', windowEnd: '22:00', timezone: 'Europe/Madrid', nextRunAt: '', lastRunAt: '', lastStatus: 'never', lastMessage: '' },
     uploadDesigns: { enabled: false, cleanupEnabled: false, cleanupCheckedDay: '', dailyLimit: 5, windowStart: '08:00', windowEnd: '12:00', timezone: 'Europe/Madrid', accountId: '', nextRunAt: '', lastRunAt: '', lastStatus: 'never', lastMessage: '' },
     creality: {
       enabled: false,
