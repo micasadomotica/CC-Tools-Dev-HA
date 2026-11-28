@@ -106,7 +106,7 @@ Subir diseños admite .3mf con configuración de Creality Print, Bambu Studio u 
 
 Puedes indicar una categoría propia en info.txt: `CATEGORIA: Hogar / Mascotas`. Separa siempre categoría y subcategoría con /. Si falta la línea o está vacía, se usa el selector; si contiene una combinación válida, tiene prioridad. Una combinación desconocida se marca para revisar. Las opciones disponibles aparecen en el módulo; la selección en Creality Cloud desplaza cada menú cuando hace falta.
 
-La línea opcional `SUBIR: Si` (o `No`) pide subir además el 3MF a la Galería de Proyectos del Banco de trabajo y FlowSlicer, que aparece en Archivos de impresión del perfil y es independiente del Modelo 3D. Si falta o está vacía cuenta como No; otro valor se marca para revisar. La casilla Cancelar subida 3MF a Proyectos de la programación tiene prioridad. Por ahora solo se registra la decisión en el historial.
+La línea opcional `SUBIR: Si` (o `No`) pide subir además el 3MF a la Galería de Proyectos del Banco de trabajo y FlowSlicer, que aparece en Archivos de impresión del perfil y es independiente del Modelo 3D. Si falta o está vacía cuenta como No; otro valor se marca para revisar. La casilla Cancelar subida 3MF a Proyectos de la programación tiene prioridad. Tras entregar el Modelo 3D, el 3MF se importa en la Galería y se guarda, sin enviarlo a imprimir; un fallo en Proyectos no anula la entrega. El resultado queda en el historial.
 
 Al guardar la programación de impresiones, el aviso distingue el objetivo pendiente de la capacidad del horario restante. Por ejemplo: «Quedan 9 impresiones para el objetivo; se programan 5 por el tiempo disponible». Los fallos anteriores no consumen el objetivo diario.
 

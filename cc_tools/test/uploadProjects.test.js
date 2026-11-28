@@ -8,6 +8,7 @@ import express from 'express';
 import { createUploadLibrary, parseUploadInfo, parseProjectUpload } from '../src/uploadDesignLibrary.js';
 import { projectUploadDecision, runUploadDesigns } from '../src/uploadDesignTask.js';
 import { uploadDesignRoutes } from '../src/uploadDesignRoutes.js';
+import { findProject, projectSaveId, projectTitle, projectUrl } from '../src/uploadProjectForm.js';
 import { addModel } from './uploadDesignFixtures.js';
 
 const info = 'ETIQUETAS: caja\nDESCRIPCION: Una caja.';
@@ -19,11 +20,11 @@ async function fixture(t, infos) {
   for (const [name, text] of Object.entries(infos)) await addModel(root, name, { info: text });
   return { library, items: (await library.scan()).inventory };
 }
-function deps(library) {
+function deps(library, uploadProject = async (_, model) => ({ status: 'uploaded', id: 'a'.repeat(24), title: model.modelFile, url: projectUrl('a'.repeat(24)) })) {
   const page = new EventEmitter(); page.close = async () => {}; page.screenshot = async () => { throw new Error('fixture'); };
   return { library, browser: async (_, callback) => callback({ newPage: async () => page }), verifyAccount: async () => {},
     readReward: async () => ({ found: true, done: 0, valid: 5 }),
-    submit: async (_, model, { beforeSubmit }) => { await beforeSubmit(); return { id: model.id, name: model.name }; } };
+    submit: async (_, model, { beforeSubmit }) => { await beforeSubmit(); return { id: model.id, name: model.name }; }, uploadProject };
 }
 
 test('SUBIR acepta Si, Sí y No sin distinguir mayúsculas ni tildes, y cuenta como No si falta', () => {
@@ -58,23 +59,29 @@ test('la casilla Cancelar subida 3MF a Proyectos prevalece sobre info.txt', asyn
   assert.equal(projectUploadDecision({ projectUpload: true }, { projectUploadCancelled: true }).upload, false);
 });
 
-test('el flujo registra la decisión de Proyectos de cada diseño en el historial sin subir nada todavía', async t => {
+test('el flujo sube a Proyectos solo los diseños decididos y lo registra en el historial', async t => {
   for (const cancelled of [false, true]) {
     const { library, items } = await fixture(t, { conProyecto: info + '\nSUBIR: Si', sinProyecto: info + '\nSUBIR: No', sinLinea: info });
-    const result = await runUploadDesigns({ projectUploadCancelled: cancelled }, { ownUserId: 'user', selected: items }, deps(library));
+    const calls = [];
+    const result = await runUploadDesigns({ projectUploadCancelled: cancelled }, { ownUserId: 'user', selected: items }, deps(library, async (_, model) => {
+      calls.push(model.name); return { status: 'uploaded', id: 'b'.repeat(24), title: model.modelFile, url: projectUrl('b'.repeat(24)) };
+    }));
+    assert.deepEqual(calls, cancelled ? [] : ['conProyecto']);
     assert.equal(result.success, true);
     const decisions = Object.fromEntries(result.details.projectUploads.map(item => [item.name, item]));
     assert.deepEqual(Object.keys(decisions).sort(), ['conProyecto', 'sinLinea', 'sinProyecto']);
     assert.equal(decisions.conProyecto.upload, !cancelled);
-    assert.equal(decisions.conProyecto.status, cancelled ? 'skipped' : 'pending');
+    assert.equal(decisions.conProyecto.status, cancelled ? 'skipped' : 'uploaded');
+    if (!cancelled) assert.equal(decisions.conProyecto.id, 'b'.repeat(24));
     assert.equal(decisions.conProyecto.reason, cancelled ? 'cancelled' : 'info');
     for (const name of ['sinProyecto', 'sinLinea']) assert.deepEqual([decisions[name].upload, decisions[name].status], [false, 'skipped']);
-    assert.equal(result.message.includes('Proyectos: 1 pendiente de subir.'), !cancelled);
+    assert.equal(result.message.includes('Proyectos: 1 en la Galería.'), !cancelled);
     const ledger = Object.values((await library.status()).ledger.user);
     assert.equal(ledger.length, 3);
     for (const entry of ledger) {
       assert.equal(entry.status, 'submitted');
       assert.equal(entry.project.upload, decisions[entry.name].upload);
+      assert.equal(entry.project.status, decisions[entry.name].status);
       assert.ok(Number.isFinite(Date.parse(entry.project.decidedAt)));
     }
   }
@@ -95,4 +102,46 @@ test('API guarda Cancelar subida 3MF a Proyectos en la configuración de la tare
   for (const body of [{}, { cancelled: 'si' }]) assert.equal((await put(body)).status, 400);
   assert.equal(config.tasks.uploadDesigns.projectUploadCancelled, true);
   assert.equal((await (await put({ cancelled: false })).json()).schedule.projectUploadCancelled, false);
+});
+
+test('un fallo en Proyectos no anula la entrega del Modelo 3D y sigue con el resto', async t => {
+  const { library, items } = await fixture(t, { primero: info + '\nSUBIR: Si', segundo: info + '\nSUBIR: Si' });
+  const result = await runUploadDesigns({}, { ownUserId: 'user', selected: items }, deps(library, async (_, model) => {
+    if (model.name === 'primero') throw Object.assign(new Error('No ha aparecido el botón Save.'), { code: 'PROJECT_FORM_MISMATCH' });
+    return { status: 'already', id: 'c'.repeat(24), title: model.modelFile, url: projectUrl('c'.repeat(24)) };
+  }));
+  assert.equal(result.success, true);
+  assert.equal(result.details.uploaded.length, 2);
+  const byName = Object.fromEntries(result.details.projectUploads.map(item => [item.name, item]));
+  assert.deepEqual([byName.primero.status, byName.primero.code], ['failed', 'PROJECT_FORM_MISMATCH']);
+  assert.equal(byName.segundo.status, 'already');
+  assert.match(result.message, /Proyectos: 1 en la Galería\. No se pudo subir a Proyectos primero: No ha aparecido el botón Save\./);
+  const ledger = Object.values((await library.status()).ledger.user);
+  assert.ok(ledger.every(entry => entry.status === 'submitted'));
+  assert.equal(ledger.find(entry => entry.name === 'primero').project.status, 'failed');
+});
+
+test('una cancelación durante Proyectos conserva la entrega del Modelo 3D', async t => {
+  const { library, items } = await fixture(t, { unico: info + '\nSUBIR: Si' });
+  const controller = new AbortController();
+  await assert.rejects(runUploadDesigns({}, { ownUserId: 'user', selected: items, signal: controller.signal }, deps(library, async () => {
+    controller.abort(new Error('cancelado')); throw new Error('cancelado');
+  })), /cancelado/);
+  const [entry] = Object.values((await library.status()).ledger.user);
+  assert.equal(entry.status, 'submitted');
+  assert.equal(entry.project.status, 'failed');
+});
+
+test('ayudantes de la Galería de Proyectos', () => {
+  const id = '6b0ad8647493b2a8e36a4f9a';
+  assert.equal(projectTitle({ modelFile: 'Caja.3mf', modelPath: '/x/Otra.3mf' }), 'Caja.3mf');
+  assert.equal(projectTitle({ modelPath: '/x/Otra.3mf' }), 'Otra.3mf');
+  const list = [{ id: 'x', title: 'Caja.3mf', originFileSize: 10 }, { id, title: 'Caja.3mf', originFileSize: 99, modifiedFileSize: 120 }];
+  assert.equal(findProject(list, { title: 'Caja.3mf', size: 120 }).id, id);
+  assert.equal(findProject(list, { title: 'Caja.3mf', size: 5 }), null);
+  assert.equal(findProject(null, { title: 'Caja.3mf' }), null);
+  assert.equal(projectSaveId({ code: 0, result: { id } }), id);
+  assert.equal(projectSaveId({ code: 0, result: id }), id);
+  assert.equal(projectSaveId({ code: 0, result: {} }, projectUrl(id)), id);
+  assert.equal(projectSaveId({ code: 0, result: { id: '../x' } }, 'https://www.crealitycloud.com/es/flowslicer/project'), '');
 });

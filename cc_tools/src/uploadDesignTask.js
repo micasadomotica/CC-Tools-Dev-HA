@@ -5,6 +5,7 @@ import { observeCrealityPage, captureDiagnosticScreenshot } from './crealityDiag
 import { readIncentiveProgress } from './incentiveTasks.js';
 import { progressDay } from './dailyProgress.js';
 import { runUploadCleanup } from './uploadDesignCleanup.js';
+import { uploadProject as uploadProjectForm } from './uploadProjectForm.js';
 
 // Final decision for the Projects gallery (Banco de trabajo / FlowSlicer). The task
 // setting "Cancelar subida 3MF a Proyectos" always wins over SUBIR: Si in info.txt.
@@ -21,6 +22,7 @@ export async function runUploadDesigns(task = {}, options = {}, deps = {}) {
   const submit = deps.submit || submitUploadForm;
   const verifyAccount = deps.verifyAccount || verifyUploadAccount;
   const readReward = deps.readReward || readIncentiveProgress;
+  const uploadProject = deps.uploadProject || uploadProjectForm;
   const account = options.ownUserId;
   if (!account) throw new Error('Actualiza el perfil de Creality antes de subir diseños.');
   if (options.source === 'schedule' && task.accountId !== account) throw new Error('La programación pertenece a otra cuenta. Revisa y vuelve a programar los diseños.');
@@ -39,22 +41,35 @@ export async function runUploadDesigns(task = {}, options = {}, deps = {}) {
       const capacity = Math.max(0, Math.min(5, before.valid || 5) - Math.max(before.done || 0, selection.used));
       for (const entry of selection.items.slice(0, capacity)) {
         options.signal?.throwIfAborted();
-        let submitting = false;
+        let submitting = false, delivered = false;
         try {
           const model = await library.prepare(entry, selection.defaultCategory);
           const result = await submit(page, model, { signal: options.signal, beforeSubmit: async () => {
             await library.record(account, entry, { status: 'submitting', day, source }); submitting = true;
           } });
           const decision = projectUploadDecision(model, task);
-          // The real upload to flowslicer/project is not implemented yet: keep the
-          // decision in the history so it can run once the flow is known.
-          const project = { ...decision, status: decision.upload ? 'pending' : 'skipped', decidedAt: new Date().toISOString(),
-            ...(decision.upload ? { message: decision.message + ' Subida a Proyectos pendiente: todavía no está disponible.' } : {}) };
+          let project = { ...decision, status: decision.upload ? 'pending' : 'skipped', decidedAt: new Date().toISOString() };
+          // The Modelo 3D is delivered: store it before touching the Projects gallery.
           await library.record(account, entry, { status: 'submitted', day, source, ...result,
             submittedAt: new Date().toISOString(), submittedDay: day, project });
-          uploaded.push(result);
+          uploaded.push(result); delivered = true;
+          if (decision.upload) {
+            // Independent of the Modelo 3D: a failure here never undoes the delivery.
+            try {
+              const saved = await uploadProject(page, model, { signal: options.signal });
+              project = { ...project, ...saved, message: saved.status === 'already' ? 'El 3MF ya estaba en la Galería de Proyectos.' : 'Subido a la Galería de Proyectos.', finishedAt: new Date().toISOString() };
+            } catch (error) {
+              project = { ...project, status: 'failed', code: error.code || 'PROJECT_FAILED', message: error.message, finishedAt: new Date().toISOString() };
+              const shot = await captureDiagnosticScreenshot(page, 'uploadDesigns', error.code || 'PROJECT_FAILED').catch(() => null);
+              if (shot) screenshots.push(shot);
+            }
+            await library.record(account, entry, { project });
+            if (options.signal?.aborted) throw options.signal.reason || new Error('Ejecución cancelada.');
+          }
           projectUploads.push({ name: entry.name, ...project });
         } catch (error) {
+          // Only an abort during the Projects step gets here after the delivery.
+          if (delivered) throw error;
           const uncertain = submitting && error.code !== 'UPLOAD_REJECTED';
           await library.record(account, entry, { status: uncertain ? 'uncertain' : 'failed', day, source, error: error.message });
           failures.push({ name: entry.name, message: error.message, code: error.code || 'UPLOAD_FAILED', uncertain });
@@ -68,8 +83,10 @@ export async function runUploadDesigns(task = {}, options = {}, deps = {}) {
   const missing = Math.max(0, (source === 'schedule' ? task.dailyLimit : selection.items.length) - selection.used - uploaded.length);
   const message = failures.length ? `${uploaded.length} diseños entregados. ${failures[0].name}: ${failures[0].message}` : uploaded.length ?
     `${uploaded.length} diseños entregados a Creality Cloud. Recompensa pendiente de aprobación.${missing ? ` Faltan ${missing} diseños para el objetivo diario.` : ''}` : 'El contador Upload Models ya ha alcanzado el límite diario.';
-  const pendingProjects = projectUploads.filter(item => item.upload).length;
-  const projectNote = pendingProjects ? ` Proyectos: ${pendingProjects} pendiente${pendingProjects === 1 ? '' : 's'} de subir.` : '';
+  const sentProjects = projectUploads.filter(item => ['uploaded', 'already'].includes(item.status)).length;
+  const failedProjects = projectUploads.filter(item => item.status === 'failed');
+  const projectNote = (sentProjects ? ` Proyectos: ${sentProjects} en la Galería.` : '') +
+    (failedProjects.length ? ` No se pudo subir a Proyectos ${failedProjects[0].name}: ${failedProjects[0].message}` : '');
   return { success: failures.length === 0, message: message + projectNote, screenshots, details: { uploaded, failures, missing, projectUploads,
     rewardVerification: { status: 'pending', before }, rewardPending: uploaded.length > 0 } };
 }
