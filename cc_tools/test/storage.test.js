@@ -16,6 +16,25 @@ after(async () => {
   await fs.rm(temporaryDataDir, { recursive: true, force: true });
 });
 
+test('seguimiento persiste separado del índice y sobrevive a actualizaciones simultáneas y a quitar un favorito', async () => {
+  const initial = await storage.readConfig();
+  initial.crealityFavorites.push({ userId: '200', name: 'Autor', indexedModelCount: 4, indexStatus: 'ready' });
+  await storage.writeConfig(initial);
+  const indexing = await storage.readConfig();
+  const follow = await storage.readConfig();
+  const record = { accountUserId: '100', status: 'following', checkedAt: '2026-11-28T12:00:00Z', error: '' };
+  follow.crealityFavoriteFollowing['200'] = record;
+  await storage.writeConfig(follow);
+  indexing.crealityFavorites.find(p => p.userId === '200').indexedModelCount = 8;
+  await storage.writeConfig(indexing);
+  const current = await storage.readConfig();
+  assert.deepEqual(current.crealityFavoriteFollowing['200'], record);
+  assert.equal(current.crealityFavorites.find(p => p.userId === '200').indexedModelCount, 8);
+  current.crealityFavorites = current.crealityFavorites.filter(p => p.userId !== '200');
+  await storage.writeConfig(current);
+  assert.deepEqual((await storage.readConfig()).crealityFavoriteFollowing['200'], record);
+});
+
 test('retira la selección antigua de navegador al leer y guardar la configuración', async () => {
   await fs.writeFile(path.join(temporaryDataDir, 'config.json'), JSON.stringify({ browserConnectionMode: 'standard' }));
   const config = await storage.readConfig();

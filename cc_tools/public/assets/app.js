@@ -37,6 +37,7 @@ const state = {
   finishPrintStatusSelections: {},
   finishPrintStatusFiles: { files: [], loading: false, error: '' },
   favoriteProfilesRefreshRunning: false,
+  favoriteFollowing: { running: false },
   commentDrafts: [],
   commentEditingId: '',
   schedule: {
@@ -67,6 +68,7 @@ let profileRefreshAttempted = false;
 let setupAccountRefreshPromise = null;
 let favoriteRefreshPollTimer = null;
 let favoriteRefreshPollCount = 0;
+let favoriteFollowingPollTimer = null;
 const DEFAULT_FAVORITE_USER_ID = '7963944884';
 
 const $ = (selector) => document.querySelector(selector);
@@ -595,12 +597,18 @@ for (const button of $$('.tab-button')) {
 
 $('#add-favorite-profile').addEventListener('click', addFavoriteProfile);
 $('#refresh-favorite-profiles').addEventListener('click', refreshFavoriteProfiles);
+$('#review-favorite-following').addEventListener('click', () => startFavoriteFollowing());
 fields.favoriteProfileUrl.addEventListener('keydown', (event) => {
   if (event.key !== 'Enter') return;
   event.preventDefault();
   addFavoriteProfile();
 });
 fields.favoriteProfilesList.addEventListener('click', async (event) => {
+  const followButton = event.target.closest('[data-follow-favorite]');
+  if (followButton) {
+    await startFavoriteFollowing(followButton.dataset.followFavorite);
+    return;
+  }
   const button = event.target.closest('[data-remove-favorite]');
   if (!button) return;
   if (button.dataset.removeFavorite === DEFAULT_FAVORITE_USER_ID) return;
@@ -615,7 +623,7 @@ fields.favoriteProfilesList.addEventListener('click', async (event) => {
   }
   state.config.crealityFavorites = result.favorites;
   renderFavoriteProfiles(result.favorites);
-  toast('Perfil eliminado de favoritos.');
+  toast('Perfil eliminado de favoritos. Su seguimiento en Creality Cloud se mantiene.');
 });
 
 fields.crealityEnabled.addEventListener('change', async () => {
@@ -1339,6 +1347,7 @@ async function refresh() {
   state.nextExecutions = result.nextExecutions || {};
   state.runtimePaths = result.runtimePaths || {};
   state.favoriteProfilesRefreshRunning = result.favoriteProfilesRefreshRunning === true;
+  state.favoriteFollowing = result.favoriteFollowing || { running: false };
   state.commentDrafts = structuredClone(result.config.tasks.comments?.comments || []);
   state.dailyCounters = result.dailyCounters || {};
   state.dailyLimits = result.dailyLimits || {};
@@ -1349,6 +1358,7 @@ async function refresh() {
   render();
   setFavoriteRefreshButtonLoading(state.favoriteProfilesRefreshRunning);
   if (state.favoriteProfilesRefreshRunning && !favoriteRefreshPollTimer) startFavoriteRefreshPolling();
+  if (state.favoriteFollowing.running && !favoriteFollowingPollTimer) pollFavoriteFollowing();
   maybeShowWizard();
   refreshCrealityProfile(result.browser).catch(() => {});
 }
@@ -1370,6 +1380,7 @@ async function refreshCrealityProfile(browser = { mode: 'idle' }, { force = fals
   state.config.crealityProfile = result.profile;
   state.config.crealitySession = result.session || state.config.crealitySession || {};
   renderCrealityProfile(result.profile);
+  renderFavoriteProfiles(state.config.crealityFavorites || []);
 }
 
 function refreshSetupAccountData() {
@@ -3253,6 +3264,11 @@ function renderCrealityProfile(profile = {}) {
 }
 
 function renderFavoriteProfiles(profiles = []) {
+  const review = $('#review-favorite-following');
+  const job = state.favoriteFollowing;
+  review.disabled = job.running;
+  review.textContent = job.running ? `Comprobando ${job.completed || 0}/${job.total || 0}…` : 'Revisar seguimiento';
+  review.setAttribute('aria-busy', String(job.running));
   fields.favoriteProfilesList.innerHTML = profiles.map((profile) => {
     const name = String(profile.name || 'Perfil de Creality Cloud').trim();
     const initial = name.charAt(0).toLocaleUpperCase('es-ES') || '?';
@@ -3266,6 +3282,16 @@ function renderFavoriteProfiles(profiles = []) {
     const status = favoriteIndexStatus(profile.indexStatus);
     const indexedCount = Math.max(0, Number(profile.indexedModelCount) || 0);
     const lastIndexed = profile.lastModelIndexedAt ? formatShortDate(profile.lastModelIndexedAt) : '-';
+    const savedFollow = state.config?.crealityFavoriteFollowing?.[profile.userId];
+    const follow = savedFollow?.accountUserId === String(state.config?.crealityProfile?.userId || '') ? savedFollow : null;
+    const followed = follow?.status === 'following' && Boolean(follow.checkedAt);
+    const own = String(profile.userId) === String(state.config?.crealityProfile?.userId || '');
+    const followLabel = followed ? 'Seguido' : follow?.error ? 'Sin verificar' : follow?.status === 'not_following' ? 'No seguido' : 'Sin comprobar';
+    const followTitle = follow?.error ? errorMessage(follow.error) : follow?.checkedAt ? `Comprobado: ${formatShortDate(follow.checkedAt)}` : 'Pulsa Revisar seguimiento para comprobarlo.';
+    const followAction = own ? '<span class="muted">Tu perfil</span>' : `<span class="favorite-profile-follow">
+      <small class="${followed ? 'is-followed' : ''}" title="${escapeHtml(followTitle)}">${followLabel}</small>
+      ${followed ? '' : `<button class="secondary" type="button" data-follow-favorite="${escapeHtml(profile.userId)}" aria-label="Seguir a ${escapeHtml(name)}" ${job.running ? 'disabled' : ''}>Seguir</button>`}
+    </span>`;
     return `<article class="favorite-profile-card">
       <a class="favorite-profile-link" href="${escapeHtml(profile.profileUrl)}" target="_blank" rel="noreferrer">
         <span class="favorite-profile-avatar"><span>${escapeHtml(initial)}</span>${avatar}</span>
@@ -3276,7 +3302,7 @@ function renderFavoriteProfiles(profiles = []) {
         <span class="favorite-profile-metric"><small>Diseños</small><strong>${indexedCount}</strong></span>
         <span class="favorite-profile-metric"><small>Último diseño</small><strong>${escapeHtml(lastIndexed)}</strong></span>
       </div>
-      ${remove}
+      <div class="favorite-profile-controls">${followAction}${remove}</div>
     </article>`;
   }).join('');
 
@@ -3296,6 +3322,7 @@ function favoriteIndexStatus(value) {
 }
 
 async function addFavoriteProfile() {
+  if ($('#add-favorite-profile').disabled) return;
   const url = fields.favoriteProfileUrl.value.trim();
   if (!url) {
     toast('Introduce la URL del perfil de Creality Cloud.');
@@ -3314,9 +3341,57 @@ async function addFavoriteProfile() {
     fields.favoriteProfileUrl.value = '';
     renderFavoriteProfiles(result.favorites);
     toast('Perfil añadido a favoritos.');
+    if (confirm('Perfil guardado en Favoritos. ¿Quieres seguirlo también en Creality Cloud? Aceptar: seguir el perfil. Cancelar: dejarlo solo en Favoritos. Si después lo quitas de Favoritos, seguirás siguiéndolo.')) {
+      await startFavoriteFollowing(result.userId);
+    }
   } finally {
     button.disabled = false;
   }
+}
+
+async function startFavoriteFollowing(userId = '') {
+  if (state.favoriteFollowing.running) return;
+  state.favoriteFollowing = { running: true, completed: 0, total: 0 };
+  renderFavoriteProfiles(state.config.crealityFavorites);
+  const endpoint = userId ? `/api/creality/favorites/${encodeURIComponent(userId)}/follow` : '/api/creality/favorites/following/refresh';
+  try {
+    const result = await api(endpoint, { method: 'POST' });
+    if (!result.ok) {
+      state.favoriteFollowing = { running: false };
+      renderFavoriteProfiles(state.config.crealityFavorites);
+      toast(errorMessage(result.error, result));
+      return;
+    }
+    state.favoriteFollowing = result.job;
+    toast(userId ? 'Comprobando y siguiendo el perfil…' : 'Revisión del seguimiento iniciada.');
+    pollFavoriteFollowing();
+  } catch {
+    state.favoriteFollowing = { running: false };
+    renderFavoriteProfiles(state.config.crealityFavorites);
+    toast('No se pudo iniciar la revisión del seguimiento.');
+  }
+}
+
+function pollFavoriteFollowing() {
+  if (favoriteFollowingPollTimer) clearTimeout(favoriteFollowingPollTimer);
+  favoriteFollowingPollTimer = setTimeout(async () => {
+    favoriteFollowingPollTimer = null;
+    try {
+      const result = await api('/api/creality/favorites/following');
+      if (!result.ok) throw new Error();
+      state.favoriteFollowing = result.job;
+      state.config.crealityFavoriteFollowing = result.following || {};
+      renderFavoriteProfiles(state.config.crealityFavorites);
+      if (result.job.running) pollFavoriteFollowing();
+      else toast(result.job.error ? errorMessage(result.job.error) : result.job.errors
+        ? 'La revisión terminó con perfiles sin verificar. Consulta su estado y vuelve a intentarlo.'
+        : result.job.kind === 'follow' ? 'Seguimiento comprobado: perfil seguido.' : 'Revisión del seguimiento completada.');
+    } catch {
+      state.favoriteFollowing = { running: false };
+      renderFavoriteProfiles(state.config.crealityFavorites);
+      toast('No se pudo consultar el progreso del seguimiento. Recarga la página para recuperarlo.');
+    }
+  }, 1500);
 }
 
 async function refreshFavoriteProfiles() {
@@ -4220,6 +4295,11 @@ function errorMessage(error, payload = {}) {
     FAVORITE_PROFILE_NOT_FOUND: 'No se pudo encontrar ese perfil en Creality Cloud.',
     FAVORITE_PROFILE_DEFAULT: 'El perfil predeterminado no se puede eliminar.',
     FAVORITE_PROFILE_UNAVAILABLE: 'No se pudieron obtener los datos del perfil.',
+    FAVORITE_FOLLOW_BUSY: 'Ya hay una revisión del seguimiento en curso.',
+    FAVORITE_FOLLOW_NOT_CONFIRMED: 'Creality Cloud no confirmó el seguimiento. Puedes volver a intentarlo.',
+    FAVORITE_FOLLOW_UNAVAILABLE: 'No se pudo comprobar el seguimiento. Puedes volver a intentarlo.',
+    FAVORITE_FOLLOW_ACCOUNT_CHANGED: 'La cuenta conectada ha cambiado. Actualiza tu perfil en Sesión antes de continuar.',
+    LOGIN_REQUIRED: 'Inicia sesión en Creality Cloud antes de comprobar o seguir perfiles.',
     FINISH_PRINT_PRINTER_DUPLICATE: 'Cada impresora solo puede aparecer en un bloque.',
     FINISH_PRINT_PRINTER_REQUIRED: 'Selecciona una impresora en cada bloque.',
     FINISH_PRINT_FILE_REQUIRED: 'Selecciona y guarda al menos un archivo G-code por impresora.',

@@ -1,5 +1,12 @@
 # Changelog
 
+## Pendiente de publicación — Seguimiento opcional de favoritos
+
+- Al añadir un perfil a Favoritos, se pregunta si también quieres seguirlo en Creality Cloud. Puedes guardarlo sin seguirlo y hacerlo más adelante con el botón **Seguir** del perfil.
+- **Seguido** solo aparece tras verificar el seguimiento con la cuenta conectada. Se comprueba de nuevo después de seguir un perfil; los errores quedan como **Sin verificar** y permiten reintentar.
+- **Revisar seguimiento** consulta los favoritos en un proceso manual independiente. La actualización de diseños y las tareas diarias no comprueban el seguimiento.
+- Quitar un perfil de Favoritos mantiene su seguimiento en Creality Cloud.
+
 ## 1.0.72 — Cupos guardados de MakeNow, pausa de comentarios y versión visible
 
 - **Crea un proyecto** usa los cupos guardados de cada herramienta y solo comprueba la herramienta elegida antes de crear el proyecto, en lugar de revisar las ocho en cada ejecución (antes tardaba casi dos minutos). Después de crearlo suma uno a su contador. Las ocho se consultan de nuevo si no hay cupos guardados, si la última consulta completa tiene más de 7 días, si según lo guardado ninguna tiene espacio, o al pulsar el nuevo botón **Actualizar cupos**, que no crea ningún proyecto ni cambia la próxima ejecución programada.
