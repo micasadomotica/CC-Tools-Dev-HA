@@ -51,6 +51,7 @@ import {
 import { readCrealityProfile } from './crealityProfile.js';
 import { startDesignMetadataRepair, stopDesignMetadataRepair } from './designMetadataRepair.js';
 import { readFavoriteProfile } from './crealityFavoriteProfile.js';
+import { favoriteFollowing } from './favoriteFollowing.js';
 import { DEFAULT_FAVORITE_PROFILES, normalizeFavoriteProfiles, parseFavoriteProfileUrl } from './favoriteProfiles.js';
 import {
   favoriteProfilesRefreshRunning,
@@ -152,6 +153,7 @@ app.get('/api/status', async (req, res) => {
     browser: browserManagerState(),
     runtimePaths: { downloads: tempDownloadsDir() },
     favoriteProfilesRefreshRunning: favoriteProfilesRefreshRunning(),
+    favoriteFollowing: favoriteFollowing.state(),
     config: sanitizeConfig(config),
     nextExecutions: buildNextExecutions(config, runs),
     dailyCounters: buildDailyCounters(config, runs),
@@ -333,7 +335,7 @@ app.post('/api/creality/favorites', async (req, res) => {
     config.crealityFavorites = normalizeFavoriteProfiles([...favorites, profile]);
     await writeConfig(config);
     queueFavoriteProfileSync(profile, { full: true, source: 'manual' });
-    return res.json({ ok: true, favorites: config.crealityFavorites });
+    return res.json({ ok: true, favorites: config.crealityFavorites, userId: profile.userId });
   } catch (error) {
     return res.status(409).json({
       ok: false,
@@ -341,6 +343,28 @@ app.post('/api/creality/favorites', async (req, res) => {
     });
   }
 });
+
+app.get('/api/creality/favorites/following', async (_req, res) => {
+  const config = await readConfig();
+  res.json({ ok: true, job: favoriteFollowing.state(), following: config.crealityFavoriteFollowing,
+    accountUserId: String(config.crealityProfile?.userId || '') });
+});
+
+function startFavoriteFollowing(req, res) {
+  if (schedulerState().running || browserManagerState().mode !== 'idle') {
+    return res.status(409).json({ ok: false, error: 'BROWSER_BUSY' });
+  }
+  const userId = req.params.userId || '';
+  if (userId && !/^\d+$/.test(userId)) return res.status(400).json({ ok: false, error: 'FAVORITE_PROFILE_URL_INVALID' });
+  try {
+    return res.status(202).json({ ok: true, job: favoriteFollowing.start(userId) });
+  } catch (error) {
+    return res.status(409).json({ ok: false, error: error.code || 'FAVORITE_FOLLOW_UNAVAILABLE' });
+  }
+}
+
+app.post('/api/creality/favorites/following/refresh', startFavoriteFollowing);
+app.post('/api/creality/favorites/:userId/follow', startFavoriteFollowing);
 
 app.post('/api/creality/favorites/refresh', async (req, res) => {
   const config = await readConfig();

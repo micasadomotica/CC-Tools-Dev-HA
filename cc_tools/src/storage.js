@@ -45,6 +45,7 @@ const DEFAULT_CONFIG = {
     autoLoginLastMessage: ''
   },
   crealityFavorites: DEFAULT_FAVORITE_PROFILES.map(profile => ({ ...profile })),
+  crealityFavoriteFollowing: {},
   automationHealth: {
     state: 'active',
     reasonCode: '',

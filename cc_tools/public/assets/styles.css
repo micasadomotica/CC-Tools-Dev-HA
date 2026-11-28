@@ -3007,7 +3007,16 @@ textarea {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.035);
+  flex-wrap: wrap;
 }
+
+.favorite-profile-controls { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+.favorite-profile-follow { display: grid; gap: 4px; text-align: center; }
+.favorite-profile-follow small { color: var(--muted); font-size: 0.7rem; }
+.favorite-profile-follow .is-followed { color: var(--accent); font-weight: 700; }
+.favorite-profile-follow button { padding: 6px 10px; font-size: 0.75rem; }
+.favorite-follow-review { margin-top: 18px; }
+.favorite-follow-review p { font-size: 0.8rem; line-height: 1.5; }
 
 .favorite-profile-link {
   display: flex;
