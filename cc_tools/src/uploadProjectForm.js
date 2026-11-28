@@ -1,7 +1,7 @@
 import path from 'node:path';
 
 // Galería de Proyectos (Banco de trabajo / FlowSlicer). "Importar archivo local"
-// opens FlowSlicer, a Flutter app inside an iframe: it reads the 3MF, uploads it
+// opens FlowSlicer inside an iframe: its 3D viewer reads the 3MF, uploads it
 // and creates the project with flowSlicerSave when its plate dialog is saved.
 export const PROJECTS_URL = 'https://www.crealitycloud.com/es/flowslicer/project?tab=project';
 export const PROJECT_SAVE_PATH = '/api/cxy/v3/model/flowSlicerSave';
@@ -50,17 +50,16 @@ async function listProjects(page) {
   return payload.result.list;
 }
 
-// Flutter draws on a canvas. Clicking its hidden placeholder turns on the
-// accessibility tree, which exposes the buttons with their names.
-async function clickFlutterButton(page, name, { timeout, signal }) {
+// The "Select Plate" dialog belongs to FlowSlicer's 3D viewer, an HTML page
+// (web_slice/index.html) nested in the FlowSlicer iframe. Its Save button is a
+// regular <button class="el-button save">, unlike the Flutter editor canvas.
+async function clickPlateSave(page, { timeout, signal }) {
   const deadline = Date.now() + timeout;
   while (Date.now() < deadline) {
     signal?.throwIfAborted();
     for (const frame of page.frames().filter(frame => frame.url().includes('/flow-slicer/'))) {
-      const placeholder = frame.locator('flt-semantics-placeholder');
-      if (await placeholder.count().catch(() => 0)) await placeholder.first().evaluate(element => element.click()).catch(() => {});
-      const button = frame.getByRole('button', { name, exact: true }).first();
-      if (await button.isVisible().catch(() => false)) { await button.click(); return; }
+      const button = frame.locator('.ThreeMFViewer button.el-button.save').filter({ hasText: /^\s*Save\s*$/ }).first();
+      if (await button.isVisible().catch(() => false) && await button.isEnabled().catch(() => false)) { await button.click(); return; }
     }
     await page.waitForTimeout(1000);
   }
@@ -80,7 +79,7 @@ export async function uploadProject(page, model, { signal, timeout = 180000 } = 
     new URL(response.url()).pathname === PROJECT_SAVE_PATH, { timeout });
   saved.catch(() => {});
   await input.setInputFiles(model.modelPath);
-  await clickFlutterButton(page, 'Save', { timeout, signal });
+  await clickPlateSave(page, { timeout, signal });
   const response = await saved;
   const payload = await response.json().catch(() => null);
   if (payload && Number.isFinite(payload.code) && payload.code !== 0) throw fail('PROJECT_REJECTED', payload.msg || 'Creality rechazó el proyecto.');
