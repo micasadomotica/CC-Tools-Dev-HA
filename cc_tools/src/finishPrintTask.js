@@ -48,6 +48,7 @@ export async function startVirtualPrint(taskConfig = {}) {
       deviceName: taskConfig.printerDeviceName,
       printerInterName: taskConfig.printerInterName,
       deviceType: taskConfig.printerDeviceType,
+      telemetryId: taskConfig.printerTelemetryId,
       file,
       timezone: taskConfig.timezone || 'Europe/Madrid'
     });

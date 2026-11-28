@@ -147,6 +147,9 @@ async function runTracedTask(taskId, source, options) {
     const status = result.skipped ? 'skipped' : result.success ? 'success' : 'failed';
     const message = formatRunMessage(taskId, status, result);
 
+    if (result.skipped && source === 'schedule' && taskId === 'finishPrint' && result.details?.printerBusy) {
+      return await deferBusyFinishPrint(result, message, startedAt, scheduledFor);
+    }
     if (result.skipped && source === 'schedule' && taskId !== 'makeNow') {
       const freshConfig = await readConfig();
       updateModelBoostState(freshConfig, taskId, result);
@@ -343,6 +346,32 @@ async function runTracedTask(taskId, source, options) {
     console.log(`[scheduler] Fin: ${taskDisplayName(taskId)} · ${source} · ${elapsedSeconds} s`);
     releaseSchedulerRun(runToken);
   }
+}
+
+// The printer is still printing (e.g. a 3MF sent from FlowSlicer): keep the
+// pending print slot and move it, and the rest of today's plan, after it.
+async function deferBusyFinishPrint(result, message, startedAt, scheduledFor) {
+  const freshConfig = await readConfig();
+  const task = freshConfig.tasks.finishPrint;
+  delayPendingTaskPlan(task, 'finishPrint', result.details.retryAt);
+  syncActiveFinishPrintProfile(task);
+  activateNextFinishPrintProfile(task);
+  await writeConfig(freshConfig);
+  await appendRun({
+    taskId: 'finishPrint',
+    source: 'schedule',
+    status: 'skipped',
+    message,
+    startedAt,
+    scheduledFor,
+    finishedAt: new Date().toISOString(),
+    screenshots: [],
+    details: result.details
+  }).catch((error) => {
+    console.error('[scheduler] No se pudo registrar el aplazamiento:', error?.message || String(error));
+  });
+  console.log(`[scheduler] Impresora ocupada · Finalizar impresión aplazada hasta ${result.details.retryAt}`);
+  return { status: 'skipped', message };
 }
 
 async function deferScheduledServiceFailure(taskId, failure, startedAt = new Date().toISOString(), scheduledFor = '') {

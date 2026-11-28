@@ -16,6 +16,36 @@ const PRINT_RECORD_DETAIL_PATH = '/api/cxy/v3/print/record/detail';
 const FINISH_PRINT_INCENTIVE_TITLE = 'Finish a Print';
 const SELECT_DEVICE_BASE_URL = 'https://www.crealitycloud.com/es/workbench-beta/select-device';
 const PRINT_REQUEST_TIMEOUT_MS = 60 * 1000;
+const BUSY_RETRY_MIN_MS = 10 * 60 * 1000;
+const BUSY_RETRY_MAX_MS = 3 * 60 * 60 * 1000;
+const BUSY_RETRY_MARGIN_MS = 2 * 60 * 1000;
+
+// Telemetry "state" attribute: 1 = printing, 5 = paused (see finishPrintStatus).
+// Starting a new task on a busy printer cancels the running print (it ends in
+// printState 3), so the scheduled task must wait for it to finish.
+export function printerBusyFromTelemetry(attributesPayload, timeseriesPayload, now = new Date()) {
+  const attributes = Object.fromEntries((Array.isArray(attributesPayload?.result) ? attributesPayload.result : [])
+    .filter((record) => record && record.key)
+    .map((record) => [String(record.key), record.value]));
+  const state = Number(attributes.state);
+  if (Number(attributes.connect) === 0) return null;
+  if (![1, 5].includes(state)) return null;
+  const samples = timeseriesPayload?.result?.printLeftTime;
+  const latest = Array.isArray(samples) && samples.length
+    ? samples.reduce((best, sample) => Number(sample?.ts || 0) > Number(best?.ts || 0) ? sample : best, samples[0])
+    : null;
+  const remainingSeconds = Math.max(0, Number(latest?.value) || 0);
+  const delayMs = Math.min(BUSY_RETRY_MAX_MS, Math.max(BUSY_RETRY_MIN_MS, remainingSeconds * 1000 + BUSY_RETRY_MARGIN_MS));
+  const fileName = String(attributes.filename || attributes.print || '').trim();
+  return {
+    state,
+    paused: state === 5,
+    printId: String(attributes.printId || '').trim(),
+    fileName,
+    remainingSeconds,
+    retryAt: new Date(now.getTime() + delayMs).toISOString()
+  };
+}
 
 export function buildPrintCheckPayload({ deviceName, gcodeId }) {
   return {
@@ -127,6 +157,7 @@ export function executeVirtualPrint({
   deviceName,
   printerInterName,
   deviceType,
+  telemetryId = '',
   file,
   timezone = 'Europe/Madrid'
 }) {
@@ -154,6 +185,18 @@ export function executeVirtualPrint({
           rewardVerification: { status: 'already_completed', before: incentiveBefore, after: incentiveBefore } };
       }
       const authenticationHeaders = await workbenchAuthenticationHeaders(page, gcodeId);
+      const busy = await readPrinterBusy(page, telemetryId, authenticationHeaders);
+      if (busy) {
+        const minutes = Math.max(1, Math.round((new Date(busy.retryAt).getTime() - Date.now()) / 60000));
+        return {
+          skipped: true,
+          printerBusy: true,
+          busy,
+          retryAt: busy.retryAt,
+          message: `La impresora está ${busy.paused ? 'en pausa' : 'imprimiendo'}${busy.fileName ? ` (${busy.fileName})` : ''}; `
+            + `no se interrumpe y se reintentará en ${minutes} min.`
+        };
+      }
       const checkPayload = buildPrintCheckPayload({ deviceName: normalizedDeviceName, gcodeId });
       const check = await requestJson(
         page,
@@ -196,6 +239,36 @@ export function executeVirtualPrint({
       observer.stop();
     }
   });
+}
+
+// Best effort: if the telemetry cannot be read, keep the previous behaviour.
+async function readPrinterBusy(page, telemetryId, authenticationHeaders) {
+  const id = String(telemetryId || '').trim();
+  if (!id) return null;
+  const encoded = encodeURIComponent(id);
+  const [attributes, timeseries] = await page.evaluate(async ({ paths, headers, timeoutMs }) => {
+    const read = async (endpoint) => {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const result = await fetch(endpoint, { method: 'GET', credentials: 'include', headers, signal: controller.signal });
+        return result.ok ? JSON.parse(await result.text() || '{}') : null;
+      } catch {
+        return null;
+      } finally {
+        clearTimeout(timeout);
+      }
+    };
+    return Promise.all(paths.map(read));
+  }, {
+    paths: [
+      `/api/rest/iotrouter/plugins/telemetry/${encoded}/values/attributes`,
+      `/api/rest/iotrouter/${encoded}/values/timeseries`
+    ],
+    headers: authenticationHeaders,
+    timeoutMs: PRINT_REQUEST_TIMEOUT_MS
+  }).catch(() => [null, null]);
+  return printerBusyFromTelemetry(attributes, timeseries);
 }
 
 export function verifyVirtualPrint({ printId, gcodeId, rewardBefore, timezone = 'Europe/Madrid' }) {
