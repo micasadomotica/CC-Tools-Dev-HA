@@ -19,7 +19,7 @@ const selected = items => items.map(({ id, name, fingerprint, modelHash }) => ({
 const schedule = entries => ({ enabled: true, dailyLimit: entries.length, windowStart: '08:00', windowEnd: '12:00', selected: entries });
 
 test('lee UTF-8, BOM, saltos Windows, etiquetas únicas y descripción multilínea', () => {
-  assert.deepEqual(parseUploadInfo('\ufeffETIQUETAS:\r\ncaja; caja, 3D\r\n\r\nDESCRIPCIÓN:\r\nUna caja.\r\nSegunda línea.'), { tags: ['caja', '3D'], description: 'Una caja.\nSegunda línea.' });
+  assert.deepEqual(parseUploadInfo('\ufeffETIQUETAS:\r\ncaja; caja, 3D\r\n\r\nDESCRIPCIÓN:\r\nUna caja.\r\nSegunda línea.'), { tags: ['caja', '3D'], description: 'Una caja.\nSegunda línea.', projectUpload: false });
   assert.throws(() => parseUploadInfo('ETIQUETAS:\n\nDESCRIPCION:\nTexto'), /Faltan etiquetas/);
   assert.throws(() => parseUploadInfo('ETIQUETAS:\ncaja\nDESCRIPCION:\n'), /Falta descripción/);
   assert.throws(() => parseUploadInfo('Texto libre'), /debe contener/);

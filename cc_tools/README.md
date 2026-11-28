@@ -140,6 +140,7 @@ Ejemplo de `info.txt`:
 
 ```text
 CATEGORIA: Impresoras 3D / Otro
+SUBIR: Si
 ETIQUETAS: caja, organizador
 DESCRIPCION: Caja organizadora con compartimentos para piezas pequeñas.
 ```
@@ -147,6 +148,8 @@ DESCRIPCION: Caja organizadora con compartimentos para piezas pequeñas.
 Dev valida los archivos y detecta duplicados por su contenido. Selecciona los diseños y pulsa **Subir seleccionados**, o configura la cantidad diaria, la franja horaria y los diseños de la primera ejecución y pulsa **Programar**.
 
 La **categoría predeterminada** se guarda al cambiar los selectores de categoría y subcategoría y se aplica tanto a subidas manuales como programadas. Su valor inicial es **Impresoras 3D / Otro**. La línea opcional `CATEGORIA: Categoría / Subcategoría` de `info.txt` tiene prioridad para ese diseño. Si falta o está vacía, se usa el selector. Si no coincide con una combinación disponible, el diseño se marca para revisar; no se sustituye por otra categoría. Puedes consultar las diez categorías y sus subcategorías en los selectores del módulo.
+
+La línea opcional `SUBIR: Si` o `SUBIR: No` indica si el 3MF del diseño se sube también a la **Galería de Proyectos** del Banco de trabajo y FlowSlicer, donde aparece en **Archivos de impresión** del perfil. Es independiente del archivo publicado como Modelo 3D. Si falta o está vacía cuenta como No; otro valor marca el diseño para revisar. La casilla **Cancelar subida 3MF a Proyectos** de la programación, desmarcada por defecto, tiene prioridad sobre info.txt. La subida real a Proyectos todavía no está disponible: de momento se registra la decisión de cada diseño en el historial.
 
 La subida automatiza el formulario web de Creality Cloud: carga los archivos, completa las etiquetas y la descripción y entrega el diseño como **Original, Gratis y Público**, en la categoría indicada en `info.txt` o en el selector del módulo, con licencia **CC BY-NC**. Al subir o programar autorizas que acepte la declaración de derechos de autor para esos diseños.
 

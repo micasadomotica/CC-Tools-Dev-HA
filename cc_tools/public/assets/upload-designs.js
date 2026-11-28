@@ -33,6 +33,7 @@ function accept(result, reset = false) {
     $('uploads-limit').value = result.schedule.dailyLimit;
     $('uploads-start').value = result.schedule.windowStart; $('uploads-end').value = result.schedule.windowEnd;
     $('uploads-cleanup').checked = result.schedule.cleanupEnabled === true;
+    $('uploads-projects-cancel').checked = result.schedule.projectUploadCancelled === true;
   }
   for (const mode of ['manual','schedule']) draft[mode] = draft[mode].filter(entry => result.inventory.some(item => item.available && item.id === entry.id && item.fingerprint === entry.fingerprint));
   $('uploads-root').textContent = result.root;
@@ -46,7 +47,7 @@ function controls() {
   const invalid = busy || !library || !!library.libraryError;
   $('uploads-run').disabled = invalid || !count || count > 5;
   $('uploads-program').disabled = invalid || !Number.isInteger(n) || n < 1 || n > 5 || draft.schedule.length !== n || !$('uploads-start').value || !$('uploads-end').value || $('uploads-start').value >= $('uploads-end').value;
-  for (const id of ['uploads-scan','uploads-plan-scan','uploads-import','uploads-limit','uploads-start','uploads-end','uploads-cleanup','uploads-category','uploads-subcategory']) $(id).disabled = busy;
+  for (const id of ['uploads-scan','uploads-plan-scan','uploads-import','uploads-limit','uploads-start','uploads-end','uploads-cleanup','uploads-projects-cancel','uploads-category','uploads-subcategory']) $(id).disabled = busy;
   $('uploads-category').disabled = $('uploads-subcategory').disabled = busy || !library?.categories?.length;
   for (const input of modal.querySelectorAll('[data-upload-id]')) {
     const mode = input.dataset.mode, item = library?.inventory.find(item => item.id === input.dataset.uploadId);
@@ -64,6 +65,10 @@ function deliveryDateMarkup(delivery) {
   }
   return '<small>Fecha no disponible</small>';
 }
+function projectLabel(item) {
+  if (!item.projectUpload) return 'No <small class="muted">(info.txt)</small>';
+  return library?.schedule.projectUploadCancelled ? 'No <small class="muted">(cancelada en la programación; info.txt indica Si)</small>' : 'Sí <small class="muted">(info.txt)</small>';
+}
 function render() {
   const items = library?.inventory || [];
   $('uploads-library-error').hidden = !library?.libraryError; $('uploads-library-error').textContent = library?.libraryError || '';
@@ -71,7 +76,7 @@ function render() {
   $('uploads-list').innerHTML = items.length ? items.map(item => {
     const status = item.delivery?.status;
     const label = status === 'submitted' ? `Entregado${deliveryDateMarkup(item.delivery)}` : ['submitting','uncertain'].includes(status) ? 'Pendiente de comprobar' : item.valid ? 'Disponible' : 'Revisar';
-    return `<article class="upload-model">${check(item,'manual')}${item.coverFile ? `<img class="upload-cover" loading="lazy" src="/api/upload-designs/cover/${item.id}?v=${encodeURIComponent(library.scannedAt)}" alt="Portada de ${escape(item.name)}">` : '<div class="upload-cover upload-cover-empty">Sin portada</div>'}<div class="upload-model-body"><div class="upload-model-heading"><strong>${escape(item.name)}</strong><span class="upload-status ${item.available ? 'is-valid' : 'is-invalid'}">${label}</span></div><small class="muted">${escape(item.folder)}</small>${item.errors.map(error=>`<p class="upload-error">${escape(error)}</p>`).join('')}${item.tags ? `<details><summary>Ver información del diseño</summary><p class="upload-category">Categoría: ${escape(item.category?.category)} / ${escape(item.category?.subcategory)} <small class="muted">(${item.categoryOverride ? 'info.txt' : 'predeterminada'})</small></p><p class="upload-tags">${item.tags.map(escape).join(' · ')}</p><p class="upload-description">${escape(item.description)}</p>${(item.warnings||[]).map(w=>`<p class="muted">${escape(w)}</p>`).join('')}</details>`:''}${['submitting','uncertain'].includes(status) ? '<p>Comprueba el Banco de trabajo de Creality antes de volver a enviar este diseño.</p>' : ''}</div></article>`;
+    return `<article class="upload-model">${check(item,'manual')}${item.coverFile ? `<img class="upload-cover" loading="lazy" src="/api/upload-designs/cover/${item.id}?v=${encodeURIComponent(library.scannedAt)}" alt="Portada de ${escape(item.name)}">` : '<div class="upload-cover upload-cover-empty">Sin portada</div>'}<div class="upload-model-body"><div class="upload-model-heading"><strong>${escape(item.name)}</strong><span class="upload-status ${item.available ? 'is-valid' : 'is-invalid'}">${label}</span></div><small class="muted">${escape(item.folder)}</small>${item.errors.map(error=>`<p class="upload-error">${escape(error)}</p>`).join('')}${item.tags ? `<details><summary>Ver información del diseño</summary><p class="upload-category">Categoría: ${escape(item.category?.category)} / ${escape(item.category?.subcategory)} <small class="muted">(${item.categoryOverride ? 'info.txt' : 'predeterminada'})</small></p><p class="upload-project">Subir a Proyectos: ${projectLabel(item)}</p><p class="upload-tags">${item.tags.map(escape).join(' · ')}</p><p class="upload-description">${escape(item.description)}</p>${(item.warnings||[]).map(w=>`<p class="muted">${escape(w)}</p>`).join('')}</details>`:''}${['submitting','uncertain'].includes(status) ? '<p>Comprueba el Banco de trabajo de Creality antes de volver a enviar este diseño.</p>' : ''}</div></article>`;
   }).join('') : '<div class="upload-empty">No hay diseños en la biblioteca. Pulsa el botón de carpeta para añadir un diseño.</div>';
   $('uploads-plan-list').innerHTML = items.filter(item=>item.available).map(item=>`<label class="upload-plan-option">${check(item,'schedule')}<span>${escape(item.name)}</span></label>`).join('') || '<p class="muted">No hay nuevos diseños disponibles.</p>';
   controls();
@@ -112,6 +117,13 @@ $('uploads-cleanup').addEventListener('change', () => work(async () => {
     message(enabled ? 'Limpieza activada. Se comprobarán las entregas de días anteriores aunque la subida esté desactivada.' : 'Limpieza desactivada.');
   } finally { $('uploads-cleanup').checked = library?.schedule.cleanupEnabled === true; }
 }));
+$('uploads-projects-cancel').addEventListener('change', () => work(async () => {
+  const cancelled = $('uploads-projects-cancel').checked;
+  try {
+    accept(await api('/projects', 'PUT', { cancelled }));
+    message(cancelled ? 'Subida 3MF a Proyectos cancelada. No se subirá nada a la Galería de Proyectos aunque info.txt indique SUBIR: Si.' : 'Subida 3MF a Proyectos según info.txt.');
+  } finally { $('uploads-projects-cancel').checked = library?.schedule.projectUploadCancelled === true; }
+}));
 async function scan() { message('Escaneando y validando archivos…'); accept(await api('/scan','POST')); message(library.libraryError || `${library.inventory.filter(i=>i.available).length} diseños disponibles.`,!!library.libraryError); }
 function expand(id,button,value) { $(id).hidden=!value; $(button).setAttribute('aria-expanded',String(value)); }
 async function open(plan=false) {
@@ -148,7 +160,7 @@ $('uploads-enabled').addEventListener('change',event=>{
   else work(async()=>{accept(await api('/schedule/disable','POST'));changed();message('Programación desactivada.');});
 });
 $('uploads-program').addEventListener('click',()=>work(async()=>{
-  accept(await api('/schedule','PUT',{enabled:true,selected:draft.schedule,dailyLimit:Number($('uploads-limit').value),windowStart:$('uploads-start').value,windowEnd:$('uploads-end').value,cleanupEnabled:$('uploads-cleanup').checked}));
+  accept(await api('/schedule','PUT',{enabled:true,selected:draft.schedule,dailyLimit:Number($('uploads-limit').value),windowStart:$('uploads-start').value,windowEnd:$('uploads-end').value,cleanupEnabled:$('uploads-cleanup').checked,projectUploadCancelled:$('uploads-projects-cancel').checked}));
   message('Programación guardada. Puedes consultar la próxima ejecución en Planificación.');changed();
 }));
 $('uploads-run').addEventListener('click',()=>work(async()=>{

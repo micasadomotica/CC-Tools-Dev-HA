@@ -16,7 +16,8 @@ export function uploadDesignRoutes(library = uploadLibrary, services = {}) {
   async function view(state) {
     const config = await read(), task = config.tasks.uploadDesigns;
     const ledger = state.ledger?.[config.crealityProfile?.userId] || {};
-    return { ...state, ledger: undefined, schedule: { ...state.schedule, enabled: task?.enabled === true, cleanupEnabled: task?.cleanupEnabled === true },
+    return { ...state, ledger: undefined, schedule: { ...state.schedule, enabled: task?.enabled === true, cleanupEnabled: task?.cleanupEnabled === true,
+      projectUploadCancelled: task?.projectUploadCancelled === true },
       nextRunAt: task?.nextRunAt || '', lastRunAt: task?.lastRunAt || '',
       lastStatus: task?.lastStatus || '', timezone: config.timezone,
       rewardCount: dailyProgress(config).counters.uploadDesigns || 0,
@@ -49,6 +50,7 @@ export function uploadDesignRoutes(library = uploadLibrary, services = {}) {
     const task = config.tasks.uploadDesigns;
     Object.assign(task, { enabled: state.schedule.enabled, dailyLimit: state.schedule.dailyLimit,
       windowStart: state.schedule.windowStart, windowEnd: state.schedule.windowEnd, cleanupEnabled: state.schedule.cleanupEnabled,
+      ...(typeof req.body?.projectUploadCancelled === 'boolean' ? { projectUploadCancelled: req.body.projectUploadCancelled } : {}),
       timezone: config.timezone, accountId: config.crealityProfile.userId });
     task.nextRunAt = task.enabled ? scheduleNextRun(task) : '';
     await write(config); return view(state);
@@ -71,6 +73,13 @@ export function uploadDesignRoutes(library = uploadLibrary, services = {}) {
     task.cleanupRetryAt = '';
     if (req.body.enabled) task.accountId = config.crealityProfile.userId;
     await write(config); return view(state);
+  }));
+  // "Cancelar subida 3MF a Proyectos" is a task setting and overrides SUBIR: Si in info.txt.
+  router.put('/projects', json(async req => {
+    if (typeof req.body?.cancelled !== 'boolean') throw new Error('Indica si quieres cancelar la subida 3MF a Proyectos.');
+    const config = await read();
+    config.tasks.uploadDesigns.projectUploadCancelled = req.body.cancelled;
+    await write(config); return view(await library.status());
   }));
   router.post('/preview', json(async () => view(await library.preview())));
   router.get('/cover/:id', async (req, res) => {

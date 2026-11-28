@@ -48,6 +48,8 @@ export function parseUploadInfo(text) {
   if (categories.length > 1) throw problem('Usa una sola línea CATEGORIA: en info.txt.');
   const categoryOverride = categories[0]?.[1].trim() ? resolveUploadCategory(categories[0][1]) : undefined;
   normalized = normalized.replace(/^[\t ]*CATEGOR[ÍI]A[\t ]*:[^\n]*(?:\n|$)/gim, '');
+  const projectUpload = parseProjectUpload(normalized);
+  normalized = normalized.replace(/^[\t ]*SUBIR[\t ]*:[^\n]*(?:\n|$)/gim, '');
   const match = normalized.match(/^\s*ETIQUETAS:\s*\n?([\s\S]*?)^\s*DESCRIPCI[ÓO]N:\s*\n?([\s\S]*)$/im);
   if (!match) throw problem('info.txt debe contener ETIQUETAS: y DESCRIPCION:, en ese orden.');
   const tags = [...new Set(match[1].split(/[,;\n]/).map(tag => tag.trim()).filter(Boolean))];
@@ -57,7 +59,18 @@ export function parseUploadInfo(text) {
   if (tags.length > 20 || tags.some(tag => tag.length > 30)) throw problem('Usa un máximo de 20 etiquetas de hasta 30 caracteres.');
   if (!tags.length) throw problem('Faltan etiquetas en info.txt.');
   if (!description) throw problem('Falta descripción en info.txt.');
-  return { tags, description, ...(categoryOverride ? { categoryOverride } : {}) };
+  return { tags, description, ...(categoryOverride ? { categoryOverride } : {}), projectUpload };
+}
+
+// SUBIR: Si/No decides whether the 3MF also goes to the Projects gallery
+// (Banco de trabajo and FlowSlicer). A missing or empty line counts as No.
+export function parseProjectUpload(text) {
+  const lines = [...String(text).matchAll(/^[\t ]*SUBIR[\t ]*:[\t ]*(.*)$/gim)];
+  if (lines.length > 1) throw problem('Usa una sola línea SUBIR: en info.txt.');
+  const value = (lines[0]?.[1] || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
+  if (!value || value === 'no') return false;
+  if (value === 'si') return true;
+  throw problem('SUBIR no válido. Escribe Si o No.');
 }
 
 export function coverDimensions(data) {

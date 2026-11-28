@@ -1239,9 +1239,11 @@
             <p>El botón de carpeta de <b>Mis diseños</b> crea <code>/media/cctools_3d_models</code> si todavía no existe y abre el explorador para seleccionar los archivos obligatorios y las imágenes opcionales de un diseño. También puedes copiar una subcarpeta por diseño en esa ruta y pulsar el icono de escaneo.</p>
             <p>Formato de <b>info.txt</b> (UTF-8):</p><pre>ETIQUETAS: caja, organizador [Añade etiquetas separadas por coma]
 DESCRIPCION: Descripción del modelo [Añade una breve descripción]
-CATEGORIA: Impresoras 3D / Otro</pre>
+CATEGORIA: Impresoras 3D / Otro
+SUBIR: Si</pre>
             <p>Los textos entre corchetes son indicaciones; no los incluyas en info.txt. Hasta 20 etiquetas de 30 caracteres. Límites por archivo: 3MF 256 MB, cada imagen 20 MB e info.txt 32 KB.</p>
             <p><b>CATEGORIA:</b> es opcional. Escribe el nombre de la categoría y la subcategoría separados por <b>/</b>, usando las opciones de los selectores. Si falta la línea o está vacía, se usará la categoría predeterminada del módulo. Si contiene una combinación válida, tendrá prioridad para ese diseño. Una combinación incorrecta se marcará para revisar.</p>
+            <p><b>SUBIR:</b> es opcional y admite <b>Si</b> o <b>No</b>. Con <b>Si</b>, además de publicar el Modelo 3D, el 3MF del diseño se subirá a la <b>Galería de Proyectos</b> del Banco de trabajo y FlowSlicer, y aparecerá en <b>Archivos de impresión</b> de tu perfil. Es independiente del archivo subido como Modelo 3D. Si falta la línea o está vacía, cuenta como <b>No</b>. Otro valor se marcará para revisar. La casilla <b>Cancelar subida 3MF a Proyectos</b> de la programación tiene prioridad sobre esta línea.</p>
             <p>Los diseños se entregan como <b>Original, Gratis y Público</b>, con el nombre del archivo, la categoría elegida y licencia <b>CC BY-NC</b> (permite adaptaciones y prohíbe el uso comercial), sin recomendación de filamento. Al subir o programar autorizas aceptar la declaración de derechos de autor de Creality para estos diseños.</p>
             <p>El contador muestra las confirmaciones de <b>Upload Models</b> sobre un máximo de <b>5 al día</b>. Entregar un diseño no confirma todavía la recompensa; Creality debe aprobarlo.</p>
           </div>
@@ -1278,6 +1280,10 @@ CATEGORIA: Impresoras 3D / Otro</pre>
               <label class="inline-setting-field time-control-field" title="Se eliminarán los diseños automáticamente de la carpeta una vez validada su subida por CC."><span>Limpiar diseños</span><input id="uploads-cleanup" type="checkbox" aria-label="Limpiar diseños" aria-describedby="uploads-cleanup-help"></label>
             </div>
             <p id="uploads-cleanup-help" class="muted">La opción se guarda al marcarla y funciona aunque la subida esté desactivada. Se usa la fecha de entrega que aparece en Mis diseños: a partir del día siguiente se comprobará la publicación en tu perfil. Solo se eliminará la carpeta del diseño si la publicación está confirmada y sus archivos no han cambiado.</p>
+            <div class="form-grid models-schedule-grid uploads-storage-grid">
+              <label class="inline-setting-field time-control-field" title="No se subirá ningún 3MF a la Galería de Proyectos, aunque info.txt indique SUBIR: Si."><span>Cancelar subida 3MF a Proyectos</span><input id="uploads-projects-cancel" type="checkbox" aria-label="Cancelar subida 3MF a Proyectos" aria-describedby="uploads-projects-help"></label>
+            </div>
+            <p id="uploads-projects-help" class="muted">Desmarcada por defecto. Se guarda al marcarla y se aplica a las subidas manuales y programadas: si está marcada, no se subirá nada a la Galería de Proyectos aunque info.txt indique SUBIR: Si.</p>
             <p id="uploads-next" class="muted"></p><div class="button-row modal-actions"><button id="uploads-program" type="button" disabled>Programar</button></div>
           </div>
         </section>

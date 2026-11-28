@@ -6,6 +6,14 @@ import { readIncentiveProgress } from './incentiveTasks.js';
 import { progressDay } from './dailyProgress.js';
 import { runUploadCleanup } from './uploadDesignCleanup.js';
 
+// Final decision for the Projects gallery (Banco de trabajo / FlowSlicer). The task
+// setting "Cancelar subida 3MF a Proyectos" always wins over SUBIR: Si in info.txt.
+export function projectUploadDecision(model = {}, task = {}) {
+  if (task.projectUploadCancelled === true) return { upload: false, reason: 'cancelled', message: 'Subida a Proyectos cancelada en la configuración.' };
+  if (model.projectUpload === true) return { upload: true, reason: 'info', message: 'info.txt indica SUBIR: Si.' };
+  return { upload: false, reason: 'info', message: 'info.txt no pide subir a Proyectos.' };
+}
+
 export async function runUploadDesigns(task = {}, options = {}, deps = {}) {
   if (options.cleanupOnly) return runUploadCleanup(task, options, deps);
   const library = deps.library || uploadLibrary;
@@ -20,7 +28,7 @@ export async function runUploadDesigns(task = {}, options = {}, deps = {}) {
   const source = options.source || 'manual';
   const selection = await library.candidates({ account, source, day, limit: source === 'manual' ? 5 : task.dailyLimit, selected: options.selected });
   if (!selection.items.length) return { success: true, message: selection.used >= Math.min(5, source === 'manual' ? 5 : task.dailyLimit) ? 'Ya se han enviado los diseños previstos para hoy.' : 'No hay nuevos diseños para subir.', details: { uploaded: [], emptyLibrary: true } };
-  const uploaded = [], failures = [], screenshots = [];
+  const uploaded = [], failures = [], screenshots = [], projectUploads = [];
   let before;
   await browser({}, async context => {
     const page = await context.newPage(); const observer = observeCrealityPage(page, 'uploadDesigns');
@@ -37,9 +45,15 @@ export async function runUploadDesigns(task = {}, options = {}, deps = {}) {
           const result = await submit(page, model, { signal: options.signal, beforeSubmit: async () => {
             await library.record(account, entry, { status: 'submitting', day, source }); submitting = true;
           } });
+          const decision = projectUploadDecision(model, task);
+          // The real upload to flowslicer/project is not implemented yet: keep the
+          // decision in the history so it can run once the flow is known.
+          const project = { ...decision, status: decision.upload ? 'pending' : 'skipped', decidedAt: new Date().toISOString(),
+            ...(decision.upload ? { message: decision.message + ' Subida a Proyectos pendiente: todavía no está disponible.' } : {}) };
           await library.record(account, entry, { status: 'submitted', day, source, ...result,
-            submittedAt: new Date().toISOString(), submittedDay: day });
+            submittedAt: new Date().toISOString(), submittedDay: day, project });
           uploaded.push(result);
+          projectUploads.push({ name: entry.name, ...project });
         } catch (error) {
           const uncertain = submitting && error.code !== 'UPLOAD_REJECTED';
           await library.record(account, entry, { status: uncertain ? 'uncertain' : 'failed', day, source, error: error.message });
@@ -54,6 +68,8 @@ export async function runUploadDesigns(task = {}, options = {}, deps = {}) {
   const missing = Math.max(0, (source === 'schedule' ? task.dailyLimit : selection.items.length) - selection.used - uploaded.length);
   const message = failures.length ? `${uploaded.length} diseños entregados. ${failures[0].name}: ${failures[0].message}` : uploaded.length ?
     `${uploaded.length} diseños entregados a Creality Cloud. Recompensa pendiente de aprobación.${missing ? ` Faltan ${missing} diseños para el objetivo diario.` : ''}` : 'El contador Upload Models ya ha alcanzado el límite diario.';
-  return { success: failures.length === 0, message, screenshots, details: { uploaded, failures, missing,
+  const pendingProjects = projectUploads.filter(item => item.upload).length;
+  const projectNote = pendingProjects ? ` Proyectos: ${pendingProjects} pendiente${pendingProjects === 1 ? '' : 's'} de subir.` : '';
+  return { success: failures.length === 0, message: message + projectNote, screenshots, details: { uploaded, failures, missing, projectUploads,
     rewardVerification: { status: 'pending', before }, rewardPending: uploaded.length > 0 } };
 }
