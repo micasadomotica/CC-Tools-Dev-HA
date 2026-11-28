@@ -3,7 +3,7 @@ import { normalizeGcodeFiles, normalizeGcodeRecords } from './finishPrintSelecti
 const PROFILE_FIELDS = [
   'windowStart', 'windowEnd', 'dailyLimit', 'minIntervalMinutes',
   'printMode',
-  'printerName', 'printerDeviceId', 'printerDeviceName', 'printerTelemetryId', 'printerInterName', 'printerDeviceType', 'printerImageUrl',
+  'printerName', 'printerDeviceId', 'printerDeviceName', 'printerTelemetryId', 'printerInterName', 'printerModel', 'printerDeviceType', 'printerImageUrl',
   'cloudFiles', 'cloudFileRecords', 'fileUsageCounts', 'shuffleBag', 'shuffleBagCursor',
   'discoveryUpdatedAt', 'printPlanDate', 'printPlan', 'printPlanCursor',
   'printPlanDoneCount', 'nextRunAt'
@@ -96,6 +96,7 @@ function normalizeProfile(profile = {}, index = 0) {
     printerDeviceName: String(profile.printerDeviceName || '').trim().slice(0, 160),
     printerTelemetryId: String(profile.printerTelemetryId || '').trim().slice(0, 160),
     printerInterName: String(profile.printerInterName || '').trim().slice(0, 120),
+    printerModel: String(profile.printerModel || '').trim().slice(0, 120),
     printerDeviceType: profile.printerDeviceType !== null
       && profile.printerDeviceType !== ''
       && Number.isFinite(Number(profile.printerDeviceType))

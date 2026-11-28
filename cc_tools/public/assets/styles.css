@@ -2474,6 +2474,25 @@ textarea {
   background: rgba(255, 255, 255, 0.025);
 }
 
+.finish-3mf-list {
+  display: grid;
+  gap: 6px;
+  max-height: 230px;
+  margin: 0;
+  overflow-y: auto;
+  padding: 10px;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.finish-3mf-project {
+  display: grid;
+  gap: 2px;
+  font-size: 0.8rem;
+}
+
 .finish-file-option {
   display: flex;
   align-items: center;

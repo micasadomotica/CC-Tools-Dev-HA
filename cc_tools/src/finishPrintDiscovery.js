@@ -5,6 +5,11 @@ const DEVICE_GROUPS_PATH = '/api/rest/print/cluster/devices/getDeviceGroups';
 export const LIMIT_DEVICE_LIST_PATH = '/api/rest/print/cluster/devices/getLimitDeviceList';
 const GCODE_SELECT_PATH = '/api/cxy/v2/gcodev2/selectForPrinter';
 const GCODE_OWNER_LIST_PATH = '/api/cxy/v2/gcode/ownerList';
+// "Galería de Proyectos" (flowslicer/project?tab=project): the user's FlowSlicer
+// 3MF projects. Request {page, pageSize}; result {list, count}.
+export const FLOW_SLICER_LIST_PATH = '/api/cxy/v3/model/flowSlicerList';
+const PROJECT_PAGE_SIZE = 12;
+const MAX_PROJECT_PAGES = 20;
 const GCODE_PAGE_SIZE = 3;
 const GCODE_LIBRARY_PAGE_SIZE = 12;
 const MAX_GCODE_PAGES = 50;
@@ -107,6 +112,99 @@ export function discoverGcodeFiles(printer = {}) {
     }
     return files;
   });
+}
+
+export function discover3mfProjects(printer = {}) {
+  const requestedPrinter = String(printer.name || '').trim();
+  if (!requestedPrinter) throw discoveryError('FINISH_PRINT_PRINTER_REQUIRED', 'Selecciona una impresora.');
+  const target = {
+    printerInterName: String(printer.printerInterName || '').trim(),
+    model: String(printer.model || '').trim()
+  };
+  if (!target.printerInterName && !target.model) {
+    throw discoveryError(
+      'FINISH_PRINT_PRINTER_METADATA_REQUIRED',
+      'Actualiza las impresoras y vuelve a seleccionar la impresora virtual.'
+    );
+  }
+
+  return withAutomationBrowser({}, async (context) => {
+    const page = context.pages()[0] || await context.newPage();
+    const authenticationHeadersPromise = waitForAuthenticationHeaders(page);
+    await page.goto(WORKBENCH_URL, { waitUntil: 'domcontentloaded' });
+    await page.waitForTimeout(1500);
+    ensureWorkbenchSession(page, await collectSurfaceText(page));
+    const authenticationHeaders = await authenticationHeadersPromise;
+    if (!authenticationHeaders) {
+      const error = discoveryError(
+        'FINISH_PRINT_AUTH_REQUEST_NOT_OBSERVED',
+        'Creality Cloud no realizó la consulta autenticada del Banco de trabajo.'
+      );
+      error.silentRetry = true;
+      throw error;
+    }
+
+    const responses = [];
+    for (let pageNumber = 1; pageNumber <= MAX_PROJECT_PAGES; pageNumber += 1) {
+      const response = await requestGcodeFiles(
+        page,
+        { page: pageNumber, pageSize: PROJECT_PAGE_SIZE },
+        authenticationHeaders,
+        FLOW_SLICER_LIST_PATH
+      );
+      responses.push(response);
+      const list = Array.isArray(response?.result?.list) ? response.result.list : [];
+      const count = Number(response?.result?.count);
+      if (list.length < PROJECT_PAGE_SIZE) break;
+      if (Number.isFinite(count) && pageNumber * PROJECT_PAGE_SIZE >= count) break;
+    }
+    const projects = parse3mfProjects(responses).filter((project) => projectMatchesPrinter(project, target));
+    if (!projects.length) {
+      throw discoveryError(
+        'FINISH_PRINT_3MF_NOT_FOUND',
+        'No hay proyectos 3MF para este modelo de impresora en la Galería de Proyectos.'
+      );
+    }
+    return projects;
+  });
+}
+
+export function parse3mfProjects(payloads) {
+  const unique = new Map();
+  for (const payload of payloads || []) {
+    const list = Array.isArray(payload?.result?.list) ? payload.result.list : [];
+    for (const project of list) {
+      const id = String(project?.id || '').trim();
+      const name = String(project?.title || '').trim();
+      if (!id || !name || unique.has(id)) continue;
+      unique.set(id, {
+        id,
+        name,
+        kind: '3mf',
+        printerName: String(project.printerName || '').trim(),
+        printerInternalName: String(project.printerInternalName || '').trim(),
+        processName: String(project.officialProcessName || project.userProcessName || '').trim(),
+        coverUrl: String(project.coverPic || '').trim(),
+        fileKey: String(project.uploadFileKey || project.modifiedFileKey || project.originFileKey || '').trim(),
+        generated: Number(project.generate3mfStatus) === 2,
+        updatedAt: Math.max(0, Number(project.lastModifyTime || project.createTime) || 0)
+      });
+    }
+  }
+  return [...unique.values()];
+}
+
+// A project fits the printer when its internal name matches (e.g. "F001") or its
+// printer name matches the device model ("Creality Ender-3 V3" vs "Ender-3 V3").
+export function projectMatchesPrinter(project = {}, printer = {}) {
+  const interName = String(printer.printerInterName || '').trim().toLowerCase();
+  if (interName && String(project.printerInternalName || '').trim().toLowerCase() === interName) return true;
+  const model = normalizePrinterModel(printer.model);
+  return Boolean(model) && normalizePrinterModel(project.printerName) === model;
+}
+
+function normalizePrinterModel(value) {
+  return String(value || '').trim().toLowerCase().replace(/^creality\s+/, '').replace(/\s+/g, ' ');
 }
 
 export function discoverGcodeLibrary() {

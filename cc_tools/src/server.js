@@ -41,7 +41,7 @@ import { browserChallengeState, challengeEvents } from './browserChallenge.js';
 import { browserDiagnosticJournal } from './browserDiagnosticJournal.js';
 import { buildHealthMetrics } from './healthMetrics.js';
 import { mergePointsState, readPointsSummary } from './pointsCounter.js';
-import { discoverGcodeFiles, discoverGcodeLibrary, discoverPrinters } from './finishPrintDiscovery.js';
+import { discover3mfProjects, discoverGcodeFiles, discoverGcodeLibrary, discoverPrinters } from './finishPrintDiscovery.js';
 import { controlPrinter, readPrinterStatuses } from './finishPrintStatus.js';
 import {
   recoverStalePendingFinishPrint,
@@ -481,6 +481,19 @@ app.post('/api/tasks/finish-print/discover-files', async (req, res) => {
       deviceType: req.body?.deviceType
     });
     res.json({ ok: true, files });
+  } catch (error) {
+    res.status(409).json({ ok: false, error: error.code || error.message, message: error.message });
+  }
+});
+
+app.post('/api/tasks/finish-print/discover-3mf', async (req, res) => {
+  try {
+    const projects = await discover3mfProjects({
+      name: String(req.body?.printerName || '').trim(),
+      printerInterName: String(req.body?.printerInterName || '').trim(),
+      model: String(req.body?.printerModel || '').trim()
+    });
+    res.json({ ok: true, projects });
   } catch (error) {
     res.status(409).json({ ok: false, error: error.code || error.message, message: error.message });
   }

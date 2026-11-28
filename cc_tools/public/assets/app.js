@@ -1972,6 +1972,7 @@ function addFinishPrinterProfile() {
     printerDeviceName: printer.deviceName || '',
     printerTelemetryId: printer.telemetryId || '',
     printerInterName: printer.printerInterName || '',
+    printerModel: printer.model || '',
     printerDeviceType: printer.deviceType ?? null,
     printerImageUrl: printer.imageUrl || '',
     cloudFiles: [],
@@ -2022,7 +2023,22 @@ function finishProfileSupports3mf(profile) {
   const printer = state.finishPrintDiscovery.printers.find((item) => profile.printerDeviceId
     ? String(item.deviceId || '') === String(profile.printerDeviceId)
     : item.name === profile.printerName) || {};
-  return isCxyGen2Printer({ printerInterName: profile.printerInterName, model: printer.model });
+  return isCxyGen2Printer({ printerInterName: profile.printerInterName, printerModel: profile.printerModel, model: printer.model });
+}
+
+// 3MF projects found by "Buscar 3MF" (Galería de Proyectos). Read-only for now:
+// they cannot be scheduled until 3MF printing is implemented.
+function finish3mfProjectsMarkup(profile) {
+  const projects = Array.isArray(profile.available3mf) ? profile.available3mf : [];
+  if (!projects.length) return '';
+  const items = projects.map((project) => `<li class="finish-3mf-project">
+      <strong>${escapeHtml(project.name)}</strong>
+      <span class="muted">${escapeHtml([project.printerName, project.processName].filter(Boolean).join(' · '))}</span>
+    </li>`).join('');
+  return `<div class="setup-control-row finish-3mf-projects">
+      <p class="muted">Proyectos 3MF compatibles en la Galería de Proyectos (todavía no se pueden programar):</p>
+      <ul class="finish-3mf-list">${items}</ul>
+    </div>`;
 }
 
 function finishPrinterProfileMarkup(profile) {
@@ -2060,6 +2076,7 @@ function finishPrinterProfileMarkup(profile) {
     <div class="setup-control-row">
       <div class="finish-files-list">${files}</div>
     </div>
+    ${finish3mfProjectsMarkup(profile)}
     <div class="finish-print-schedule-config">
       <div class="form-grid finish-print-schedule-grid">
         <label class="inline-setting-field time-control-field"><span>Desde las</span><input data-finish-profile-field="windowStart" type="time" value="${escapeHtml(profile.windowStart || '08:00')}"></label>
@@ -2106,6 +2123,7 @@ function collectFinishPrinterProfiles() {
       printerDeviceName: printer.deviceName || printer.printerDeviceName || '',
       printerTelemetryId: printer.telemetryId || printer.printerTelemetryId || '',
       printerInterName: printer.printerInterName || '',
+      printerModel: printer.model || printer.printerModel || '',
       printerDeviceType: printer.deviceType ?? printer.printerDeviceType ?? null,
       printerImageUrl: printer.imageUrl || printer.printerImageUrl || '',
       windowStart: card.querySelector('[data-finish-profile-field="windowStart"]').value,
@@ -2164,9 +2182,18 @@ async function handleFinishPrintProfileAction(event) {
     return;
   }
   if (action === 'discover-3mf') {
-    // Prepared UI only: the 3MF search (Galería de Proyectos / community models
-    // with a matching print profile) is not implemented yet.
-    return toast('La búsqueda de 3MF todavía no está disponible.');
+    if (!profile?.printerName) return toast('Selecciona primero una impresora.');
+    button.disabled = true;
+    const result = await apiWhenBrowserAvailable('/api/tasks/finish-print/discover-3mf', {
+      method: 'POST',
+      body: { printerName: profile.printerName, printerInterName: profile.printerInterName || '', printerModel: profile.printerModel || '' }
+    }, button);
+    button.disabled = false;
+    if (result.cancelled) return;
+    if (!result.ok) return toast(result.message || errorMessage(result.error, result));
+    profile.available3mf = result.projects || [];
+    renderFinishPrinterProfiles();
+    return toast(`${profile.available3mf.length} proyecto(s) 3MF encontrado(s).`);
   }
   button.disabled = true;
   if (action === 'discover-files') {

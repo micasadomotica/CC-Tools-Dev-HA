@@ -18,6 +18,9 @@ function functionsFrom(file, names) {
 
 test('detects cxy-gen2 printers from the stored model name', () => {
   assert.equal(isCxyGen2Printer({ printerInterName: 'Ender-3 V3' }), true);
+  // Real Creality data for the virtual printer after the M115 change.
+  assert.equal(isCxyGen2Printer({ printerInterName: 'F001' }), true);
+  assert.equal(isCxyGen2Printer({ printerInterName: 'Ender-3', printerModel: 'Ender-3 V3' }), true);
   assert.equal(isCxyGen2Printer({ printerInterName: 'Ender-3 V3 SE' }), true);
   assert.equal(isCxyGen2Printer({ printerInterName: 'Ender-3 V3 KE' }), true);
   assert.equal(isCxyGen2Printer({ printerInterName: '', model: 'K1 Max' }), true);
@@ -33,10 +36,12 @@ test('refreshes saved profile metadata after the printer model changes', () => {
     { id: 'a', printerName: 'HA Ender-3', printerDeviceId: '42', printerInterName: 'Ender-3', printerDeviceType: 5, cloudFiles: ['x.gcode'] },
     { id: 'b', printerName: 'Otra', printerDeviceId: '7', printerInterName: 'K1', printerDeviceType: 9 }
   ];
-  const printers = [{ name: 'HA Ender-3', deviceId: '42', deviceName: 'dn-42', printerInterName: 'Ender-3 V3', deviceType: 5, model: 'Ender-3 V3' }];
+  const printers = [{ name: 'HA Ender-3 V3', deviceId: '42', deviceName: 'dn-42', printerInterName: 'Ender-3 V3', deviceType: 5, model: 'Ender-3 V3' }];
   const [first, second] = refreshProfilesFromPrinters(profiles, printers);
   assert.equal(first.printerInterName, 'Ender-3 V3');
+  assert.equal(first.printerModel, 'Ender-3 V3');
   assert.equal(first.printerDeviceName, 'dn-42');
+  assert.equal(first.printerName, 'HA Ender-3 V3');
   assert.deepEqual(first.cloudFiles, ['x.gcode']);
   assert.equal(second, profiles[1]);
 });
@@ -59,7 +64,7 @@ test('Buscar 3MF appears next to Buscar GCODE only for cxy-gen2 printers', () =>
     escapeHtml: (value) => String(value ?? ''),
     finishFileOptionMarkup: () => ''
   });
-  vm.runInContext(functionsFrom('../public/assets/app.js', ['finishProfileSupports3mf', 'finishPrinterProfileMarkup']), context);
+  vm.runInContext(functionsFrom('../public/assets/app.js', ['finishProfileSupports3mf', 'finish3mfProjectsMarkup', 'finishPrinterProfileMarkup']), context);
   const markup = (profile) => context.finishPrinterProfileMarkup({ id: 'p', cloudFiles: [], ...profile });
 
   const gen2 = markup({ printerName: 'HA Ender-3', printerInterName: 'Ender-3 V3' });
@@ -68,6 +73,10 @@ test('Buscar 3MF appears next to Buscar GCODE only for cxy-gen2 printers', () =>
 
   // Saved profile still has the old model, but the fresh discovery says Ender-3 V3.
   assert.match(markup({ printerName: 'Nueva', printerDeviceId: '9', printerInterName: 'Ender-3' }), /Buscar 3MF/);
+
+  const withProjects = markup({ printerName: 'HA Ender-3', printerInterName: 'F001',
+    available3mf: [{ id: 'p1', name: 'Bed+Level+Test+(Scalable).3mf', printerName: 'Ender-3 V3', processName: '0.20mm Standard' }] });
+  assert.match(withProjects, /<li class="finish-3mf-project">\s*<strong>Bed\+Level\+Test\+\(Scalable\)\.3mf<\/strong>/);
 
   const classic = markup({ printerName: 'Clásica', printerInterName: 'Ender-3' });
   assert.match(classic, /Buscar GCODE/);
